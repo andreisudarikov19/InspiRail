@@ -1,0 +1,138 @@
+//
+//  SettingsView.swift
+//  rnsapp
+//
+//  Created by Andrei Sudarikov on 03/01/2026.
+//
+
+import SwiftUI
+import SwiftData
+
+struct SettingsView: View {
+    @Environment(\.modelContext) private var modelContext
+    @AppStorage("homeStationCode") private var homeStationCode: String = ""
+    @AppStorage("homeStationName") private var homeStationName: String = ""
+    @State private var showingResetAlert = false
+    @Query private var visitedStations: [VisitedStation]
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    NavigationLink {
+                        StationSelectorView(selectedCode: $homeStationCode, selectedName: $homeStationName)
+                    } label: {
+                        HStack {
+                            SettingsIcon(icon: "house.fill", color: .blue)
+                            VStack(alignment: .leading) {
+                                Text("Home Station").foregroundColor(.primary)
+                                Text(homeStationName.isEmpty ? "Select a station" : homeStationName)
+                                    .font(.caption).foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Travel Preferences")
+                }
+                Section {
+                    Button(role: .destructive) { showingResetAlert = true } label: {
+                        HStack { SettingsIcon(icon: "trash.fill", color: .red); Text("Reset Logbook") }
+                    }
+                    .disabled(visitedStations.isEmpty)
+                } header: {
+                    Text("Data Management")
+                } footer: {
+                    Text("This will remove all \(visitedStations.count) stations from your history.")
+                }
+                Section {
+                    HStack { SettingsIcon(icon: "info.circle.fill", color: .gray); Text("Version"); Spacer(); Text(appVersion).foregroundStyle(.secondary) }
+                    Link(destination: URL(string: "https://apiportal.ns.nl")!) {
+                        HStack { SettingsIcon(icon: "server.rack", color: .indigo); Text("Powered by NS API"); Spacer(); Image(systemName: "arrow.up.right").font(.caption).foregroundStyle(.secondary) }
+                    }
+                } header: {
+                    Text("About")
+                }
+            }
+            .navigationTitle("Settings")
+            .alert("Reset History?", isPresented: $showingResetAlert) {
+                Button("Cancel", role: .cancel) { }
+                Button("Delete All", role: .destructive) { resetHistory() }
+            } message: { Text("This action cannot be undone.") }
+        }
+    }
+    
+    private var appVersion: String {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+        return "\(version) (\(build))"
+    }
+    
+    private func resetHistory() {
+        withAnimation {
+            for station in visitedStations { modelContext.delete(station) }
+            try? modelContext.save()
+        }
+    }
+}
+
+struct SettingsIcon: View {
+    let icon: String; let color: Color
+    var body: some View {
+        Image(systemName: icon).font(.system(size: 14, weight: .semibold)).foregroundColor(.white)
+            .frame(width: 28, height: 28).background(color.gradient).cornerRadius(6)
+    }
+}
+
+struct StationSelectorView: View {
+    @Binding var selectedCode: String
+    @Binding var selectedName: String
+    @Environment(\.dismiss) private var dismiss
+    @State private var allStations: [Station] = []
+    @State private var searchText = ""
+    @State private var isLoading = true
+    
+    var filteredStations: [Station] {
+        if searchText.isEmpty { return allStations }
+        else { return allStations.filter { $0.names.long.localizedCaseInsensitiveContains(searchText) || $0.identifiers.code.localizedCaseInsensitiveContains(searchText) } }
+    }
+    
+    var body: some View {
+        List {
+            if isLoading { ProgressView("Loading stations...").frame(maxWidth: .infinity).listRowBackground(Color.clear) }
+            else {
+                ForEach(filteredStations) { station in
+                    Button {
+                        // FIXED: .identifiers.code
+                        selectedCode = station.identifiers.code
+                        selectedName = station.names.long
+                        dismiss()
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text(station.names.long).foregroundStyle(.primary)
+                                Text(station.readableType).font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            // FIXED: .identifiers.code
+                            if station.identifiers.code == selectedCode { Image(systemName: "checkmark").foregroundStyle(.blue) }
+                        }
+                    }
+                    .foregroundStyle(.primary)
+                }
+            }
+        }
+        .navigationTitle("Select Home")
+        .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search station")
+        .task { await fetchStations() }
+    }
+    
+    private func fetchStations() async {
+        guard allStations.isEmpty else { return }
+        do {
+            let url = "https://gateway.apiportal.ns.nl/nsapp-stations/v3"
+            let response = try await NetworkManager.shared.fetch(from: url, as: StationResponse.self)
+            let sorted = response.payload.filter { $0.country == "NL" }.sorted { $0.names.long < $1.names.long }
+            await MainActor.run { self.allStations = sorted; self.isLoading = false }
+        } catch { print("Error loading stations: \(error)"); isLoading = false }
+    }
+}
