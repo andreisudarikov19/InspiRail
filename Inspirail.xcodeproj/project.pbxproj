@@ -27,6 +27,9 @@
 		EB0A6B2D2F07B982003FB8D1 /* Inspirail.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Inspirail.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EB0A6B3C2F07B986003FB8D1 /* InspirailTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = InspirailTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		EB0A6B462F07B986003FB8D1 /* InspirailUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = InspirailUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		EB17A3412FACC32700819AB5 /* Inspirail.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = file; path = Inspirail.xctestplan; sourceTree = "<group>"; };
+		EB33C5C42F4F475C003FFBEA /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
+		EB85ECF72F2F5866003C9DB9 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -65,8 +68,11 @@
 		EB0A6B242F07B982003FB8D1 = {
 			isa = PBXGroup;
 			children = (
+				EB17A3412FACC32700819AB5 /* Inspirail.xctestplan */,
+				EB85ECF72F2F5866003C9DB9 /* Secrets.xcconfig */,
 				EB0A6B2F2F07B982003FB8D1 /* inspirail */,
 				EB0A6B2E2F07B982003FB8D1 /* Products */,
+				EB33C5C42F4F475C003FFBEA /* .gitignore */,
 			);
 			sourceTree = "<group>";
 		};
@@ -253,6 +259,7 @@
 /* Begin XCBuildConfiguration section */
 		EB0A6B4E2F07B986003FB8D1 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = EB85ECF72F2F5866003C9DB9 /* Secrets.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -317,6 +324,7 @@
 		};
 		EB0A6B4F2F07B986003FB8D1 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = EB85ECF72F2F5866003C9DB9 /* Secrets.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -374,11 +382,12 @@
 		};
 		EB0A6B512F07B986003FB8D1 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = EB85ECF72F2F5866003C9DB9 /* Secrets.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = JF2728JTJB;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -387,13 +396,13 @@
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.3;
 				PRODUCT_BUNDLE_IDENTIFIER = annisu.rnsapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -408,11 +417,12 @@
 		};
 		EB0A6B522F07B986003FB8D1 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = EB85ECF72F2F5866003C9DB9 /* Secrets.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = JF2728JTJB;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -421,13 +431,13 @@
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.3;
 				PRODUCT_BUNDLE_IDENTIFIER = annisu.rnsapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -442,6 +452,7 @@
 		};
 		EB0A6B542F07B986003FB8D1 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = EB85ECF72F2F5866003C9DB9 /* Secrets.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
@@ -464,6 +475,7 @@
 		};
 		EB0A6B552F07B986003FB8D1 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = EB85ECF72F2F5866003C9DB9 /* Secrets.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
@@ -486,6 +498,7 @@
 		};
 		EB0A6B572F07B986003FB8D1 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = EB85ECF72F2F5866003C9DB9 /* Secrets.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -506,6 +519,7 @@
 		};
 		EB0A6B582F07B986003FB8D1 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = EB85ECF72F2F5866003C9DB9 /* Secrets.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;

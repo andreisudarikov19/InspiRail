@@ -2,44 +2,42 @@
 //  NetworkManager.swift
 //  rnsapp
 //
-//  Created by Andrei Sudarikov on 02/01/2026.
+//  Deprecated shim forwarding to BackendAPI/StationsRepository.
 //
 
 import Foundation
+import OSLog
+
+let networkLog = Logger(subsystem: "com.rnsapp", category: "network")
 
 actor NetworkManager {
-    
     static let shared = NetworkManager()
     private init() {}
-    
-    private let apiKey = "dbd719b0ae324a8e8d7dc673e013da25"
-    
+
+    private let backend = BackendAPI()
+
+    /// Deprecated: Use `StationsRepository` or `BackendAPI` directly.
     func fetch<T: Decodable>(from urlString: String, as type: T.Type) async throws -> T {
-        
+        networkLog.warning("Deprecated direct fetch used for: \(urlString, privacy: .public)")
+
+        // Known mapping: stations endpoint
+        if urlString.contains("/nsapp-stations/v3") {
+            let stations = try await backend.getStations()
+            if let typed = stations as? T {
+                return typed
+            } else {
+                throw NetworkError.decodingError(NSError(domain: "NetworkManagerShim", code: -1, userInfo: [NSLocalizedDescriptionKey: "Type mismatch in shim. Expected \(T.self)"]))
+            }
+        }
+
+        // Attempt to derive a relative path from the provided URL
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue(apiKey, forHTTPHeaderField: "Ocp-Apim-Subscription-Key")
-        
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw NetworkError.noData
+        let relativePath = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        guard !relativePath.isEmpty else {
+            throw NetworkError.invalidURL
         }
-        
-        guard (200...299).contains(httpResponse.statusCode) else {
-            throw NetworkError.serverError(httpResponse.statusCode)
-        }
-        
-        do {
-            let decoder = JSONDecoder()
-            return try decoder.decode(T.self, from: data)
-        } catch {
-            print("Decoding Error: \(error)")
-            throw NetworkError.decodingError(error)
-        }
+        return try await backend.request(relativePath, as: T.self)
     }
 }
