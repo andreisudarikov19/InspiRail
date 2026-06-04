@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Foundation
 
 struct OnboardingView: View {
     @Binding var hasCompletedOnboarding: Bool
@@ -140,22 +141,43 @@ struct OnboardingView: View {
         errorMessage = nil
         
         do {
-            let url = "https://gateway.apiportal.ns.nl/nsapp-stations/v3"
-            let response = try await NetworkManager.shared.fetch(from: url, as: StationResponse.self)
+            let repository = StationsRepository()
+            let stationResponse = try await repository.stations()
             
             // Filter only Dutch stations and sort A-Z
-            let stations = response.payload
-                .filter { $0.country == "NL" }
-                .sorted { $0.names.long < $1.names.long }
+            let dutchStations = stationResponse.payload.filter { $0.country == "NL" }
+            let sorted = dutchStations.sorted { $0.names.long < $1.names.long }
             
             await MainActor.run {
-                self.allStations = stations
-                self.filteredStations = stations
+                self.allStations = sorted
+                self.filteredStations = sorted
                 self.isLoading = false
             }
         } catch {
+            // Log the actual error for debugging
+            print("❌ OnboardingView - Failed to load stations: \(error)")
+            print("   Error type: \(type(of: error))")
+            
+            if let networkError = error as? NetworkError {
+                print("   Network error: \(networkError)")
+            }
+            
             await MainActor.run {
-                self.errorMessage = "Could not load stations. Please check your internet connection."
+                // Provide more specific error messages
+                if let networkError = error as? NetworkError {
+                    switch networkError {
+                    case .unauthorized:
+                        self.errorMessage = "Authentication failed. Please check your API configuration."
+                    case .noConnection:
+                        self.errorMessage = "No internet connection. Please check your network."
+                    case .timeout:
+                        self.errorMessage = "Connection timeout. Please try again."
+                    default:
+                        self.errorMessage = "Could not load stations: \(networkError.localizedDescription)"
+                    }
+                } else {
+                    self.errorMessage = "Could not load stations. Please check your internet connection."
+                }
                 self.isLoading = false
             }
         }

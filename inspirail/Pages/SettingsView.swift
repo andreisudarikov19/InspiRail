@@ -129,10 +129,16 @@ struct StationSelectorView: View {
     private func fetchStations() async {
         guard allStations.isEmpty else { return }
         do {
-            let url = "https://gateway.apiportal.ns.nl/nsapp-stations/v3"
-            let response = try await NetworkManager.shared.fetch(from: url, as: StationResponse.self)
+            let repository = StationsRepository()
+            let response = try await repository.stations()
             let sorted = response.payload.filter { $0.country == "NL" }.sorted { $0.names.long < $1.names.long }
-            await MainActor.run { self.allStations = sorted; self.isLoading = false }
-        } catch { print("Error loading stations: \(error)"); isLoading = false }
+            await MainActor.run { 
+                self.allStations = sorted
+                self.isLoading = false
+            }
+        } catch { 
+            print("Error loading stations: \(error)")
+            await MainActor.run { self.isLoading = false }
+        }
     }
 }

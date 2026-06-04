@@ -97,8 +97,8 @@ struct VisitedListView: View {
     
     private func loadStationData() async {
         do {
-            let url = "https://gateway.apiportal.ns.nl/nsapp-stations/v3"
-            let response = try await NetworkManager.shared.fetch(from: url, as: StationResponse.self)
+            let repository = StationsRepository()
+            let response = try await repository.stations()
             let stations = response.payload.filter { $0.country == "NL" }
             
             self.totalStations = stations.count
@@ -217,3 +217,4 @@ struct StationRowView: View {
         .padding(.vertical, 4)
     }
 }
+
