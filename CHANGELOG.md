@@ -14,6 +14,21 @@ Both live in `Inspirail.xcodeproj/project.pbxproj` on the app target and flow th
 
 ---
 
+## [1.4.0] — 2026-06-05 (build 6)
+
+### Changed
+- Logbook page redesigned around a HIG-pure, collection-progress aesthetic. The old gradient progress ring and shadowed stats card are gone; the hero is now a compact "N of total" header with a slim system-blue progress bar and percentage readout. Rows show plain typography with the station code restored as a soft yellow badge for the collectible-tag feel.
+- Visit dates now render with smart relative formatting — "Just now" / "Yesterday" / weekday name / "Jan 16" — so the most recent activity reads at a glance.
+- The total Dutch station count is cached in `UserDefaults`, so the hero stats render instantly on subsequent launches instead of flickering from the previous hardcoded 397.
+
+### Added
+- Empty state for the visited timeline: when no stations have been logged yet, the timeline section shows a friendly "No visits yet" prompt directing the user to the Discover tab.
+
+### Fixed
+- The home station is now consistently excluded from both the timeline list and the progress percentage (previously it counted toward `%` but was filtered from the list).
+
+---
+
 ## [1.3.1] — 2026-06-05 (build 5)
 
 ### Fixed

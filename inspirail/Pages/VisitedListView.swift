@@ -11,24 +11,31 @@ import SwiftData
 struct VisitedListView: View {
     @Query(sort: \VisitedStation.dateVisited, order: .reverse)
     private var visitedStations: [VisitedStation]
-    
+
     @AppStorage("homeStationCode") private var homeStationCode: String = ""
-    @State private var homeStation: Station?
-    @State private var totalStations = 397
-    @State private var progressValue: Double = 0.0
-    
-    // MARK: - Computed Grouping Logic
-    // Groups stations by "Month Year" (e.g., "January 2026") keeping the sort order.
+    @AppStorage("homeStationName") private var homeStationName: String = ""
+
+    /// Last-known total Dutch station count, persisted across launches so the
+    /// hero stats don't flicker on first frame. Zero means "not yet known".
+    @AppStorage("cachedTotalStations") private var cachedTotalStations: Int = 0
+
+    private var visitedExcludingHome: [VisitedStation] {
+        visitedStations.filter { $0.stationCode != homeStationCode }
+    }
+
+    private var visitedCount: Int { visitedExcludingHome.count }
+
+    private var progress: Double {
+        guard cachedTotalStations > 0 else { return 0 }
+        return min(1.0, Double(visitedCount) / Double(cachedTotalStations))
+    }
+
+    /// Groups visited stations by "Month Year" while preserving the query's
+    /// reverse-chronological sort.
     private var historyByMonth: [(month: String, stations: [VisitedStation])] {
-        let filtered = visitedStations.filter { $0.stationCode != homeStationCode }
-        
-        // Since visitedStations is already sorted by date (reverse),
-        // we can just iterate linearly to group them.
         var groups: [(String, [VisitedStation])] = []
-        
-        for station in filtered {
+        for station in visitedExcludingHome {
             let monthTitle = station.dateVisited.formatted(.dateTime.month(.wide).year())
-            
             if let lastIndex = groups.indices.last, groups[lastIndex].0 == monthTitle {
                 groups[lastIndex].1.append(station)
             } else {
@@ -37,184 +44,268 @@ struct VisitedListView: View {
         }
         return groups
     }
-    
+
     var body: some View {
         NavigationStack {
-            ZStack {
-                Color(uiColor: .systemGroupedBackground)
-                    .ignoresSafeArea()
-                
-                List {
-                    // MARK: - 1. Stats Header
-                    Section {
-                        StatsHeaderView(
-                            visitedCount: visitedStations.count,
-                            totalCount: totalStations,
-                            progress: progressValue
-                        )
-                        .listRowBackground(Color.clear)
-                        .padding(.vertical, 4)
-                    }
-                    
-                    // MARK: - 2. Home Station (Pinned)
-                    if let home = homeStation {
-                        Section {
-                            StationRowView(
-                                name: home.names.long,
-                                code: home.identifiers.code,
-                                date: nil,
-                                isHome: true
-                            )
-                        }
-                    }
-                    
-                    // MARK: - 3. Timeline (Grouped by Month)
-                    ForEach(historyByMonth, id: \.month) { group in
-                        Section(header: Text(group.month)) {
-                            ForEach(group.stations) { visit in
-                                StationRowView(
-                                    name: visit.stationName,
-                                    code: visit.stationCode,
-                                    date: visit.dateVisited,
-                                    isHome: false
-                                )
-                            }
-                        }
-                    }
+            List {
+                statsSection
+
+                if !homeStationCode.isEmpty {
+                    homeSection
                 }
-                .listStyle(.insetGrouped)
+
+                if visitedExcludingHome.isEmpty {
+                    emptyTimelineSection
+                } else {
+                    timelineSections
+                }
             }
+            .listStyle(.insetGrouped)
             .navigationTitle("Logbook")
-            .navigationBarTitleDisplayMode(.large)
-            .task {
-                await loadStationData()
-                withAnimation(.easeOut(duration: 1.5)) {
-                    progressValue = Double(visitedStations.count) / Double(totalStations)
+            .task { await refreshTotalStationCount() }
+        }
+    }
+
+    // MARK: - Sections
+
+    private var statsSection: some View {
+        Section {
+            StatsHeader(
+                visitedCount: visitedCount,
+                totalCount: cachedTotalStations,
+                progress: progress
+            )
+            .listRowInsets(EdgeInsets(top: 16, leading: 20, bottom: 16, trailing: 20))
+        }
+    }
+
+    private var homeSection: some View {
+        Section("Home") {
+            HomeStationRow(
+                name: homeStationName.isEmpty ? homeStationCode : homeStationName,
+                code: homeStationCode
+            )
+        }
+    }
+
+    private var emptyTimelineSection: some View {
+        Section {
+            EmptyTimelinePrompt()
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+        }
+    }
+
+    @ViewBuilder
+    private var timelineSections: some View {
+        ForEach(historyByMonth, id: \.month) { group in
+            Section(group.month) {
+                ForEach(group.stations) { visit in
+                    VisitedStationRow(
+                        name: visit.stationName,
+                        code: visit.stationCode,
+                        date: visit.dateVisited
+                    )
                 }
             }
         }
     }
-    
-    private func loadStationData() async {
+
+    // MARK: - Data
+
+    /// Refresh the total Dutch station count from the API. Cached value backs
+    /// the hero so the next launch renders instantly.
+    private func refreshTotalStationCount() async {
         do {
             let repository = StationsRepository()
             let response = try await repository.stations()
-            let stations = response.payload.filter { $0.country == "NL" }
-            
-            self.totalStations = stations.count
-            
-            if let foundHome = stations.first(where: { $0.identifiers.code == homeStationCode }) {
-                self.homeStation = foundHome
+            let dutchCount = response.payload.filter { $0.country == "NL" }.count
+            if dutchCount > 0 {
+                cachedTotalStations = dutchCount
             }
         } catch {
-            print("Failed to fetch station data: \(error)")
+            // Cached value (if any) still serves; silent failure is the right
+            // call here since this is a non-critical background refresh.
         }
     }
 }
 
-// MARK: - Subviews
+// MARK: - Stats Header
 
-struct StatsHeaderView: View {
+private struct StatsHeader: View {
     let visitedCount: Int
     let totalCount: Int
     let progress: Double
-    
-    var percentage: Int {
-        Int(progress * 100)
-    }
-    
+
+    private var percentage: Int { Int((progress * 100).rounded()) }
+
     var body: some View {
-        HStack(spacing: 20) {
-            // Ring
-            ZStack {
-                Circle()
-                    .stroke(Color.gray.opacity(0.15), lineWidth: 8)
-                
-                Circle()
-                    .trim(from: 0, to: progress)
-                    .stroke(
-                        AngularGradient(
-                            gradient: Gradient(colors: [.blue, .purple]),
-                            center: .center
-                        ),
-                        style: StrokeStyle(lineWidth: 8, lineCap: .round)
-                    )
-                    .rotationEffect(.degrees(-90))
-                
-                Text("\(percentage)%")
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
-            }
-            .frame(width: 80, height: 80)
-            
-            // Stats Text
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Discovery progress")
-                    .font(.headline)
-                
-                HStack {
-                    Text("\(visitedCount)")
-                        .bold()
-                        .foregroundColor(.blue)
-                    Text("of \(totalCount) stations visited")
-                        .foregroundColor(.secondary)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(countText)
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .contentTransition(.numericText(value: Double(visitedCount)))
+                    .animation(.easeOut(duration: 0.4), value: visitedCount)
+                    .monospacedDigit()
+
+                Spacer()
+
+                if totalCount > 0 {
+                    Text("\(percentage)%")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
                 }
-                .font(.subheadline)
             }
-            
-            Spacer()
+
+            ProgressView(value: progress)
+                .tint(.blue)
+                .animation(.easeOut(duration: 0.6), value: progress)
         }
-        .padding()
-        .background(Color(uiColor: .secondarySystemGroupedBackground))
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityDescription)
+    }
+
+    private var countText: String {
+        guard totalCount > 0 else { return "\(visitedCount) visited" }
+        return "\(visitedCount) of \(totalCount)"
+    }
+
+    private var accessibilityDescription: String {
+        guard totalCount > 0 else { return "\(visitedCount) stations visited" }
+        return "\(visitedCount) of \(totalCount) stations visited, \(percentage) percent"
     }
 }
 
-struct StationRowView: View {
+// MARK: - Station Code Badge
+
+private struct StationCodeBadge: View {
+    let code: String
+
+    var body: some View {
+        Text(code)
+            .font(.system(.subheadline, design: .monospaced).weight(.semibold))
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.yellow.opacity(0.45))
+            )
+    }
+}
+
+// MARK: - Home Station Row
+
+private struct HomeStationRow: View {
     let name: String
     let code: String
-    let date: Date?
-    let isHome: Bool
-    
+
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
-            
-            // Left Side: Name & Date
             VStack(alignment: .leading, spacing: 2) {
                 Text(name)
-                    .font(.body.weight(.medium))
-                    .foregroundColor(isHome ? .primary : .primary)
-                
-                if let date = date {
-                    // Date Format: "Friday, 16 January" (Year is in the header now!)
-                    Text(date.formatted(.dateTime.weekday(.wide).day().month(.wide)))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else if isHome {
-                    Text("Home Station")
-                        .font(.caption)
-                        .foregroundStyle(.blue)
-                }
-            }
-            
-            Spacer()
-            
-            // Right Side: Icon (if Home) + Code
-            if isHome {
-                Image(systemName: "house.fill")
                     .font(.body)
+                    .foregroundStyle(.primary)
+
+                Text("Home Station")
+                    .font(.caption)
                     .foregroundStyle(.blue)
             }
-            
-            Text(code)
-                .font(.system(.body, design: .monospaced).weight(.bold))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(isHome ? Color.blue.opacity(0.1) : Color.yellow.opacity(0.3))
-                .foregroundStyle(isHome ? .blue : .black.opacity(0.7))
-                .cornerRadius(6)
+
+            Spacer()
+
+            Image(systemName: "house.fill")
+                .font(.subheadline)
+                .foregroundStyle(.blue)
+
+            StationCodeBadge(code: code)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 2)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(name), home station, code \(code)")
     }
 }
 
+// MARK: - Visited Row
+
+private struct VisitedStationRow: View {
+    let name: String
+    let code: String
+    let date: Date
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+
+                Text(VisitDateFormatter.relativeLabel(for: date))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            StationCodeBadge(code: code)
+        }
+        .padding(.vertical, 2)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(name), \(VisitDateFormatter.accessibilityLabel(for: date)), code \(code)")
+    }
+}
+
+// MARK: - Empty State
+
+private struct EmptyTimelinePrompt: View {
+    var body: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "tram.fill")
+                .font(.system(size: 36, weight: .regular))
+                .foregroundStyle(.tertiary)
+
+            Text("No visits yet")
+                .font(.headline)
+                .foregroundStyle(.primary)
+
+            Text("Mark a station as visited from the Discover tab and it will show up here.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 8)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 32)
+    }
+}
+
+// MARK: - Smart relative date formatting
+
+private enum VisitDateFormatter {
+    /// "Just now" / "Yesterday" / weekday for recent visits within a month,
+    /// "Jan 16" for older within current year, "Jan 16, 2025" for older still.
+    static func relativeLabel(for date: Date, now: Date = Date()) -> String {
+        let calendar = Calendar.current
+        let nowDay = calendar.startOfDay(for: now)
+        let dateDay = calendar.startOfDay(for: date)
+        let daysApart = calendar.dateComponents([.day], from: dateDay, to: nowDay).day ?? 0
+
+        if daysApart == 0 {
+            let secondsAgo = now.timeIntervalSince(date)
+            return secondsAgo < 3600 ? "Just now" : "Today"
+        }
+        if daysApart == 1 { return "Yesterday" }
+        if daysApart < 7 { return date.formatted(.dateTime.weekday(.abbreviated)) }
+        if calendar.isDate(date, equalTo: now, toGranularity: .year) {
+            return date.formatted(.dateTime.month(.abbreviated).day())
+        }
+        return date.formatted(.dateTime.month(.abbreviated).day().year())
+    }
+
+    static func accessibilityLabel(for date: Date) -> String {
+        date.formatted(date: .long, time: .omitted)
+    }
+}
