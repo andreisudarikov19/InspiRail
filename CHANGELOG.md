@@ -14,6 +14,13 @@ Both live in `Inspirail.xcodeproj/project.pbxproj` on the app target and flow th
 
 ---
 
+## [1.4.1] — 2026-06-05 (build 7)
+
+### Fixed
+- The app icon no longer carries a white inset frame around the NS Sprinter artwork. The source image had a white frame plus soft fade-to-white gradients on all four edges (the original art's vanishing-point motion blur). Cropped to the perceptual content bounds — the train scene now extends to the icon edges so the iOS rounded mask hugs the artwork directly.
+
+---
+
 ## [1.4.0] — 2026-06-05 (build 6)
 
 ### Changed
