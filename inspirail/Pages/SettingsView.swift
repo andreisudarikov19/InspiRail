@@ -13,11 +13,63 @@ struct SettingsView: View {
     @AppStorage("homeStationCode") private var homeStationCode: String = ""
     @AppStorage("homeStationName") private var homeStationName: String = ""
     @State private var showingResetAlert = false
+    @State private var apiKeyInput: String = ""
+    @State private var hasAPIKey: Bool = false
+    @State private var apiHealthy: Bool = true
+    @State private var keyStatusLoaded: Bool = false
+    @State private var keyOperationInFlight: Bool = false
+    @State private var keyOperationError: String?
     @Query private var visitedStations: [VisitedStation]
+
+    /// Show the API-key section only when we know there's something to fix:
+    /// missing key, or key present but failing health checks. Hidden while we
+    /// haven't checked yet, to avoid a flicker.
+    private var showAPIKeySection: Bool {
+        keyStatusLoaded && (!hasAPIKey || !apiHealthy)
+    }
 
     var body: some View {
         NavigationStack {
             Form {
+                if showAPIKeySection {
+                    Section {
+                        HStack {
+                            SettingsIcon(icon: "key.fill", color: hasAPIKey ? .orange : .orange)
+                            VStack(alignment: .leading) {
+                                Text("NS API Key").foregroundColor(.primary)
+                                Text(hasAPIKey
+                                     ? "Configured key isn't working"
+                                     : "Not configured")
+                                    .font(.caption)
+                                    .foregroundColor(.orange)
+                            }
+                        }
+                        SecureField("Paste your NS API key", text: $apiKeyInput)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                        Button {
+                            saveAPIKey()
+                        } label: {
+                            HStack {
+                                SettingsIcon(icon: "checkmark.circle.fill", color: .blue)
+                                Text(keyOperationInFlight ? "Saving…" : "Save Key")
+                            }
+                        }
+                        .disabled(apiKeyInput.trimmingCharacters(in: .whitespaces).isEmpty || keyOperationInFlight)
+                        if hasAPIKey {
+                            Button(role: .destructive) {
+                                removeAPIKey()
+                            } label: {
+                                HStack { SettingsIcon(icon: "trash.fill", color: .red); Text("Remove Key") }
+                            }
+                            .disabled(keyOperationInFlight)
+                        }
+                    } header: {
+                        Text("API Configuration")
+                    } footer: {
+                        Text("Get a free key at apiportal.ns.nl, then paste it above.")
+                    }
+                }
                 Section {
                     NavigationLink {
                         StationSelectorView(selectedCode: $homeStationCode, selectedName: $homeStationName)
@@ -54,10 +106,68 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
+            .task { await refreshKeyStatus() }
             .alert("Reset History?", isPresented: $showingResetAlert) {
                 Button("Cancel", role: .cancel) { }
                 Button("Delete All", role: .destructive) { resetHistory() }
             } message: { Text("This action cannot be undone.") }
+            .alert("API Key Error", isPresented: Binding(
+                get: { keyOperationError != nil },
+                set: { if !$0 { keyOperationError = nil } }
+            )) {
+                Button("OK", role: .cancel) { keyOperationError = nil }
+            } message: { Text(keyOperationError ?? "") }
+        }
+    }
+
+    private func saveAPIKey() {
+        let key = apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !key.isEmpty else { return }
+        keyOperationInFlight = true
+        Task {
+            do {
+                try await KeychainManager.shared.saveAPIKey(key)
+                await MainActor.run { apiKeyInput = "" }
+                await refreshKeyStatus()
+                await MainActor.run { keyOperationInFlight = false }
+            } catch {
+                await MainActor.run {
+                    keyOperationError = error.localizedDescription
+                    keyOperationInFlight = false
+                }
+            }
+        }
+    }
+
+    private func removeAPIKey() {
+        keyOperationInFlight = true
+        Task {
+            do {
+                try await KeychainManager.shared.deleteAPIKey()
+                await refreshKeyStatus()
+                await MainActor.run { keyOperationInFlight = false }
+            } catch {
+                await MainActor.run {
+                    keyOperationError = error.localizedDescription
+                    keyOperationInFlight = false
+                }
+            }
+        }
+    }
+
+    /// Check whether we have a key in the Keychain and whether the backend
+    /// will accept it. Used to decide whether to surface the key-entry UI.
+    private func refreshKeyStatus() async {
+        let keyPresent = await KeychainManager.shared.hasAPIKey()
+        var healthy = true
+        if keyPresent {
+            let report = await BackendHealthMonitor.shared.checkHealth()
+            healthy = report.isHealthy
+        }
+        await MainActor.run {
+            hasAPIKey = keyPresent
+            apiHealthy = healthy
+            keyStatusLoaded = true
         }
     }
     

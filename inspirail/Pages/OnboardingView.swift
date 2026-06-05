@@ -20,6 +20,8 @@ struct OnboardingView: View {
     @State private var filteredStations: [Station] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var isUnauthorized = false
+    @State private var showingSettings = false
     
     var body: some View {
         NavigationStack {
@@ -56,7 +58,19 @@ struct OnboardingView: View {
                     if isLoading {
                         ProgressView("Loading stations...")
                     } else if let error = errorMessage {
-                        ContentUnavailableView("Error", systemImage: "exclamationmark.triangle", description: Text(error))
+                        VStack(spacing: 16) {
+                            ContentUnavailableView("Error", systemImage: "exclamationmark.triangle", description: Text(error))
+                            if isUnauthorized {
+                                Button {
+                                    showingSettings = true
+                                } label: {
+                                    Label("Open Settings", systemImage: "gear")
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 8)
+                                }
+                                .buttonStyle(.borderedProminent)
+                            }
+                        }
                     } else {
                         List(filteredStations) { station in
                             Button {
@@ -114,6 +128,11 @@ struct OnboardingView: View {
             .task {
                 await loadStations()
             }
+            .sheet(isPresented: $showingSettings, onDismiss: {
+                Task { await loadStations() }
+            }) {
+                SettingsView()
+            }
         }
     }
     
@@ -139,7 +158,8 @@ struct OnboardingView: View {
     private func loadStations() async {
         isLoading = true
         errorMessage = nil
-        
+        isUnauthorized = false
+
         do {
             let repository = StationsRepository()
             let stationResponse = try await repository.stations()
@@ -167,7 +187,8 @@ struct OnboardingView: View {
                 if let networkError = error as? NetworkError {
                     switch networkError {
                     case .unauthorized:
-                        self.errorMessage = "Authentication failed. Please check your API configuration."
+                        self.errorMessage = "No valid NS API key. Tap below to enter one (get a free key at apiportal.ns.nl)."
+                        self.isUnauthorized = true
                     case .noConnection:
                         self.errorMessage = "No internet connection. Please check your network."
                     case .timeout:
