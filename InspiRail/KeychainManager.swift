@@ -11,14 +11,26 @@ import OSLog
 
 /// Manages secure storage of sensitive data in the iOS Keychain
 actor KeychainManager {
-    static let shared = KeychainManager()
-    private init() {}
+    static let shared = KeychainManager(
+        service: "\(AppConfiguration.subsystem).api",
+        legacyService: "com.rnsapp.api"   // used up to 1.4.1
+    )
     
     private let logger = Logger(subsystem: AppConfiguration.subsystem, category: "security")
     
     // Keychain constants
-    private let service = "com.rnsapp.api"
+    private let service: String
+    private let legacyService: String?
     private let apiKeyAccount = "ns-api-key"
+    
+    /// - Parameters:
+    ///   - service: The Keychain service the API key is stored under.
+    ///   - legacyService: The service an earlier version of the app stored the
+    ///     key under, if it differs; a key found there moves to `service`.
+    init(service: String, legacyService: String? = nil) {
+        self.service = service
+        self.legacyService = legacyService
+    }
     
     // MARK: - API Key Methods
     
@@ -50,6 +62,8 @@ actor KeychainManager {
     
     /// Retrieve API key from Keychain
     func getAPIKey() async throws -> String {
+        migrateLegacyKeyIfNeeded()
+        
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -79,6 +93,8 @@ actor KeychainManager {
     
     /// Delete API key from Keychain
     func deleteAPIKey() async throws {
+        migrateLegacyKeyIfNeeded()
+        
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -97,6 +113,8 @@ actor KeychainManager {
     
     /// Check if API key exists in Keychain
     func hasAPIKey() async -> Bool {
+        migrateLegacyKeyIfNeeded()
+        
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -106,6 +124,65 @@ actor KeychainManager {
         
         let status = SecItemCopyMatching(query as CFDictionary, nil)
         return status == errSecSuccess
+    }
+    
+    // MARK: - Legacy Service Migration
+    
+    private var legacyKeyChecked = false
+    
+    /// Moves an API key stored under `legacyService` to `service`. A key
+    /// already under `service` wins. The legacy copy is deleted only once the
+    /// key is safely under `service`; on any Keychain error everything stays
+    /// as it is, and the next call tries again.
+    private func migrateLegacyKeyIfNeeded() {
+        guard !legacyKeyChecked, let legacyService else { return }
+        
+        let legacyItem: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: legacyService,
+            kSecAttrAccount as String: apiKeyAccount
+        ]
+        
+        var lookup = legacyItem
+        lookup[kSecReturnData as String] = true
+        lookup[kSecMatchLimit as String] = kSecMatchLimitOne
+        var result: AnyObject?
+        let legacyStatus = SecItemCopyMatching(lookup as CFDictionary, &result)
+        if legacyStatus == errSecItemNotFound {
+            legacyKeyChecked = true
+            return
+        }
+        guard legacyStatus == errSecSuccess, let data = result as? Data else {
+            logger.error("Failed to read the API key under the legacy Keychain service: \(legacyStatus)")
+            return
+        }
+        
+        let currentItem: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: apiKeyAccount
+        ]
+        let currentStatus = SecItemCopyMatching(currentItem as CFDictionary, nil)
+        switch currentStatus {
+        case errSecSuccess:
+            break
+        case errSecItemNotFound:
+            var newItem = currentItem
+            newItem[kSecValueData as String] = data
+            newItem[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+            let addStatus = SecItemAdd(newItem as CFDictionary, nil)
+            guard addStatus == errSecSuccess else {
+                logger.error("Failed to move the API key to the renamed Keychain service: \(addStatus)")
+                return
+            }
+            logger.info("Moved the API key to the renamed Keychain service")
+        default:
+            logger.error("Failed to check the renamed Keychain service: \(currentStatus)")
+            return
+        }
+        
+        SecItemDelete(legacyItem as CFDictionary)
+        legacyKeyChecked = true
     }
     
     // MARK: - Generic Keychain Storage
