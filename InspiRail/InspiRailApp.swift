@@ -23,11 +23,6 @@ struct InspiRailApp: App {
                 .task {
                     // Track app launch
                     await AnalyticsManager.shared.track(.appLaunched)
-                    
-                    #if DEBUG
-                    // Verify backend connectivity on debug builds
-                    await verifyBackendConnection()
-                    #endif
                 }
                 // Initialize database with migration support
                 .modelContainer(createModelContainer())
@@ -113,99 +108,5 @@ struct InspiRailApp: App {
             return try! ModelContainer(for: schema, configurations: [memoryConfig])
         }
     }
-    
-    #if DEBUG
-    /// Verify backend connection and security setup in debug builds
-    func verifyBackendConnection() async {
-        let logger = Logger(subsystem: AppConfiguration.subsystem, category: "startup")
-        logger.info("🔍 Verifying backend connection...")
-        
-        // DIAGNOSTIC: Check what's in Info.plist
-        if let plistValue = Bundle.main.object(forInfoDictionaryKey: "NS_API_KEY") as? String {
-            logger.info("📋 Info.plist NS_API_KEY length: \(plistValue.count) chars")
-            logger.info("📋 Info.plist value preview: \(plistValue.prefix(8))...")
-            if plistValue == "$(NS_API_KEY)" {
-                logger.error("❌ PROBLEM: Info.plist variable NOT EXPANDED!")
-            }
-        } else {
-            logger.error("❌ PROBLEM: NS_API_KEY not found in Info.plist at all!")
-        }
-        
-        // Step 1: Run diagnostics
-        let helper = APIKeySetupHelper()
-        let diagnosis = await helper.diagnoseAPIKeyIssue()
-        
-        // Step 2: Attempt auto-fix if needed
-        if !diagnosis.keychainStatus {
-            logger.info("🔧 Attempting to auto-configure API key...")
-            
-            // First try the emergency fix which includes reading from Secrets.xcconfig
-            let fixResult = await helper.emergencyFix()
-            
-            switch fixResult {
-            case .success(let message):
-                logger.info("✅ \(message)")
-            case .failed(let reason):
-                logger.error("❌ Auto-fix failed: \(reason)")
-                logger.error("")
-                logger.error("📖 MANUAL SETUP REQUIRED:")
-                logger.error("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-                
-                if case .unexpanded = diagnosis.infoPlistConfig {
-                    logger.error("PROBLEM: Xcode is not using Secrets.xcconfig file")
-                    logger.error("")
-                    logger.error("SOLUTION - Configure Xcode project:")
-                    logger.error("1. Open project in Xcode")
-                    logger.error("2. Click on project name at the top of Navigator")
-                    logger.error("3. Under 'Info' tab → 'Configurations'")
-                    logger.error("4. For both Debug and Release:")
-                    logger.error("   Set to 'Secrets' (the xcconfig file)")
-                    logger.error("5. Clean Build Folder: Product → Clean Build Folder (⌘⇧K)")
-                    logger.error("6. Rebuild: Product → Build (⌘B)")
-                } else if case .missing = diagnosis.infoPlistConfig {
-                    logger.error("PROBLEM: Info.plist missing NS_API_KEY entry")
-                    logger.error("")
-                    logger.error("SOLUTION - Add to Info.plist:")
-                    logger.error("1. Open Info.plist")
-                    logger.error("2. Add new row:")
-                    logger.error("   Key: NS_API_KEY")
-                    logger.error("   Type: String")
-                    logger.error("   Value: $(NS_API_KEY)")
-                    logger.error("3. Clean and rebuild")
-                }
-                
-                logger.error("")
-                logger.error("After fixing, verify Secrets.xcconfig contains:")
-                logger.error("NS_API_KEY = your_actual_api_key_from_ns_portal")
-                logger.error("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-                return
-            case .needsManualSetup:
-                logger.warning("⚠️ Manual setup required")
-                return
-            }
-        }
-        
-        // Step 3: Test actual API connection
-        do {
-            let backend = BackendAPI()
-            let response = try await backend.getStations()
-            
-            logger.info("✅ Backend connection successful!")
-            logger.info("   Found \(response.payload.count) stations")
-            
-            if let first = response.payload.first {
-                logger.info("   First station: \(first.names.long)")
-            }
-            
-        } catch NetworkError.unauthorized {
-            logger.error("❌ Authentication failed!")
-            logger.error("   Your API key may be invalid or expired")
-            logger.error("   Get a new key from: https://apiportal.ns.nl")
-            logger.error("   Then update Secrets.xcconfig and rebuild")
-        } catch {
-            logger.error("❌ Backend connection failed: \(error.localizedDescription)")
-        }
-    }
-    #endif
 }
 
