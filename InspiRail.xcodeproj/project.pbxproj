@@ -12,30 +12,30 @@
 			containerPortal = EB0A6B252F07B982003FB8D1 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = EB0A6B2C2F07B982003FB8D1;
-			remoteInfo = rnsapp;
+			remoteInfo = InspiRail;
 		};
 		EB0A6B472F07B986003FB8D1 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = EB0A6B252F07B982003FB8D1 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = EB0A6B2C2F07B982003FB8D1;
-			remoteInfo = rnsapp;
+			remoteInfo = InspiRail;
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		EB0A6B2D2F07B982003FB8D1 /* Inspirail.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Inspirail.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		EB0A6B3C2F07B986003FB8D1 /* InspirailTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = InspirailTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		EB0A6B462F07B986003FB8D1 /* InspirailUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = InspirailUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		EB17A3412FACC32700819AB5 /* Inspirail.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = file; path = Inspirail.xctestplan; sourceTree = "<group>"; };
+		EB0A6B2D2F07B982003FB8D1 /* InspiRail.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = InspiRail.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		EB0A6B3C2F07B986003FB8D1 /* InspiRailTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = InspiRailTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		EB0A6B462F07B986003FB8D1 /* InspiRailUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = InspiRailUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		EB17A3412FACC32700819AB5 /* InspiRail.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = file; path = InspiRail.xctestplan; sourceTree = "<group>"; };
 		EB33C5C42F4F475C003FFBEA /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 		EB85ECF72F2F5866003C9DB9 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		EB0A6B2F2F07B982003FB8D1 /* inspirail */ = {
+		EB0A6B2F2F07B982003FB8D1 /* InspiRail */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = inspirail;
+			path = InspiRail;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -68,9 +68,9 @@
 		EB0A6B242F07B982003FB8D1 = {
 			isa = PBXGroup;
 			children = (
-				EB17A3412FACC32700819AB5 /* Inspirail.xctestplan */,
+				EB17A3412FACC32700819AB5 /* InspiRail.xctestplan */,
 				EB85ECF72F2F5866003C9DB9 /* Secrets.xcconfig */,
-				EB0A6B2F2F07B982003FB8D1 /* inspirail */,
+				EB0A6B2F2F07B982003FB8D1 /* InspiRail */,
 				EB0A6B2E2F07B982003FB8D1 /* Products */,
 				EB33C5C42F4F475C003FFBEA /* .gitignore */,
 			);
@@ -79,9 +79,9 @@
 		EB0A6B2E2F07B982003FB8D1 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				EB0A6B2D2F07B982003FB8D1 /* Inspirail.app */,
-				EB0A6B3C2F07B986003FB8D1 /* InspirailTests.xctest */,
-				EB0A6B462F07B986003FB8D1 /* InspirailUITests.xctest */,
+				EB0A6B2D2F07B982003FB8D1 /* InspiRail.app */,
+				EB0A6B3C2F07B986003FB8D1 /* InspiRailTests.xctest */,
+				EB0A6B462F07B986003FB8D1 /* InspiRailUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -89,9 +89,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		EB0A6B2C2F07B982003FB8D1 /* Inspirail */ = {
+		EB0A6B2C2F07B982003FB8D1 /* InspiRail */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = EB0A6B502F07B986003FB8D1 /* Build configuration list for PBXNativeTarget "Inspirail" */;
+			buildConfigurationList = EB0A6B502F07B986003FB8D1 /* Build configuration list for PBXNativeTarget "InspiRail" */;
 			buildPhases = (
 				EB0A6B292F07B982003FB8D1 /* Sources */,
 				EB0A6B2A2F07B982003FB8D1 /* Frameworks */,
@@ -102,18 +102,18 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				EB0A6B2F2F07B982003FB8D1 /* inspirail */,
+				EB0A6B2F2F07B982003FB8D1 /* InspiRail */,
 			);
-			name = Inspirail;
+			name = InspiRail;
 			packageProductDependencies = (
 			);
-			productName = rnsapp;
-			productReference = EB0A6B2D2F07B982003FB8D1 /* Inspirail.app */;
+			productName = InspiRail;
+			productReference = EB0A6B2D2F07B982003FB8D1 /* InspiRail.app */;
 			productType = "com.apple.product-type.application";
 		};
-		EB0A6B3B2F07B986003FB8D1 /* InspirailTests */ = {
+		EB0A6B3B2F07B986003FB8D1 /* InspiRailTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = EB0A6B532F07B986003FB8D1 /* Build configuration list for PBXNativeTarget "InspirailTests" */;
+			buildConfigurationList = EB0A6B532F07B986003FB8D1 /* Build configuration list for PBXNativeTarget "InspiRailTests" */;
 			buildPhases = (
 				EB0A6B382F07B986003FB8D1 /* Sources */,
 				EB0A6B392F07B986003FB8D1 /* Frameworks */,
@@ -124,16 +124,16 @@
 			dependencies = (
 				EB0A6B3E2F07B986003FB8D1 /* PBXTargetDependency */,
 			);
-			name = InspirailTests;
+			name = InspiRailTests;
 			packageProductDependencies = (
 			);
-			productName = rnsappTests;
-			productReference = EB0A6B3C2F07B986003FB8D1 /* InspirailTests.xctest */;
+			productName = InspiRailTests;
+			productReference = EB0A6B3C2F07B986003FB8D1 /* InspiRailTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		EB0A6B452F07B986003FB8D1 /* InspirailUITests */ = {
+		EB0A6B452F07B986003FB8D1 /* InspiRailUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = EB0A6B562F07B986003FB8D1 /* Build configuration list for PBXNativeTarget "InspirailUITests" */;
+			buildConfigurationList = EB0A6B562F07B986003FB8D1 /* Build configuration list for PBXNativeTarget "InspiRailUITests" */;
 			buildPhases = (
 				EB0A6B422F07B986003FB8D1 /* Sources */,
 				EB0A6B432F07B986003FB8D1 /* Frameworks */,
@@ -144,11 +144,11 @@
 			dependencies = (
 				EB0A6B482F07B986003FB8D1 /* PBXTargetDependency */,
 			);
-			name = InspirailUITests;
+			name = InspiRailUITests;
 			packageProductDependencies = (
 			);
-			productName = rnsappUITests;
-			productReference = EB0A6B462F07B986003FB8D1 /* InspirailUITests.xctest */;
+			productName = InspiRailUITests;
+			productReference = EB0A6B462F07B986003FB8D1 /* InspiRailUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
@@ -174,7 +174,7 @@
 					};
 				};
 			};
-			buildConfigurationList = EB0A6B282F07B982003FB8D1 /* Build configuration list for PBXProject "Inspirail" */;
+			buildConfigurationList = EB0A6B282F07B982003FB8D1 /* Build configuration list for PBXProject "InspiRail" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -188,9 +188,9 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				EB0A6B2C2F07B982003FB8D1 /* Inspirail */,
-				EB0A6B3B2F07B986003FB8D1 /* InspirailTests */,
-				EB0A6B452F07B986003FB8D1 /* InspirailUITests */,
+				EB0A6B2C2F07B982003FB8D1 /* InspiRail */,
+				EB0A6B3B2F07B986003FB8D1 /* InspiRailTests */,
+				EB0A6B452F07B986003FB8D1 /* InspiRailUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -246,12 +246,12 @@
 /* Begin PBXTargetDependency section */
 		EB0A6B3E2F07B986003FB8D1 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = EB0A6B2C2F07B982003FB8D1 /* Inspirail */;
+			target = EB0A6B2C2F07B982003FB8D1 /* InspiRail */;
 			targetProxy = EB0A6B3D2F07B986003FB8D1 /* PBXContainerItemProxy */;
 		};
 		EB0A6B482F07B986003FB8D1 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = EB0A6B2C2F07B982003FB8D1 /* Inspirail */;
+			target = EB0A6B2C2F07B982003FB8D1 /* InspiRail */;
 			targetProxy = EB0A6B472F07B986003FB8D1 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -391,7 +391,7 @@
 				DEVELOPMENT_TEAM = JF2728JTJB;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Inspirail;
+				INFOPLIST_KEY_CFBundleDisplayName = InspiRail;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.travel";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -426,7 +426,7 @@
 				DEVELOPMENT_TEAM = JF2728JTJB;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Inspirail;
+				INFOPLIST_KEY_CFBundleDisplayName = InspiRail;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.travel";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -469,7 +469,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Inspirail.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Inspirail";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/InspiRail.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/InspiRail";
 			};
 			name = Debug;
 		};
@@ -492,7 +492,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Inspirail.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Inspirail";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/InspiRail.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/InspiRail";
 			};
 			name = Release;
 		};
@@ -513,7 +513,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = rnsapp;
+				TEST_TARGET_NAME = InspiRail;
 			};
 			name = Debug;
 		};
@@ -534,14 +534,14 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = rnsapp;
+				TEST_TARGET_NAME = InspiRail;
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		EB0A6B282F07B982003FB8D1 /* Build configuration list for PBXProject "Inspirail" */ = {
+		EB0A6B282F07B982003FB8D1 /* Build configuration list for PBXProject "InspiRail" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				EB0A6B4E2F07B986003FB8D1 /* Debug */,
@@ -550,7 +550,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		EB0A6B502F07B986003FB8D1 /* Build configuration list for PBXNativeTarget "Inspirail" */ = {
+		EB0A6B502F07B986003FB8D1 /* Build configuration list for PBXNativeTarget "InspiRail" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				EB0A6B512F07B986003FB8D1 /* Debug */,
@@ -559,7 +559,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		EB0A6B532F07B986003FB8D1 /* Build configuration list for PBXNativeTarget "InspirailTests" */ = {
+		EB0A6B532F07B986003FB8D1 /* Build configuration list for PBXNativeTarget "InspiRailTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				EB0A6B542F07B986003FB8D1 /* Debug */,
@@ -568,7 +568,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		EB0A6B562F07B986003FB8D1 /* Build configuration list for PBXNativeTarget "InspirailUITests" */ = {
+		EB0A6B562F07B986003FB8D1 /* Build configuration list for PBXNativeTarget "InspiRailUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				EB0A6B572F07B986003FB8D1 /* Debug */,

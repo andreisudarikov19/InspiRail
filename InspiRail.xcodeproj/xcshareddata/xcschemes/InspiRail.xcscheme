@@ -16,9 +16,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "EB0A6B2C2F07B982003FB8D1"
-               BuildableName = "Inspirail.app"
-               BlueprintName = "Inspirail"
-               ReferencedContainer = "container:Inspirail.xcodeproj">
+               BuildableName = "InspiRail.app"
+               BlueprintName = "InspiRail"
+               ReferencedContainer = "container:InspiRail.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -30,7 +30,7 @@
       shouldUseLaunchSchemeArgsEnv = "YES">
       <TestPlans>
          <TestPlanReference
-            reference = "container:Inspirail.xctestplan"
+            reference = "container:InspiRail.xctestplan"
             default = "YES">
          </TestPlanReference>
       </TestPlans>
@@ -41,9 +41,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "EB0A6B3B2F07B986003FB8D1"
-               BuildableName = "InspirailTests.xctest"
-               BlueprintName = "InspirailTests"
-               ReferencedContainer = "container:Inspirail.xcodeproj">
+               BuildableName = "InspiRailTests.xctest"
+               BlueprintName = "InspiRailTests"
+               ReferencedContainer = "container:InspiRail.xcodeproj">
             </BuildableReference>
          </TestableReference>
          <TestableReference
@@ -52,9 +52,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "EB0A6B452F07B986003FB8D1"
-               BuildableName = "InspirailUITests.xctest"
-               BlueprintName = "InspirailUITests"
-               ReferencedContainer = "container:Inspirail.xcodeproj">
+               BuildableName = "InspiRailUITests.xctest"
+               BlueprintName = "InspiRailUITests"
+               ReferencedContainer = "container:InspiRail.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -75,9 +75,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "EB0A6B2C2F07B982003FB8D1"
-            BuildableName = "Inspirail.app"
-            BlueprintName = "Inspirail"
-            ReferencedContainer = "container:Inspirail.xcodeproj">
+            BuildableName = "InspiRail.app"
+            BlueprintName = "InspiRail"
+            ReferencedContainer = "container:InspiRail.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -92,9 +92,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "EB0A6B2C2F07B982003FB8D1"
-            BuildableName = "Inspirail.app"
-            BlueprintName = "Inspirail"
-            ReferencedContainer = "container:Inspirail.xcodeproj">
+            BuildableName = "InspiRail.app"
+            BlueprintName = "InspiRail"
+            ReferencedContainer = "container:InspiRail.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

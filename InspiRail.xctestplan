@@ -11,26 +11,26 @@
   "defaultOptions" : {
     "performanceAntipatternCheckerEnabled" : true,
     "targetForVariableExpansion" : {
-      "containerPath" : "container:Inspirail.xcodeproj",
+      "containerPath" : "container:InspiRail.xcodeproj",
       "identifier" : "EB0A6B2C2F07B982003FB8D1",
-      "name" : "Inspirail"
+      "name" : "InspiRail"
     }
   },
   "testTargets" : [
     {
       "parallelizable" : true,
       "target" : {
-        "containerPath" : "container:Inspirail.xcodeproj",
+        "containerPath" : "container:InspiRail.xcodeproj",
         "identifier" : "EB0A6B3B2F07B986003FB8D1",
-        "name" : "InspirailTests"
+        "name" : "InspiRailTests"
       }
     },
     {
       "parallelizable" : true,
       "target" : {
-        "containerPath" : "container:Inspirail.xcodeproj",
+        "containerPath" : "container:InspiRail.xcodeproj",
         "identifier" : "EB0A6B452F07B986003FB8D1",
-        "name" : "InspirailUITests"
+        "name" : "InspiRailUITests"
       }
     }
   ],
