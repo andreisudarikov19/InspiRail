@@ -1,13 +1,13 @@
 //
-//  rnsappUITestsLaunchTests.swift
-//  rnsappUITests
+//  InspiRailUITestsLaunchTests.swift
+//  InspiRailUITests
 //
 //  Created by Andrei Sudarikov on 02/01/2026.
 //
 
 import XCTest
 
-final class rnsappUITestsLaunchTests: XCTestCase {
+final class InspiRailUITestsLaunchTests: XCTestCase {
 
     override class var runsForEachTargetApplicationUIConfiguration: Bool {
         true

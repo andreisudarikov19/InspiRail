@@ -38,6 +38,16 @@
 			path = InspiRail;
 			sourceTree = "<group>";
 		};
+		DEE39B4B558E61CC2565F82B /* InspiRailTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = InspiRailTests;
+			sourceTree = "<group>";
+		};
+		731CACB1C0224F215A932F3D /* InspiRailUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = InspiRailUITests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -71,6 +81,8 @@
 				EB17A3412FACC32700819AB5 /* InspiRail.xctestplan */,
 				EB85ECF72F2F5866003C9DB9 /* Secrets.xcconfig */,
 				EB0A6B2F2F07B982003FB8D1 /* InspiRail */,
+				DEE39B4B558E61CC2565F82B /* InspiRailTests */,
+				731CACB1C0224F215A932F3D /* InspiRailUITests */,
 				EB0A6B2E2F07B982003FB8D1 /* Products */,
 				EB33C5C42F4F475C003FFBEA /* .gitignore */,
 			);
@@ -124,6 +136,9 @@
 			dependencies = (
 				EB0A6B3E2F07B986003FB8D1 /* PBXTargetDependency */,
 			);
+			fileSystemSynchronizedGroups = (
+				DEE39B4B558E61CC2565F82B /* InspiRailTests */,
+			);
 			name = InspiRailTests;
 			packageProductDependencies = (
 			);
@@ -143,6 +158,9 @@
 			);
 			dependencies = (
 				EB0A6B482F07B986003FB8D1 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				731CACB1C0224F215A932F3D /* InspiRailUITests */,
 			);
 			name = InspiRailUITests;
 			packageProductDependencies = (

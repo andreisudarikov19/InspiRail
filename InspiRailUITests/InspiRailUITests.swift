@@ -1,13 +1,13 @@
 //
-//  rnsappUITests.swift
-//  rnsappUITests
+//  InspiRailUITests.swift
+//  InspiRailUITests
 //
 //  Created by Andrei Sudarikov on 02/01/2026.
 //
 
 import XCTest
 
-final class rnsappUITests: XCTestCase {
+final class InspiRailUITests: XCTestCase {
 
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.
