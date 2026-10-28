@@ -58,4 +58,8 @@ The app follows [Semantic Versioning](https://semver.org). The `MARKETING_VERSIO
 
 ## Documentation
 
+- [NS API integration reference](docs/reference/ns-api.md): authentication, the stations endpoint, and how to test a key.
+- [Access NS API products](docs/reference/ns-api-access.md): subscribing on the NS API portal to get a key.
+- [Proof-of-concept design](docs/design/proof-of-concept.md): the original technical design, with notes on where the app differs from it today.
+
 Architecture notes, design diagrams, the visited-stations migration write-up and the backend review live in the [project wiki](https://github.com/andreisudarikov19/InspiRail/wiki).
