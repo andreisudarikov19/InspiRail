@@ -1,0 +1,38 @@
+{
+  "configurations" : [
+    {
+      "id" : "49E2C438-C4AD-4405-B6FC-04BD22D0D1A5",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:InspiRail.xcodeproj",
+      "identifier" : "EB0A6B2C2F07B982003FB8D1",
+      "name" : "InspiRail"
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:InspiRail.xcodeproj",
+        "identifier" : "EB0A6B3B2F07B986003FB8D1",
+        "name" : "InspiRailTests"
+      }
+    },
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:InspiRail.xcodeproj",
+        "identifier" : "EB0A6B452F07B986003FB8D1",
+        "name" : "InspiRailUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

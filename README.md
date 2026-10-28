@@ -1,4 +1,4 @@
-# Inspirail
+# InspiRail
 
 A SwiftUI iOS app that helps you discover and log Dutch railway stations, backed by the live NS Reisinformatie API.
 
@@ -17,7 +17,7 @@ Pre-release, under active development. Current version: [**1.4.1**](CHANGELOG.md
 ```bash
 git clone https://github.com/andreisudarikov19/InspiRail.git
 cd InspiRail
-open Inspirail.xcodeproj
+open InspiRail.xcodeproj
 ```
 
 Press ⌘R to build and run. On first launch the app will prompt you to enter your NS API key — paste it in Settings and the rest of the app comes alive.
@@ -27,14 +27,14 @@ Press ⌘R to build and run. On first launch the app will prompt you to enter yo
 The NS API key lives in the iOS Keychain. There are two ways to get one there:
 
 - **End-user path** — launch the app, follow the "Open Settings" button on the onboarding error screen, paste the key, save. The key never leaves the device.
-- **Developer shortcut (Debug builds only)** — set `NS_API_KEY` as an environment variable on the `Inspirail` scheme, or launch via `SIMCTL_CHILD_NS_API_KEY=… xcrun simctl launch <device> annisu.rnsapp`. `BackendAPI` reads this in DEBUG and migrates it to the Keychain automatically.
+- **Developer shortcut (Debug builds only)** — set `NS_API_KEY` as an environment variable on the `InspiRail` scheme, or launch via `SIMCTL_CHILD_NS_API_KEY=… xcrun simctl launch <device> annisu.rnsapp`. `BackendAPI` reads this in DEBUG and migrates it to the Keychain automatically.
 
 `Secrets.xcconfig` is gitignored. It used to be bundled into the app at build time; that path was removed in 1.3.0 because anything inside the shipped binary is extractable from the `.ipa`.
 
 ## Project layout
 
 ```
-inspirail/
+InspiRail/
 ├── Models/                    SwiftData & Codable data models
 ├── NetworkEngine/             HTTP plumbing, retry/cache, key diagnostics
 ├── Pages/                     SwiftUI screens (Discovery, Onboarding,
@@ -47,10 +47,10 @@ inspirail/
 ├── NetworkMonitor.swift
 ├── AnalyticsManager.swift     Event tracking
 ├── AppConfiguration.swift     Centralised config (URLs, timeouts, flags)
-└── rnsappApp.swift            App entry point
+└── InspiRailApp.swift         App entry point
 ```
 
-The `inspirail/` folder is an Xcode `PBXFileSystemSynchronizedRootGroup`, so any `.swift` file dropped inside it joins the build automatically — no manual `project.pbxproj` editing needed.
+The `InspiRail/` folder is an Xcode `PBXFileSystemSynchronizedRootGroup`, so any `.swift` file dropped inside it joins the build automatically — no manual `project.pbxproj` editing needed. The test folders work the same way: `InspiRailTests/` (unit tests, Swift Testing) and `InspiRailUITests/` (UI tests).
 
 ## Versioning & releases
 
