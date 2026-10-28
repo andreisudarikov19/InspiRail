@@ -4,7 +4,7 @@ A SwiftUI iOS app that helps you discover and log Dutch railway stations, backed
 
 ## Status
 
-Pre-1.0, under active development. Current release: [**1.3.1**](CHANGELOG.md#131--2026-06-05-build-5). The app is not yet ready for general distribution — see the [changelog](CHANGELOG.md) and the [wiki backend review](https://github.com/andreisudarikov19/InspiRail/wiki/BACKEND_REVIEW) for what's outstanding.
+Pre-release, under active development. Current version: [**1.4.1**](CHANGELOG.md#141--2026-06-05-build-7). The app isn't ready for general distribution yet; open work is tracked in [GitHub Issues](https://github.com/andreisudarikov19/InspiRail/issues), and the [changelog](CHANGELOG.md) records what has shipped.
 
 ## Requirements
 
@@ -58,8 +58,9 @@ The app follows [Semantic Versioning](https://semver.org). The `MARKETING_VERSIO
 
 ## Documentation
 
+All documentation lives in [`docs/`](docs/README.md):
+
 - [NS API integration reference](docs/reference/ns-api.md): authentication, the stations endpoint, and how to test a key.
 - [Access NS API products](docs/reference/ns-api-access.md): subscribing on the NS API portal to get a key.
 - [Proof-of-concept design](docs/design/proof-of-concept.md): the original technical design, with notes on where the app differs from it today.
-
-Architecture notes, design diagrams, the visited-stations migration write-up and the backend review live in the [project wiki](https://github.com/andreisudarikov19/InspiRail/wiki).
+- [Wiki archive](docs/archive/wiki/README.md): the retired GitHub wiki, kept as input for planning. It doesn't describe the current code.

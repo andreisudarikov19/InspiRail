@@ -56,7 +56,7 @@ The first audited build. Most of the code that landed in the prior Beta drop (`0
 - Persistence: `VisitedStationMigration` for the visited-stations schema bump.
 - Developer tooling: `APIKeyDiagnostics`, `APIKeySetupHelper`.
 - Repo hygiene: tracked `.gitignore`, repo-root `README.md`, `Secrets.xcconfig.template`, shared Xcode scheme, `Inspirail.xctestplan`.
-- Long-form documentation moved to the [project wiki](https://github.com/andreisudarikov19/InspiRail/wiki).
+- Long-form documentation moved to the project wiki (since retired, see #6; its pages are archived in [`docs/archive/wiki/`](docs/archive/wiki/README.md)).
 
 ### Changed
 - Onboarding now drives off the new `StationsRepository`.
