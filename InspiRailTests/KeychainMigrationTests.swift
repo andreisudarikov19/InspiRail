@@ -50,6 +50,15 @@ final class KeychainMigrationTests {
         #expect(await oldApp.hasAPIKey() == false)
     }
 
+    @Test("The moved key stays readable after the first unlock, as before")
+    func movedKeyKeepsItsProtectionClass() async throws {
+        try await oldApp.saveAPIKey("key-from-1.4.1")
+
+        _ = try await newApp.getAPIKey()
+
+        #expect(accessibility(ofKeyUnder: newService) == kSecAttrAccessibleAfterFirstUnlock as String)
+    }
+
     @Test("A key already under the new service wins, and the old copy is removed")
     func keepsKeyAlreadyUnderNewService() async throws {
         try await oldApp.saveAPIKey("stale-key")
@@ -75,6 +84,34 @@ final class KeychainMigrationTests {
         let nextLaunch = KeychainManager(service: newService, legacyService: oldService)
         #expect(await nextLaunch.hasAPIKey() == false)
     }
+
+    @Test("Removing the key clears the old service too, even after the migration has run")
+    func removeClearsOldServiceAfterMigrationRan() async throws {
+        _ = await newApp.hasAPIKey()   // the migration runs; nothing to move yet
+        try await oldApp.saveAPIKey("key-from-an-older-build")
+
+        try await newApp.deleteAPIKey()
+
+        let nextLaunch = KeychainManager(service: newService, legacyService: oldService)
+        #expect(await nextLaunch.hasAPIKey() == false)
+    }
+}
+
+/// The protection class (`kSecAttrAccessible`) of the API key item under `service`.
+private func accessibility(ofKeyUnder service: String) -> String? {
+    let query: [String: Any] = [
+        kSecClass as String: kSecClassGenericPassword,
+        kSecAttrService as String: service,
+        kSecAttrAccount as String: "ns-api-key",
+        kSecReturnAttributes as String: true,
+        kSecMatchLimit as String: kSecMatchLimitOne,
+    ]
+    var result: AnyObject?
+    guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
+          let attributes = result as? [String: Any] else {
+        return nil
+    }
+    return attributes[kSecAttrAccessible as String] as? String
 }
 
 /// Deletes every generic-password item under `service`.

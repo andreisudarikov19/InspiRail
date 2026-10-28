@@ -11,8 +11,10 @@ import OSLog
 
 /// Manages secure storage of sensitive data in the iOS Keychain
 actor KeychainManager {
+    /// Both names identify data stored on users' devices. Changing either
+    /// one without migrating the stored key loses every user's key.
     static let shared = KeychainManager(
-        service: "\(AppConfiguration.subsystem).api",
+        service: "annisu.inspirail.api",
         legacyService: "com.rnsapp.api"   // used up to 1.4.1
     )
     
@@ -93,19 +95,21 @@ actor KeychainManager {
     
     /// Delete API key from Keychain
     func deleteAPIKey() async throws {
-        migrateLegacyKeyIfNeeded()
-        
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: apiKeyAccount
-        ]
-        
-        let status = SecItemDelete(query as CFDictionary)
-        
-        guard status == errSecSuccess || status == errSecItemNotFound else {
-            logger.error("Failed to delete API key: \(status)")
-            throw KeychainError.deleteFailed(status)
+        // Clear the legacy service too, so a key removed here can't be
+        // migrated back on the next launch.
+        for itemService in [service, legacyService].compactMap({ $0 }) {
+            let query: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: itemService,
+                kSecAttrAccount as String: apiKeyAccount
+            ]
+            
+            let status = SecItemDelete(query as CFDictionary)
+            
+            guard status == errSecSuccess || status == errSecItemNotFound else {
+                logger.error("Failed to delete API key: \(status)")
+                throw KeychainError.deleteFailed(status)
+            }
         }
         
         logger.debug("🗑️ API key deleted from Keychain")
