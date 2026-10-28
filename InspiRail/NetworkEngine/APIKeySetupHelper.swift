@@ -10,7 +10,7 @@ import OSLog
 
 /// Diagnostic and setup helper for API key configuration
 actor APIKeySetupHelper {
-    private let logger = Logger(subsystem: "com.rnsapp", category: "setup")
+    private let logger = Logger(subsystem: AppConfiguration.subsystem, category: "setup")
     
     // MARK: - Diagnostic Methods
     

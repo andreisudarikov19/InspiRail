@@ -10,7 +10,12 @@ import OSLog
 
 /// Centralized configuration for the app
 enum AppConfiguration {
-    private static let logger = Logger(subsystem: "com.rnsapp", category: "config")
+    /// Reverse-DNS prefix for the app's own identifiers: the logger subsystem,
+    /// dispatch queue labels and background task ids. The bundle identifier
+    /// keeps its original name, `annisu.rnsapp`.
+    nonisolated static let subsystem = "annisu.inspirail"
+    
+    private static let logger = Logger(subsystem: subsystem, category: "config")
     
     // MARK: - Environment
     
@@ -55,11 +60,11 @@ enum AppConfiguration {
     }
     
     static var bundleIdentifier: String {
-        Bundle.main.bundleIdentifier ?? "com.rnsapp"
+        Bundle.main.bundleIdentifier ?? "annisu.rnsapp"
     }
     
     static var userAgent: String {
-        "rnsapp/\(appVersion) (iOS; Build \(buildNumber))"
+        "InspiRail/\(appVersion) (iOS; Build \(buildNumber))"
     }
     
     // MARK: - Feature Flags

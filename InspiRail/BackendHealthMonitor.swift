@@ -17,7 +17,7 @@ actor BackendHealthMonitor {
         setupNetworkMonitoring()
     }
     
-    private let logger = Logger(subsystem: "com.rnsapp", category: "health")
+    private let logger = Logger(subsystem: AppConfiguration.subsystem, category: "health")
     
     // MARK: - Network Monitoring
     
@@ -34,7 +34,7 @@ actor BackendHealthMonitor {
             }
         }
         
-        monitor.start(queue: DispatchQueue(label: "com.rnsapp.network-monitor"))
+        monitor.start(queue: DispatchQueue(label: "\(AppConfiguration.subsystem).network-monitor"))
         self.networkMonitor = monitor
     }
     

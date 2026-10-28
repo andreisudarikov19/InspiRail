@@ -14,11 +14,11 @@ import OSLog
 final class BackgroundRefreshManager {
     static let shared = BackgroundRefreshManager()
     
-    private let logger = Logger(subsystem: "com.rnsapp", category: "background")
+    private let logger = Logger(subsystem: AppConfiguration.subsystem, category: "background")
     private let repository = StationsRepository()
     
     // Background task identifier - must match Info.plist entry
-    static let refreshTaskIdentifier = "com.rnsapp.refresh-stations"
+    static let refreshTaskIdentifier = "\(AppConfiguration.subsystem).refresh-stations"
     
     private init() {}
     
@@ -104,7 +104,7 @@ final class BackgroundRefreshManager {
  
     <key>BGTaskSchedulerPermittedIdentifiers</key>
     <array>
-        <string>com.rnsapp.refresh-stations</string>
+        <string>annisu.inspirail.refresh-stations</string>
     </array>
  
  2. In InspiRailApp.swift, add to init():
@@ -117,7 +117,7 @@ final class BackgroundRefreshManager {
  
  4. Testing in Xcode console:
  
-    e -l objc -- (void)[[BGTaskScheduler sharedScheduler] _simulateLaunchForTaskWithIdentifier:@"com.rnsapp.refresh-stations"]
+    e -l objc -- (void)[[BGTaskScheduler sharedScheduler] _simulateLaunchForTaskWithIdentifier:@"annisu.inspirail.refresh-stations"]
  
  Note: The analytics events used are:
     - .apiRequestSucceeded(endpoint: "background-refresh", duration: duration)

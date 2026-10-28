@@ -23,7 +23,7 @@ actor BackendAPI {
     private let enableDetailedLogging: Bool
     private let userAgent: String
     
-    private let logger = Logger(subsystem: "com.rnsapp", category: "backend")
+    private let logger = Logger(subsystem: AppConfiguration.subsystem, category: "backend")
     
     init() {
         // Access configuration values during initialization

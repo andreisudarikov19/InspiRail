@@ -18,8 +18,8 @@ final class NetworkMonitor {
     private(set) var isExpensive = false
     
     private let monitor = NWPathMonitor()
-    private let queue = DispatchQueue(label: "com.rnsapp.networkmonitor")
-    private let logger = Logger(subsystem: "com.rnsapp", category: "network")
+    private let queue = DispatchQueue(label: "\(AppConfiguration.subsystem).networkmonitor")
+    private let logger = Logger(subsystem: AppConfiguration.subsystem, category: "network")
     
     init() {
         startMonitoring()

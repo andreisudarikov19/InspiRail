@@ -8,7 +8,7 @@
 import Foundation
 import OSLog
 
-let networkLog = Logger(subsystem: "com.rnsapp", category: "network")
+let networkLog = Logger(subsystem: AppConfiguration.subsystem, category: "network")
 
 actor NetworkManager {
     static let shared = NetworkManager()

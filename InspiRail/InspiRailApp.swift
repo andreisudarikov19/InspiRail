@@ -43,7 +43,7 @@ struct InspiRailApp: App {
             let container = try ModelContainer(for: schema, configurations: [modelConfiguration])
             return container
         } catch {
-            let logger = Logger(subsystem: "com.rnsapp", category: "database")
+            let logger = Logger(subsystem: AppConfiguration.subsystem, category: "database")
             logger.error("❌ Failed to create ModelContainer: \(error.localizedDescription)")
             logger.error("   Error type: \(type(of: error))")
             
@@ -117,7 +117,7 @@ struct InspiRailApp: App {
     #if DEBUG
     /// Verify backend connection and security setup in debug builds
     func verifyBackendConnection() async {
-        let logger = Logger(subsystem: "com.rnsapp", category: "startup")
+        let logger = Logger(subsystem: AppConfiguration.subsystem, category: "startup")
         logger.info("🔍 Verifying backend connection...")
         
         // DIAGNOSTIC: Check what's in Info.plist

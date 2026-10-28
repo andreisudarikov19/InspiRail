@@ -11,7 +11,7 @@ import OSLog
 /// Repository for managing station data with caching
 actor StationsRepository {
     private let backend: BackendAPI
-    private let logger = Logger(subsystem: "com.rnsapp", category: "repository")
+    private let logger = Logger(subsystem: AppConfiguration.subsystem, category: "repository")
     
     // MARK: - Cache Management
     private var cachedStations: [Station]?

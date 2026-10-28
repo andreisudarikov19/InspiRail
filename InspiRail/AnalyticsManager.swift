@@ -16,7 +16,7 @@ actor AnalyticsManager {
     static let shared = AnalyticsManager()
     private init() {}
     
-    private let logger = Logger(subsystem: "com.rnsapp", category: "analytics")
+    private let logger = Logger(subsystem: AppConfiguration.subsystem, category: "analytics")
     
     // MARK: - Events
     

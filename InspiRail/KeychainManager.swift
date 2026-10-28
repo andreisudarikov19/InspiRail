@@ -14,7 +14,7 @@ actor KeychainManager {
     static let shared = KeychainManager()
     private init() {}
     
-    private let logger = Logger(subsystem: "com.rnsapp", category: "security")
+    private let logger = Logger(subsystem: AppConfiguration.subsystem, category: "security")
     
     // Keychain constants
     private let service = "com.rnsapp.api"

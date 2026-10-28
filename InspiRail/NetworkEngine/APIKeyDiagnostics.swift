@@ -10,7 +10,7 @@ import OSLog
 
 /// Diagnostic utility for API key configuration issues
 actor APIKeyDiagnostics {
-    private let logger = Logger(subsystem: "com.rnsapp", category: "diagnostics")
+    private let logger = Logger(subsystem: AppConfiguration.subsystem, category: "diagnostics")
     
     /// Run a comprehensive diagnostic check
     func runDiagnostics() async -> DiagnosticReport {

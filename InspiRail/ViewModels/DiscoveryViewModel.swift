@@ -20,7 +20,7 @@ class DiscoveryViewModel: ObservableObject {
     // MARK: - Private Properties
     private var allStations: [Station] = []
     private var repository: StationsRepository?
-    private let logger = Logger(subsystem: "com.rnsapp", category: "viewmodel")
+    private let logger = Logger(subsystem: AppConfiguration.subsystem, category: "viewmodel")
     
     // Keep track of recently shown stations to avoid repetition
     private var recentlyShown: [String] = []
