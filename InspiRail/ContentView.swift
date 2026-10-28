@@ -1,6 +1,6 @@
 //
 //  ContentView.swift
-//  rnsapp
+//  InspiRail
 //
 //  Created by Andrei Sudarikov on 02/01/2026.
 //

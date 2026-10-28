@@ -1,6 +1,6 @@
 //
 //  NetworkMonitor.swift
-//  rnsapp
+//  InspiRail
 //
 //  Advanced network monitoring using Apple's Network framework
 //  RECOMMENDED FUTURE ENHANCEMENT

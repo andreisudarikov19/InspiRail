@@ -1,6 +1,6 @@
 //
 //  OnboardingView.swift
-//  rnsapp
+//  InspiRail
 //
 //  Created by Andrei Sudarikov on 03/01/2026.
 //
@@ -33,7 +33,7 @@ struct OnboardingView: View {
                         .foregroundStyle(.blue)
                         .padding(.top, 40)
                     
-                    Text("Welcome to RNS")
+                    Text("Welcome to InspiRail")
                         .font(.largeTitle)
                         .fontWeight(.bold)
                     

@@ -1,6 +1,6 @@
 //
 //  AnalyticsManager.swift
-//  rnsapp
+//  InspiRail
 //
 //  Privacy-focused analytics and error tracking
 //

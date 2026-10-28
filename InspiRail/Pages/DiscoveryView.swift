@@ -1,6 +1,6 @@
 //
 //  DiscoveryView.swift
-//  rnsapp
+//  InspiRail
 //
 //  Created by Andrei Sudarikov on 04/01/2026.
 //

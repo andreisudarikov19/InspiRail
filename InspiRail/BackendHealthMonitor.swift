@@ -1,6 +1,6 @@
 //
 //  BackendHealthMonitor.swift
-//  rnsapp
+//  InspiRail
 //
 //  Backend health monitoring and diagnostics
 //

@@ -1,6 +1,6 @@
 //
 //  BackendAPI.swift
-//  rnsapp
+//  InspiRail
 //
 //  Core backend API layer with security, caching, and error handling
 //

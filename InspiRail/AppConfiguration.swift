@@ -1,6 +1,6 @@
 //
 //  AppConfiguration.swift
-//  rnsapp
+//  InspiRail
 //
 //  Centralized app configuration management
 //

@@ -1,6 +1,6 @@
 //
 //  StationsRepository.swift
-//  rnsapp
+//  InspiRail
 //
 //  Repository layer for station data with caching
 //

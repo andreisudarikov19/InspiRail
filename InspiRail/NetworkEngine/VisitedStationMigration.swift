@@ -1,6 +1,6 @@
 //
 //  VisitedStationMigration.swift
-//  rnsapp
+//  InspiRail
 //
 //  SwiftData migration plan for VisitedStation schema changes
 //

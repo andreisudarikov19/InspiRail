@@ -1,6 +1,6 @@
 //
 //  APIKeySetupHelper.swift
-//  rnsapp
+//  InspiRail
 //
 //  Helper to diagnose and fix API key configuration issues
 //

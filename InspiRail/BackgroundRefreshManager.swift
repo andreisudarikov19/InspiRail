@@ -1,6 +1,6 @@
 //
 //  BackgroundRefreshManager.swift
-//  rnsapp
+//  InspiRail
 //
 //  Background refresh implementation for station data
 //  RECOMMENDED FUTURE ENHANCEMENT
@@ -107,11 +107,11 @@ final class BackgroundRefreshManager {
         <string>com.rnsapp.refresh-stations</string>
     </array>
  
- 2. In rnsappApp.swift, add to init():
+ 2. In InspiRailApp.swift, add to init():
  
     BackgroundRefreshManager.shared.registerBackgroundTasks()
  
- 3. In rnsappApp.swift, add to .task modifier:
+ 3. In InspiRailApp.swift, add to .task modifier:
  
     BackgroundRefreshManager.shared.scheduleNextRefresh()
  

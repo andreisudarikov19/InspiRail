@@ -1,6 +1,6 @@
 //
 //  APIKeyDiagnostics.swift
-//  rnsapp
+//  InspiRail
 //
 //  Diagnostic tool for troubleshooting API key configuration
 //

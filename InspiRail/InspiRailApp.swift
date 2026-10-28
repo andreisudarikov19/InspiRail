@@ -1,6 +1,6 @@
 //
-//  rnsappApp.swift
-//  rnsapp
+//  InspiRailApp.swift
+//  InspiRail
 //
 //  Created by Andrei Sudarikov on 02/01/2026.
 //
@@ -10,7 +10,7 @@ import SwiftData
 import OSLog
 
 @main
-struct OranjeRailApp: App {
+struct InspiRailApp: App {
     
     init() {
         // Log app configuration on startup

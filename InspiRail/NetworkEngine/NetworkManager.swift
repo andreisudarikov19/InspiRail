@@ -1,6 +1,6 @@
 //
 //  NetworkManager.swift
-//  rnsapp
+//  InspiRail
 //
 //  Deprecated shim forwarding to BackendAPI/StationsRepository.
 //
