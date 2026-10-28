@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Inspirail are recorded here. The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+All notable changes to InspiRail are recorded here. The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Versioning
 
@@ -10,7 +10,19 @@ All notable changes to Inspirail are recorded here. The format is loosely based 
   - `PATCH` — bug fixes, internal cleanups, build-only changes.
 - `CURRENT_PROJECT_VERSION` — monotonic integer build number. Incremented for every TestFlight or App Store submission, never reused.
 
-Both live in `Inspirail.xcodeproj/project.pbxproj` on the app target and flow through to `CFBundleShortVersionString` / `CFBundleVersion` in the built `Info.plist` via Xcode's auto-generated plist.
+Both live in `InspiRail.xcodeproj/project.pbxproj` on the app target and flow through to `CFBundleShortVersionString` / `CFBundleVersion` in the built `Info.plist` via Xcode's auto-generated plist.
+
+---
+
+## [Unreleased]
+
+### Changed
+- One name everywhere: the home-screen name, the onboarding title ("Welcome to InspiRail") and the Xcode project, targets and folders all read InspiRail. The bundle identifier stays `annisu.rnsapp`, so installed data and the App Store Connect record carry over.
+- The NS API key moves to a renamed Keychain service the first time the app needs it. A key saved by an earlier version is kept, and a key removed in Settings stays removed.
+- The user agent sent to the NS API reads `InspiRail/<version>`.
+
+### Fixed
+- The unit and UI test targets now compile their test folders. Before, neither target contained any code, and the unit-test stub imported a module that doesn't exist.
 
 ---
 
