@@ -65,6 +65,14 @@ final class APIKeyProviderTests {
         #expect(try await provider(environment: ["NS_API_KEY": "   "]).currentKey() == "stored")
     }
 
+    @Test("The provider reports when the environment variable supplies the key")
+    func reportsEnvironmentKeyInUse() {
+        #expect(provider(environment: ["NS_API_KEY": "fresh"]).usesEnvironmentKey)
+        #expect(!provider().usesEnvironmentKey)
+        #expect(!provider(environment: ["NS_API_KEY": "   "]).usesEnvironmentKey)
+        #expect(!provider(environment: ["NS_API_KEY": "fresh"], allowsEnvironmentOverride: false).usesEnvironmentKey)
+    }
+
     @Test("With no key anywhere, the request is unauthorized")
     func noKeyThrowsUnauthorized() async throws {
         let error = await #expect(throws: NetworkError.self) {

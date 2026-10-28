@@ -171,7 +171,11 @@ actor BackendAPI {
                 logger.error("❌ Authentication failed with status \(httpResponse.statusCode)")
                 logger.error("   This usually means:")
                 if httpResponse.statusCode == 401 {
-                    logger.error("   - The API key is missing, invalid or expired: check it in Settings")
+                    if keyProvider.usesEnvironmentKey {
+                        logger.error("   - The API key from NS_API_KEY is invalid or expired: change or remove it in the launch environment (it overrides Settings)")
+                    } else {
+                        logger.error("   - The API key is missing, invalid or expired: check it in Settings")
+                    }
                 } else {
                     logger.error("   - API key is valid but doesn't have permission for this endpoint")
                 }

@@ -24,6 +24,10 @@ nonisolated struct APIKeyProvider: Sendable {
         self.environmentKey = allowsEnvironmentOverride && !value.isEmpty ? value : nil
     }
 
+    /// Whether the `NS_API_KEY` environment variable supplies the key, so that a key
+    /// saved or removed in Settings is overridden by it.
+    var usesEnvironmentKey: Bool { environmentKey != nil }
+
     /// The key to send with a request. Throws `NetworkError.unauthorized` when there is none.
     func currentKey() async throws -> String {
         let storedKey: String?
