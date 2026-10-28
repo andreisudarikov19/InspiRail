@@ -24,19 +24,17 @@ Press ⌘R to build and run. On first launch the app will prompt you to enter yo
 
 ## API key handling
 
-The NS API key lives in the iOS Keychain. There are two ways to get one there:
+The NS API key lives only in the iOS Keychain. Nothing is compiled into the app, and the project has no `Secrets.xcconfig`; a leftover local copy is ignored.
 
-- **End-user path** — launch the app, follow the "Open Settings" button on the onboarding error screen, paste the key, save. The key never leaves the device.
-- **Developer shortcut (Debug builds only)** — set `NS_API_KEY` as an environment variable on the `InspiRail` scheme, or launch via `SIMCTL_CHILD_NS_API_KEY=… xcrun simctl launch <device> annisu.rnsapp`. `BackendAPI` reads this in DEBUG and migrates it to the Keychain automatically.
-
-`Secrets.xcconfig` is gitignored. It used to be bundled into the app at build time; that path was removed in 1.3.0 because anything inside the shipped binary is extractable from the `.ipa`.
+- **End users** — launch the app, follow the "Open Settings" button on the onboarding error screen, paste the key, save. The key never leaves the device.
+- **Developers (Debug builds only)** — set `NS_API_KEY` in the app's environment, either by launching with `SIMCTL_CHILD_NS_API_KEY=… xcrun simctl launch <device> annisu.rnsapp`, or on a duplicate of the `InspiRail` scheme with "Shared" unticked, so the value stays in the untracked `xcuserdata`. Don't set it on the shared scheme: that file is tracked. In Debug builds the variable wins over a stored key and is saved to the Keychain, so later launches work without it. Release builds never read it.
 
 ## Project layout
 
 ```
 InspiRail/
 ├── Models/                    SwiftData & Codable data models
-├── NetworkEngine/             HTTP plumbing, retry/cache, key diagnostics
+├── NetworkEngine/             HTTP plumbing and errors
 ├── Pages/                     SwiftUI screens (Discovery, Onboarding,
 │                              Settings, VisitedList)
 ├── ViewModels/                @MainActor view-models and repositories
