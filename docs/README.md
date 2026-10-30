@@ -13,4 +13,4 @@
 
 - [Wiki archive](archive/wiki/README.md): the retired GitHub wiki, kept as input for planning. It doesn't describe the current code.
 
-Open work, plans and decisions are tracked in [GitHub Issues](https://github.com/andreisudarikov19/InspiRail/issues).
+Open work and decisions are tracked in [GitHub Issues](https://github.com/andreisudarikov19/InspiRail/issues). The implementation plan for an issue in progress is in [`superpowers/plans/`](superpowers/plans/), linked from its PR.
