@@ -53,33 +53,33 @@
   }
   ```
 
-- [ ] **Step 1: Write the failing tests** in `InspiRailTests/TestHostTests.swift`, `@Suite("Unit-test host") struct TestHostTests`:
+- [x] **Step 1: Write the failing tests** in `InspiRailTests/TestHostTests.swift`, `@Suite("Unit-test host") struct TestHostTests`:
   - `currentProcessIsTheTestHost`, "This test run's host knows it is hosting the unit tests": `#expect(AppConfiguration.isHostingUnitTests())`.
   - `normalLaunchIsNotTheTestHost`, "A normal launch, or the app a UI test launches, is not the test host": `#expect(!AppConfiguration.isHostingUnitTests(environment: [:]))` and `#expect(!AppConfiguration.isHostingUnitTests(environment: ["XCODE_SCHEME_NAME": "InspiRail", "XCODE_TEST_PLAN_NAME": "InspiRail"]))`.
   - `onlyOneMarksTheTestHost`, "Only the value 1 marks the test host": `["INSPIRAIL_UNIT_TEST_HOST": "1"]` → `true`; `"0"` and `""` → `false`.
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
   Run: `xcodebuild test -project InspiRail.xcodeproj -scheme InspiRail -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:InspiRailTests`
   Expected: build failure, "type 'AppConfiguration' has no member 'isHostingUnitTests'".
 
-- [ ] **Step 3: Implement `isHostingUnitTests(environment:)`** (true only when the variable equals `"1"`), and add `{ "key" : "INSPIRAIL_UNIT_TEST_HOST", "value" : "1" }` to `defaultOptions.environmentVariableEntries` in `InspiRail.xctestplan`.
+- [x] **Step 3: Implement `isHostingUnitTests(environment:)`** (true only when the variable equals `"1"`), and add `{ "key" : "INSPIRAIL_UNIT_TEST_HOST", "value" : "1" }` to `defaultOptions.environmentVariableEntries` in `InspiRail.xctestplan`.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
   Run: the command from Step 2.
   Expected: `** TEST SUCCEEDED **`, 17 tests (the 3 new ones, 7 `APIKeyProviderTests`, 7 `KeychainMigrationTests`).
 
-- [ ] **Step 5: Wire it into `InspiRailApp`**
+- [x] **Step 5: Wire it into `InspiRailApp`**
   - `private let isHostingUnitTests = AppConfiguration.isHostingUnitTests()`, with a doc comment saying why.
   - `init()` returns before `AppConfiguration.logConfiguration()` when it is set.
   - In `WindowGroup`, when it is set: `Color.clear.modelContainer(for: VisitedStation.self, inMemory: true)`. Otherwise the current `MainTabView()` chain, unchanged. `createModelContainer()` is not touched (#17).
 
-- [ ] **Step 6: Check both launches in the app log.** On a throwaway iPhone 17 simulator whose Keychain holds a dummy key (launch once with `SIMCTL_CHILD_NS_API_KEY=dummy-key`; never a real key), stream `log stream --level debug --style compact --predicate 'subsystem == "annisu.inspirail"'` while running:
+- [x] **Step 6: Check both launches in the app log.** On a throwaway iPhone 17 simulator whose Keychain holds a dummy key (launch once with `SIMCTL_CHILD_NS_API_KEY=dummy-key`; never a real key), stream `log stream --level debug --style compact --predicate 'subsystem == "annisu.inspirail"'` while running:
   - the command from Step 2 with `-destination id=<udid> -parallel-testing-enabled NO` (parallel testing clones the simulator, out of reach of `log stream`). Expected: no `App Configuration:` line and no `🌐 Request:` line.
   - `xcrun simctl launch <udid> annisu.rnsapp`. Expected: one `App Configuration:` line and one `🌐 Request: /nsapp-stations/v3`.
 
-- [ ] **Step 7: Commit** `fix: show an empty scene with no network work when the app hosts the unit tests (#15)`
+- [x] **Step 7: Commit** `fix: show an empty scene with no network work when the app hosts the unit tests (#15)`
 
 ### Task 2: Skip the Keychain tests when the test host isn't signed
 
@@ -100,25 +100,25 @@
   }
   ```
 
-- [ ] **Step 1: Run the unit tests unsigned to see them fail**
+- [x] **Step 1: Run the unit tests unsigned to see them fail**
 
   Run: `xcodebuild test -project InspiRail.xcodeproj -scheme InspiRail -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:InspiRailTests -derivedDataPath <scratch>/dd-unsigned CODE_SIGNING_ALLOWED=NO` (a separate derived-data folder keeps the signed build intact).
   Expected: `** TEST FAILED **`, 12 tests failing with `saveFailed(-34018)` or `retrievalFailed(-34018)`.
 
-- [ ] **Step 2: Implement `TestKeychain` and `.requiresKeychain`** in `InspiRailTests/KeychainAvailability.swift`. The probe is one `SecItemCopyMatching` for a generic password under `"test.\(UUID().uuidString).probe"`, run once. The trait is `.enabled(if: TestKeychain.isAvailable, "The Keychain is unavailable: the test host isn't signed (errSecMissingEntitlement, -34018)")`.
+- [x] **Step 2: Implement `TestKeychain` and `.requiresKeychain`** in `InspiRailTests/KeychainAvailability.swift`. The probe is one `SecItemCopyMatching` for a generic password under `"test.\(UUID().uuidString).probe"`, run once. The trait is `.enabled(if: TestKeychain.isAvailable, "The Keychain is unavailable: the test host isn't signed (errSecMissingEntitlement, -34018)")`.
 
-- [ ] **Step 3: Apply the trait** to the `KeychainMigrationTests` suite and to the six `APIKeyProviderTests` listed above. Update each suite's doc comment to say the tests are skipped on an unsigned host.
+- [x] **Step 3: Apply the trait** to the `KeychainMigrationTests` suite and to the six `APIKeyProviderTests` listed above. Update each suite's doc comment to say the tests are skipped on an unsigned host.
 
-- [ ] **Step 4: Run the unsigned command from Step 1 again**
+- [x] **Step 4: Run the unsigned command from Step 1 again**
 
   Expected: `** TEST SUCCEEDED **`, 13 tests skipped with the reason above, 4 passing (`reportsEnvironmentKeyInUse` and the 3 `TestHostTests`).
 
-- [ ] **Step 5: Run signed**
+- [x] **Step 5: Run signed**
 
   Run: the command from Task 1, Step 2.
   Expected: `** TEST SUCCEEDED **`, 17 passing, 0 skipped.
 
-- [ ] **Step 6: Commit** `test: skip the Keychain tests when the test host isn't signed (#15)`
+- [x] **Step 6: Commit** `test: skip the Keychain tests when the test host isn't signed (#15)`
 
 ### Task 3: Remove the template UI tests and take the UI target out of the default test plan
 
@@ -128,19 +128,19 @@
 - Modify: `InspiRail.xctestplan`: remove the `InspiRailUITests` entry from `testTargets`
 - Modify: `InspiRail.xcodeproj/xcshareddata/xcschemes/InspiRail.xcscheme`: remove the `InspiRailUITests` `TestableReference` from `<Testables>`
 
-- [ ] **Step 1: Make the four changes.** The target and its folder stay in the project.
+- [x] **Step 1: Make the four changes.** The target and its folder stay in the project.
 
-- [ ] **Step 2: Run the default test plan**
+- [x] **Step 2: Run the default test plan**
 
   Run: `xcodebuild test -project InspiRail.xcodeproj -scheme InspiRail -destination 'platform=iOS Simulator,name=iPhone 17'`
   Expected: `** TEST SUCCEEDED **`, 17 unit tests, and no `InspiRailUITests` in the output (it is neither built nor run).
 
-- [ ] **Step 3: Check that the UI target still builds**
+- [x] **Step 3: Check that the UI target still builds**
 
   Run: `xcodebuild -project InspiRail.xcodeproj -target InspiRailUITests -sdk iphonesimulator -configuration Debug SYMROOT=<scratch>/sym build`
   Expected: `** BUILD SUCCEEDED **`.
 
-- [ ] **Step 4: Commit** `test: remove the template UI tests and take the UI target out of the default test plan (#15)`
+- [x] **Step 4: Commit** `test: remove the template UI tests and take the UI target out of the default test plan (#15)`
 
 ### Task 4: Document test runs, and confirm a run makes no requests
 
@@ -148,18 +148,18 @@
 - Modify: `README.md`: the sentence on test folders under "Project layout", and a new "Tests" section after it
 - Modify: `CHANGELOG.md`, `[Unreleased]`
 
-- [ ] **Step 1: README "Tests" section.**
+- [x] **Step 1: README "Tests" section.**
   - Run the tests with ⌘U or the `xcodebuild test` command from Task 3, Step 2.
   - The unit tests run inside the app. `InspiRail.xctestplan` sets `INSPIRAIL_UNIT_TEST_HOST=1`, so the app shows an empty screen, makes no requests and doesn't open the stored visits.
-  - The Keychain tests need a signed test host. With `CODE_SIGNING_ALLOWED=NO` they are skipped, and the test log says why.
+  - The Keychain tests need a signed test host. With `CODE_SIGNING_ALLOWED=NO` they are skipped, and the test report, not the console, says why (changed after review).
   - `InspiRailUITests/` holds no tests yet and isn't in the test plan.
 
-- [ ] **Step 2: `CHANGELOG.md` `[Unreleased]`.**
+- [x] **Step 2: `CHANGELOG.md` `[Unreleased]`.**
   - Removed: the template UI tests, which launched the app nine times per test run and checked nothing. The UI test target stays, outside the default test plan.
   - Fixed: a test run no longer sends requests to the NS API or opens the simulator's stored visits.
   - Fixed: without code signing, the Keychain tests are skipped with a reason instead of failing with -34018.
 
-- [ ] **Step 3: Count request attempts during a full test run, before and after.** On the primed throwaway simulator from Task 1, Step 6: delete `Library/Application Support/default.store` (and `-wal`, `-shm`) from `xcrun simctl get_app_container <udid> annisu.rnsapp data`; stream the log as in Task 1, Step 6; run `xcodebuild test-without-building` for the whole default plan with `-destination id=<udid> -parallel-testing-enabled NO`; count `🌐 Request:` lines. Do this once on `main` and once on this branch, then delete the simulator.
-  Expected: this branch makes 0 requests, logs no line from the test host, and `default.store` is still absent after the run. Measured while planning, `main` launched the app 10 times (1 unit-test host, 9 UI) and made 10 requests, one per launch since #14 removed the second, and re-created `default.store`.
+- [x] **Step 3: Count request attempts during a full test run, before and after.** On the primed throwaway simulator from Task 1, Step 6: delete `Library/Application Support/default.store` (and `-wal`, `-shm`) from `xcrun simctl get_app_container <udid> annisu.rnsapp data`; stream the log as in Task 1, Step 6; run `xcodebuild test-without-building` for the whole default plan with `-destination id=<udid> -parallel-testing-enabled NO`; count `🌐 Request:` lines. Do this once on `main` and once on this branch, then delete the simulator.
+  Expected: this branch makes 0 requests and logs no `App Configuration:` line, and `default.store` is still absent after the run (changed during execution: the Keychain tests log from the test host, so the check is no startup configuration line rather than no line at all). Measured while planning, `main` launched the app 10 times (1 unit-test host, 9 UI) and made 10 requests, one per launch since #14 removed the second, and re-created `default.store`.
 
-- [ ] **Step 4: Commit** `docs: describe hermetic test runs in the README and changelog (#15)`
+- [x] **Step 4: Commit** `docs: describe hermetic test runs in the README and changelog (#15)`
