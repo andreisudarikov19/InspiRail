@@ -20,7 +20,7 @@ Both live in `InspiRail.xcodeproj/project.pbxproj` on the app target and flow th
 - One name everywhere: the home-screen name, the onboarding title ("Welcome to InspiRail") and the Xcode project, targets and folders all read InspiRail. The bundle identifier stays `annisu.rnsapp`, so installed data and the App Store Connect record carry over.
 - The NS API key moves to a renamed Keychain service the first time the app needs it. A key saved by an earlier version is kept, and a key removed in Settings stays removed.
 - The user agent sent to the NS API reads `InspiRail/<version>`.
-- In Debug builds, an `NS_API_KEY` environment variable now takes precedence over a key stored in the Keychain, and replaces it there.
+- In Debug builds, an `NS_API_KEY` environment variable now takes precedence over a key stored in the Keychain. It is saved to the Keychain only when no key is stored yet, so it never replaces a key saved in Settings.
 
 ### Removed
 - The Info.plist key lookup and the Debug launch diagnostics (`APIKeySetupHelper`, `APIKeyDiagnostics`), which advised putting the key into Info.plist.

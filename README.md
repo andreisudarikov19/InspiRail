@@ -27,7 +27,7 @@ Press ⌘R to build and run. On first launch the app will prompt you to enter yo
 The NS API key lives only in the iOS Keychain. Nothing is compiled into the app, and the project has no `Secrets.xcconfig`; a leftover local copy is ignored.
 
 - **End users** — launch the app, follow the "Open Settings" button on the onboarding error screen, paste the key, save. The key never leaves the device.
-- **Developers (Debug builds only)** — set `NS_API_KEY` in the app's environment, either by launching with `SIMCTL_CHILD_NS_API_KEY=… xcrun simctl launch <device> annisu.rnsapp`, or on a duplicate of the `InspiRail` scheme with "Shared" unticked, so the value stays in the untracked `xcuserdata`. Don't set it on the shared scheme: that file is tracked. In Debug builds the variable wins over a stored key and is saved to the Keychain, so later launches work without it. Release builds never read it.
+- **Developers (Debug builds only)** — set `NS_API_KEY` in the app's environment, either by launching with `SIMCTL_CHILD_NS_API_KEY=… xcrun simctl launch <device> annisu.rnsapp`, or on a duplicate of the `InspiRail` scheme with "Shared" unticked, so the value stays in the untracked `xcuserdata`. Don't set it on the shared scheme: that file is tracked. In Debug builds the variable wins over a stored key. When no key is stored yet, it is saved to the Keychain, so later launches work without it; it never replaces a key saved in Settings. Release builds never read it.
 
 ## Project layout
 
@@ -40,6 +40,7 @@ InspiRail/
 ├── ViewModels/                @MainActor view-models and repositories
 ├── BackendAPI.swift           NS API client (actor)
 ├── KeychainManager.swift      API-key storage
+├── APIKeyProvider.swift       Picks the API key (Keychain, Debug env)
 ├── BackendHealthMonitor.swift Connectivity + backend health
 ├── BackgroundRefreshManager.swift
 ├── NetworkMonitor.swift
