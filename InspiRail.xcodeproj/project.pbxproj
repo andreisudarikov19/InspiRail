@@ -29,7 +29,6 @@
 		EB0A6B462F07B986003FB8D1 /* InspiRailUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = InspiRailUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		EB17A3412FACC32700819AB5 /* InspiRail.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = file; path = InspiRail.xctestplan; sourceTree = "<group>"; };
 		EB33C5C42F4F475C003FFBEA /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
-		EB85ECF72F2F5866003C9DB9 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -79,7 +78,6 @@
 			isa = PBXGroup;
 			children = (
 				EB17A3412FACC32700819AB5 /* InspiRail.xctestplan */,
-				EB85ECF72F2F5866003C9DB9 /* Secrets.xcconfig */,
 				EB0A6B2F2F07B982003FB8D1 /* InspiRail */,
 				DEE39B4B558E61CC2565F82B /* InspiRailTests */,
 				731CACB1C0224F215A932F3D /* InspiRailUITests */,
@@ -277,7 +275,6 @@
 /* Begin XCBuildConfiguration section */
 		EB0A6B4E2F07B986003FB8D1 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = EB85ECF72F2F5866003C9DB9 /* Secrets.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -342,7 +339,6 @@
 		};
 		EB0A6B4F2F07B986003FB8D1 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = EB85ECF72F2F5866003C9DB9 /* Secrets.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -400,7 +396,6 @@
 		};
 		EB0A6B512F07B986003FB8D1 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = EB85ECF72F2F5866003C9DB9 /* Secrets.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -435,7 +430,6 @@
 		};
 		EB0A6B522F07B986003FB8D1 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = EB85ECF72F2F5866003C9DB9 /* Secrets.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -470,7 +464,6 @@
 		};
 		EB0A6B542F07B986003FB8D1 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = EB85ECF72F2F5866003C9DB9 /* Secrets.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
@@ -493,7 +486,6 @@
 		};
 		EB0A6B552F07B986003FB8D1 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = EB85ECF72F2F5866003C9DB9 /* Secrets.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
@@ -516,7 +508,6 @@
 		};
 		EB0A6B572F07B986003FB8D1 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = EB85ECF72F2F5866003C9DB9 /* Secrets.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -537,7 +528,6 @@
 		};
 		EB0A6B582F07B986003FB8D1 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = EB85ECF72F2F5866003C9DB9 /* Secrets.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;

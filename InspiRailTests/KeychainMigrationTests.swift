@@ -115,7 +115,7 @@ private func accessibility(ofKeyUnder service: String) -> String? {
 }
 
 /// Deletes every generic-password item under `service`.
-private func removeKeychainItems(service: String) {
+func removeKeychainItems(service: String) {
     let query: [String: Any] = [
         kSecClass as String: kSecClassGenericPassword,
         kSecAttrService as String: service,
