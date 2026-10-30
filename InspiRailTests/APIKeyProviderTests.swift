@@ -35,12 +35,12 @@ final class APIKeyProviderTests {
         #expect(try await provider().currentKey() == "stored")
     }
 
-    @Test("In Debug builds the environment variable wins over a stored key and replaces it")
-    func debugEnvironmentWinsAndIsSaved() async throws {
-        try await keychain.saveAPIKey("stale")
+    @Test("In Debug builds the environment variable wins over a stored key without replacing it")
+    func debugEnvironmentWinsAndKeepsStoredKey() async throws {
+        try await keychain.saveAPIKey("stored")
 
         #expect(try await provider(environment: ["NS_API_KEY": "fresh"]).currentKey() == "fresh")
-        #expect(try await keychain.getAPIKey() == "fresh")
+        #expect(try await keychain.getAPIKey() == "stored")
     }
 
     @Test("The environment variable primes an empty Keychain")
