@@ -66,13 +66,13 @@ enum AppConfiguration {
     static var userAgent: String {
         "InspiRail/\(appVersion) (iOS; Build \(buildNumber))"
     }
-
+    
     // MARK: - Test host
-
+    
     /// Set to "1" by `InspiRail.xctestplan` in the environment of the process
     /// that hosts the unit tests. The app a UI test launches doesn't get it.
     nonisolated static let unitTestHostVariable = "INSPIRAIL_UNIT_TEST_HOST"
-
+    
     /// Whether this process only hosts the unit tests, so the app should skip
     /// its startup work, its network requests and the stored visits.
     nonisolated static func isHostingUnitTests(
@@ -80,7 +80,7 @@ enum AppConfiguration {
     ) -> Bool {
         environment[unitTestHostVariable] == "1"
     }
-
+    
     // MARK: - Feature Flags
     
     enum Features {

@@ -11,18 +11,18 @@ import OSLog
 
 @main
 struct InspiRailApp: App {
-
+    
     /// When the app only hosts the unit tests, it shows an empty scene with an
     /// in-memory store and skips its startup work, so a test run makes no
     /// requests and never opens the stored visits (#15).
     private let isHostingUnitTests = AppConfiguration.isHostingUnitTests()
-
+    
     init() {
         guard !isHostingUnitTests else { return }
         // Log app configuration on startup
         AppConfiguration.logConfiguration()
     }
-
+    
     var body: some Scene {
         WindowGroup {
             if isHostingUnitTests {
