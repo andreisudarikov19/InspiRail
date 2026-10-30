@@ -13,7 +13,10 @@ import Testing
 struct TestHostTests {
     @Test("This test run's host knows it is hosting the unit tests")
     func currentProcessIsTheTestHost() {
-        #expect(AppConfiguration.isHostingUnitTests())
+        #expect(
+            AppConfiguration.isHostingUnitTests(),
+            "Run the tests through InspiRail.xctestplan, which sets INSPIRAIL_UNIT_TEST_HOST=1"
+        )
     }
 
     @Test("A normal launch, or the app a UI test launches, is not the test host")
