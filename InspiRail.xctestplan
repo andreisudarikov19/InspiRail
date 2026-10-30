@@ -30,14 +30,6 @@
         "identifier" : "EB0A6B3B2F07B986003FB8D1",
         "name" : "InspiRailTests"
       }
-    },
-    {
-      "parallelizable" : true,
-      "target" : {
-        "containerPath" : "container:InspiRail.xcodeproj",
-        "identifier" : "EB0A6B452F07B986003FB8D1",
-        "name" : "InspiRailUITests"
-      }
     }
   ],
   "version" : 1
