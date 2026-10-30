@@ -25,12 +25,15 @@ Both live in `InspiRail.xcodeproj/project.pbxproj` on the app target and flow th
 ### Removed
 - The Info.plist key lookup and the Debug launch diagnostics (`APIKeySetupHelper`, `APIKeyDiagnostics`), which advised putting the key into Info.plist.
 - `Secrets.xcconfig` as the project's base configuration, and `Secrets.xcconfig.template`.
+- Xcode's template UI tests, which launched the app nine times per test run and checked nothing. The UI test target stays in the project, outside the default test plan.
 
 ### Fixed
 - The unit and UI test targets now compile their test folders. Before, neither target contained any code, and the unit-test stub imported a module that doesn't exist.
 - A fresh clone builds without first creating `Secrets.xcconfig`.
 - A Debug launch downloads the station list once instead of twice.
 - Debug builds no longer write part of the API key to the log.
+- A test run no longer sends requests to the NS API or opens the simulator's stored visits: while hosting the unit tests, the app shows an empty screen.
+- Without code signing (`CODE_SIGNING_ALLOWED=NO`), the Keychain tests are skipped with a reason instead of failing with -34018.
 
 ---
 

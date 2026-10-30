@@ -9,7 +9,8 @@ import Testing
 
 /// The API key comes from the Keychain or, in Debug builds, the `NS_API_KEY`
 /// environment variable (#14). These tests run against the real Keychain,
-/// each under its own throwaway service name.
+/// each under its own throwaway service name. Those that use it are skipped
+/// when the test host isn't signed (#15).
 @Suite("API key sources")
 final class APIKeyProviderTests {
     let service: String
@@ -28,14 +29,14 @@ final class APIKeyProviderTests {
         APIKeyProvider(keychain: keychain, environment: environment, allowsEnvironmentOverride: allowsEnvironmentOverride)
     }
 
-    @Test("A stored key is used when the environment has none")
+    @Test("A stored key is used when the environment has none", .requiresKeychain)
     func storedKeyIsUsed() async throws {
         try await keychain.saveAPIKey("stored")
 
         #expect(try await provider().currentKey() == "stored")
     }
 
-    @Test("In Debug builds the environment variable wins over a stored key without replacing it")
+    @Test("In Debug builds the environment variable wins over a stored key without replacing it", .requiresKeychain)
     func debugEnvironmentWinsAndKeepsStoredKey() async throws {
         try await keychain.saveAPIKey("stored")
 
@@ -43,13 +44,13 @@ final class APIKeyProviderTests {
         #expect(try await keychain.getAPIKey() == "stored")
     }
 
-    @Test("The environment variable primes an empty Keychain")
+    @Test("The environment variable primes an empty Keychain", .requiresKeychain)
     func environmentPrimesEmptyKeychain() async throws {
         #expect(try await provider(environment: ["NS_API_KEY": "fresh"]).currentKey() == "fresh")
         #expect(try await keychain.getAPIKey() == "fresh")
     }
 
-    @Test("Release builds ignore the environment variable")
+    @Test("Release builds ignore the environment variable", .requiresKeychain)
     func releaseIgnoresEnvironment() async throws {
         try await keychain.saveAPIKey("stored")
 
@@ -58,7 +59,7 @@ final class APIKeyProviderTests {
         #expect(try await keychain.getAPIKey() == "stored")
     }
 
-    @Test("A blank environment variable counts as unset")
+    @Test("A blank environment variable counts as unset", .requiresKeychain)
     func blankEnvironmentIsUnset() async throws {
         try await keychain.saveAPIKey("stored")
 
@@ -73,7 +74,7 @@ final class APIKeyProviderTests {
         #expect(!provider(environment: ["NS_API_KEY": "fresh"], allowsEnvironmentOverride: false).usesEnvironmentKey)
     }
 
-    @Test("With no key anywhere, the request is unauthorized")
+    @Test("With no key anywhere, the request is unauthorized", .requiresKeychain)
     func noKeyThrowsUnauthorized() async throws {
         let error = await #expect(throws: NetworkError.self) {
             try await self.provider().currentKey()

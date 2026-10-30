@@ -10,8 +10,9 @@ import Testing
 
 /// The Keychain service holding the NS API key was renamed from
 /// `com.rnsapp.api` (#7). These tests run against the real Keychain, each
-/// under its own throwaway service names.
-@Suite("API key migration to the renamed Keychain service")
+/// under its own throwaway service names, and are skipped when the test host
+/// isn't signed (#15).
+@Suite("API key migration to the renamed Keychain service", .requiresKeychain)
 final class KeychainMigrationTests {
     let oldService: String
     let newService: String
