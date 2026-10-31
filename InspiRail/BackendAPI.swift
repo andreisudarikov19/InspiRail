@@ -99,18 +99,7 @@ actor BackendAPI {
         
         return try await request(url: url, as: StationResponse.self)
     }
-    
-    /// Generic request method for future endpoints
-    func request<T: Decodable>(_ path: String, as type: T.Type) async throws -> T {
-        let url = URL(string: baseURL + "/" + path.trimmingCharacters(in: CharacterSet(charactersIn: "/")))
-        
-        guard let validURL = url else {
-            throw NetworkError.invalidURL
-        }
-        
-        return try await request(url: validURL, as: type)
-    }
-    
+
     // MARK: - Private Request Logic
     
     private func request<T: Decodable>(url: URL, as type: T.Type, retryCount: Int = 0) async throws -> T {

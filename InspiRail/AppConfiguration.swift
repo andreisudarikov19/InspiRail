@@ -10,9 +10,9 @@ import OSLog
 
 /// Centralized configuration for the app
 enum AppConfiguration {
-    /// Reverse-DNS prefix for the app's own identifiers: the logger subsystem,
-    /// dispatch queue labels and background task ids. The bundle identifier
-    /// keeps its original name, `annisu.rnsapp`.
+    /// Reverse-DNS prefix for the app's own identifiers: the logger subsystem
+    /// and dispatch queue labels. The bundle identifier keeps its original
+    /// name, `annisu.rnsapp`.
     nonisolated static let subsystem = "annisu.inspirail"
     
     private static let logger = Logger(subsystem: subsystem, category: "config")

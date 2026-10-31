@@ -51,9 +51,9 @@
 - Consumes: nothing.
 - Produces: nothing. The `NWInterface.InterfaceType.description` extension goes with `NetworkMonitor.swift`. `BackendHealthMonitor` uses its own `connectionTypeDescription`.
 
-- [ ] **Step 1: Delete the five files and make the three edits.**
-- [ ] **Step 2: Typecheck.** Expected: 0 errors, 18 warnings (`NetworkManager`'s `networkLog` warning is gone).
-- [ ] **Step 3: Commit** `refactor: delete the never-started managers, the network shim and the unused models (#16)`
+- [x] **Step 1: Delete the five files and make the three edits.**
+- [x] **Step 2: Typecheck.** Expected: 0 errors, 18 warnings (`NetworkManager`'s `networkLog` warning is gone).
+- [x] **Step 3: Commit** `refactor: delete the never-started managers, the network shim and the unused models (#16)`
 
 ### Task 2: Remove event tracking
 
