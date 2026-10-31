@@ -33,13 +33,11 @@ actor StationsRepository {
            let timestamp = cacheTimestamp,
            Date().timeIntervalSince(timestamp) < cacheLifetime {
             logger.debug("Returning cached stations (\(cached.count) items)")
-            await AnalyticsManager.shared.track(.cacheHit(endpoint: "/nsapp-stations/v3"))
             return StationResponse(payload: cached)
         }
         
         // Fetch fresh data
         logger.debug("Fetching fresh station data from API")
-        await AnalyticsManager.shared.track(.cacheMiss(endpoint: "/nsapp-stations/v3"))
         let response = try await backend.getStations(includeNonPlannable: false)
         
         // Update cache

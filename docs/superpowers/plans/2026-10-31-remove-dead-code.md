@@ -68,14 +68,14 @@
 - Consumes: Task 1, which deleted `BackgroundRefreshManager` and its two `track` calls. Without it, this task doesn't compile.
 - Produces: `AppConfiguration.Features` with only `enableDetailedLogging` and `enableNetworkLogging`.
 
-- [ ] **Step 1: Make the changes.**
-- [ ] **Step 2: Typecheck.** Expected: 0 errors, 14 warnings (`AnalyticsManager`'s 4 are gone).
-- [ ] **Step 3: Run the default test plan**
+- [x] **Step 1: Make the changes.**
+- [x] **Step 2: Typecheck.** Expected: 0 errors, 14 warnings (`AnalyticsManager`'s 4 are gone).
+- [x] **Step 3: Run the default test plan**
 
   Run: `xcodebuild test -project InspiRail.xcodeproj -scheme InspiRail -destination 'platform=iOS Simulator,name=iPhone 17'`
   Expected: `** TEST SUCCEEDED **`, 17 tests passed, including the 3 `TestHostTests`.
 
-- [ ] **Step 4: Commit** `refactor: remove event tracking, which reached no analytics service (#16)`
+- [x] **Step 4: Commit** `refactor: remove event tracking, which reached no analytics service (#16)`
 
 ### Task 3: Remove the unused members
 

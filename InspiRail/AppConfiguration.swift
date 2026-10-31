@@ -91,14 +91,6 @@ enum AppConfiguration {
         static var enableNetworkLogging: Bool {
             Environment.current == .development
         }
-        
-        static var enableCrashReporting: Bool {
-            Environment.current == .production
-        }
-        
-        static var enableAnalytics: Bool {
-            Environment.current == .production
-        }
     }
     
     // MARK: - Logging

@@ -103,8 +103,6 @@ actor BackendAPI {
     // MARK: - Private Request Logic
     
     private func request<T: Decodable>(url: URL, as type: T.Type, retryCount: Int = 0) async throws -> T {
-        let startTime = Date()
-        
         // Rate limiting check
         try await checkRateLimit()
         
@@ -148,13 +146,7 @@ actor BackendAPI {
             switch httpResponse.statusCode {
             case 200...299:
                 // Success - decode response
-                let result = try decodeResponse(data: data, type: type)
-                
-                // Track successful request
-                let duration = Date().timeIntervalSince(startTime)
-                await AnalyticsManager.shared.track(.apiRequestSucceeded(endpoint: url.path, duration: duration))
-                
-                return result
+                return try decodeResponse(data: data, type: type)
                 
             case 401, 403:
                 logger.error("❌ Authentication failed with status \(httpResponse.statusCode)")
@@ -205,15 +197,10 @@ actor BackendAPI {
             }
             
         } catch let error as NetworkError {
-            // Track failed request
-            await AnalyticsManager.shared.track(.apiRequestFailed(endpoint: url.path, error: error.localizedDescription))
             throw error
         } catch let error as URLError {
-            let networkError = mapURLError(error)
-            await AnalyticsManager.shared.track(.apiRequestFailed(endpoint: url.path, error: networkError.localizedDescription))
-            throw networkError
+            throw mapURLError(error)
         } catch {
-            await AnalyticsManager.shared.track(.apiRequestFailed(endpoint: url.path, error: error.localizedDescription))
             throw NetworkError.unknown(error)
         }
     }

@@ -30,10 +30,6 @@ struct InspiRailApp: App {
                     .modelContainer(for: VisitedStation.self, inMemory: true)
             } else {
                 MainTabView()
-                    .task {
-                        // Track app launch
-                        await AnalyticsManager.shared.track(.appLaunched)
-                    }
                     // Initialize database with migration support
                     .modelContainer(createModelContainer())
             }
