@@ -42,9 +42,6 @@ InspiRail/
 ├── KeychainManager.swift      API-key storage
 ├── APIKeyProvider.swift       Picks the API key (Keychain, Debug env)
 ├── BackendHealthMonitor.swift Connectivity + backend health
-├── BackgroundRefreshManager.swift
-├── NetworkMonitor.swift
-├── AnalyticsManager.swift     Event tracking
 ├── AppConfiguration.swift     Centralised config (URLs, timeouts, flags)
 └── InspiRailApp.swift         App entry point
 ```

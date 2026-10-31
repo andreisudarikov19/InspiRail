@@ -26,6 +26,11 @@ Both live in `InspiRail.xcodeproj/project.pbxproj` on the app target and flow th
 - The Info.plist key lookup and the Debug launch diagnostics (`APIKeySetupHelper`, `APIKeyDiagnostics`), which advised putting the key into Info.plist.
 - `Secrets.xcconfig` as the project's base configuration, and `Secrets.xcconfig.template`.
 - Xcode's template UI tests, which launched the app nine times per test run and checked nothing. The UI test target stays in the project, outside the default test plan.
+- Code that never ran: the background refresh (`BackgroundRefreshManager`), which was never registered or scheduled, the network monitor (`NetworkMonitor`), which nothing created, and the deprecated `NetworkManager` shim.
+- Event tracking (`AnalyticsManager`) and its unused feature flags. No analytics service was connected. Release builds only wrote the events to the log, and Debug builds dropped them.
+- The disruption and route models, which nothing fetched.
+- Unused members of `NetworkError`, `StationsRepository`, `KeychainManager`, `VisitedStation`, `DiscoveryViewModel` and `BackendHealthMonitor`. `VisitedStation`'s stored fields stay, so the logbook's storage is unchanged.
+- Six files listed in the Xcode workspace that don't exist.
 
 ### Fixed
 - The unit and UI test targets now compile their test folders. Before, neither target contained any code, and the unit-test stub imported a module that doesn't exist.

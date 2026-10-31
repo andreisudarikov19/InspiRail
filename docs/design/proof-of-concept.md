@@ -4,11 +4,11 @@
 > This is the original proof-of-concept design from January 2026, brought over from the project's first repository. The app has moved away from it in several places, and the design review will replace it. Where the app differs today:
 >
 > * **Name:** the project is InspiRail, not OranjeRail.
-> * **Database:** the only SwiftData model is `VisitedStation`. `Station` and `Disruption` are decoded from the API and never stored.
+> * **Database:** the only SwiftData model is `VisitedStation`. `Station` is decoded from the API and never stored.
 > * **Station model:** the v3 stations response nests the code under `id` and the coordinates under `location`, and calls the country field `country`. See `Models/Station.swift` and the [NS API reference](../reference/ns-api.md).
-> * **Disruption model:** `Models/Disruption.swift` has more fields (a description, start and end times, an impact level, alternative transport), and nothing fetches disruptions yet.
+> * **Disruption model:** the app has none, and nothing fetches disruptions yet.
 > * **Randomizer pipeline:** steps 4 and 5, the disruption check between the home station and the suggested one and the warning it would show, aren't implemented.
-> * **Service classes:** there's no `StationService` or `PersistenceManager`. `BackendAPI` and `StationsRepository` handle the network, and the views use SwiftData directly.
+> * **Service classes:** there's no `NetworkManager`, `StationService` or `PersistenceManager`. `BackendAPI` and `StationsRepository` handle the network, and the views use SwiftData directly.
 > * **Language mode:** the project builds in Swift 5 language mode, not Swift 6.
 
 * **Project**: OranjeRail (iOS)

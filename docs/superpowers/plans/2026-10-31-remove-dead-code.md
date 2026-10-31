@@ -105,32 +105,32 @@
 - Modify: `CHANGELOG.md`, `[Unreleased]`, `### Removed`
 - Modify: `docs/design/proof-of-concept.md:7`, `:9`, `:11`
 
-- [ ] **Step 1: README layout.** Delete only the three lines.
+- [x] **Step 1: README layout.** Delete only the three lines.
 
-- [ ] **Step 2: `CHANGELOG.md`, `[Unreleased]`, `### Removed`.** Append:
+- [x] **Step 2: `CHANGELOG.md`, `[Unreleased]`, `### Removed`.** Append:
   - Code that never ran: the background refresh (`BackgroundRefreshManager`), which was never registered or scheduled, the network monitor (`NetworkMonitor`), which nothing created, and the deprecated `NetworkManager` shim.
   - Event tracking (`AnalyticsManager`) and its unused feature flags. No analytics service was connected. Release builds only wrote the events to the log, and Debug builds dropped them.
   - The disruption and route models, which nothing fetched.
   - Unused members of `NetworkError`, `StationsRepository`, `KeychainManager`, `VisitedStation`, `DiscoveryViewModel` and `BackendHealthMonitor`. `VisitedStation`'s stored fields stay, so the logbook's storage is unchanged.
   - Six files listed in the Xcode workspace that don't exist.
 
-- [ ] **Step 3: Design notes.**
+- [x] **Step 3: Design notes.**
   - **Database:** only `Station` is decoded from the API.
   - **Disruption model:** the app has none, and nothing fetches disruptions yet.
   - **Service classes:** there's no `NetworkManager`, `StationService` or `PersistenceManager`.
 
-- [ ] **Step 4: Check for leftovers**
+- [x] **Step 4: Check for leftovers**
 
   Run: `git grep -nE "BackgroundRefreshManager|NetworkMonitor|AnalyticsManager|enableAnalytics|enableCrashReporting|NetworkManager|networkLog|noData|isRetryable|failureReason|recoverySuggestion|station\(byCode|search\(query|clearCache|forKey|Disruption\.swift|DisruptionsResponse|RouteModels|RouteResponse|RouteLeg|RouteLocation|RouteMessage|isVisitedToday|isVisitedThisWeek|daysSinceVisit|refresh\(\) async|hasNetworkConnection|lastResponseTime|lastHealthCheck|DiagnosticReport|generateDiagnosticReport|Visited Station\.swift|BackendAPI 2|StationsRepository 2|RoutesRepository|DisruptionsRepository|BACKEND_REVIEW" -- . ':!docs/archive'`
-  Expected: hits only in `CHANGELOG.md` (the 1.3.0 entry and the new one), in `docs/superpowers/plans/`, and in `docs/design/proof-of-concept.md`: the original design's `NetworkManager`, and the note saying the app has none.
+  Expected: hits only in `CHANGELOG.md` (the 1.3.0 entry and the new one), in `docs/superpowers/plans/`, and in `docs/design/proof-of-concept.md`: the original design's `NetworkManager`, and the note saying the app has none. Also `BackendHealthMonitor`'s `setupNetworkMonitoring`, which contains `NetworkMonitor` and is the live path monitor that #19 owns (changed during execution: the pattern matches it as a substring).
 
-- [ ] **Step 5: Launch check with the offline review stub.** The stub answers the NS gateway with a synthetic station list and never reaches the network. It is a local review tool kept outside the repo (`.superpowers/` is excluded from git), so this step runs only where the tool is installed. Use a dummy key, never a real one. Build a Debug app from `main` (in a scratch worktree) and from this branch. On a throwaway iPhone 17 simulator (iOS 26.3), as in `launch-check.sh`:
-  1. Install the `main` build, and launch it once with the dummy key. This primes the Keychain and creates `default.store`.
+- [x] **Step 5: Launch check with the offline review stub.** The stub answers the NS gateway with a synthetic station list and never reaches the network. It is a local review tool kept outside the repo (`.superpowers/` is excluded from git), so this step runs only where the tool is installed. Use a dummy key, never a real one. Build a Debug app from `main` (in a scratch worktree) and from this branch. On a throwaway iPhone 17 simulator (iOS 26.3), as in `launch-check.sh`:
+  1. Install the `main` build, and launch it once with the dummy key. This primes the Keychain and creates `default.store`. Then, with the app stopped, add one visit to the store with `sqlite3` (a `ZVISITEDSTATION` row, with `Z_PRIMARYKEY.Z_MAX` raised to match), and record a hash of `Z_METADATA` (added during execution: an empty store would only prove that it opens, not that its visits survive).
   2. Install this branch's build over it, and launch it while streaming `subsystem == "annisu.inspirail" OR subsystem == "review.stub"`. Take a screenshot.
-     Expected: the onboarding station list, one `REVIEWSTUB request … -> 200`, one `🌐 Request: /nsapp-stations/v3`, and no `Failed to create ModelContainer`.
+     Expected: the onboarding station list, one `REVIEWSTUB request … -> 200`, one `🌐 Request: /nsapp-stations/v3`, and no `Failed to create ModelContainer`. Afterwards the visit is still in the store, and the `Z_METADATA` hash and the store file are unchanged.
   3. Relaunch with the launch argument `-homeStationCode UT`, and take a screenshot.
      Expected: Discover shows a station.
 
   Then delete the simulator.
 
-- [ ] **Step 6: Commit** `docs: drop the deleted files from the README and record the removals in the changelog (#16)`
+- [x] **Step 6: Commit** `docs: drop the deleted files from the README and record the removals in the changelog (#16)`
