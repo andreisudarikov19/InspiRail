@@ -46,17 +46,6 @@
                ReferencedContainer = "container:InspiRail.xcodeproj">
             </BuildableReference>
          </TestableReference>
-         <TestableReference
-            skipped = "NO"
-            parallelizable = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "EB0A6B452F07B986003FB8D1"
-               BuildableName = "InspiRailUITests.xctest"
-               BlueprintName = "InspiRailUITests"
-               ReferencedContainer = "container:InspiRail.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

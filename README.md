@@ -49,7 +49,19 @@ InspiRail/
 └── InspiRailApp.swift         App entry point
 ```
 
-The `InspiRail/` folder is an Xcode `PBXFileSystemSynchronizedRootGroup`, so any `.swift` file dropped inside it joins the build automatically — no manual `project.pbxproj` editing needed. The test folders work the same way: `InspiRailTests/` (unit tests, Swift Testing) and `InspiRailUITests/` (UI tests).
+The `InspiRail/` folder is an Xcode `PBXFileSystemSynchronizedRootGroup`, so any `.swift` file dropped inside it joins the build automatically — no manual `project.pbxproj` editing needed. The test folders work the same way: `InspiRailTests/` (unit tests, Swift Testing) and `InspiRailUITests/` (UI tests, none yet).
+
+## Tests
+
+Press ⌘U, or run:
+
+```bash
+xcodebuild test -project InspiRail.xcodeproj -scheme InspiRail -destination 'platform=iOS Simulator,name=iPhone 17'
+```
+
+- The unit tests run inside the app. `InspiRail.xctestplan` sets `INSPIRAIL_UNIT_TEST_HOST=1`, so while hosting them the app shows an empty screen, sends no requests to the NS API and doesn't open the stored visits.
+- The Keychain tests need a signed test host. In a build with `CODE_SIGNING_ALLOWED=NO` they are skipped, and the test report says why: the `.xcresult` bundle, or Xcode's Report navigator. With parallel testing (the default), the console shows only that they were skipped.
+- `InspiRailUITests/` holds no tests yet, and the target isn't in the test plan.
 
 ## Versioning & releases
 
