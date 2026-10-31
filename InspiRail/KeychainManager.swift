@@ -188,69 +188,6 @@ actor KeychainManager {
         SecItemDelete(legacyItem as CFDictionary)
         legacyKeyChecked = true
     }
-    
-    // MARK: - Generic Keychain Storage
-    
-    /// Save any string value securely
-    func save(_ value: String, forKey key: String) async throws {
-        let data = Data(value.utf8)
-        
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: key,
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
-        ]
-        
-        SecItemDelete(query as CFDictionary)
-        
-        let status = SecItemAdd(query as CFDictionary, nil)
-        
-        guard status == errSecSuccess else {
-            throw KeychainError.saveFailed(status)
-        }
-    }
-    
-    /// Retrieve any string value
-    func get(forKey key: String) async throws -> String {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: key,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-        
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        
-        guard status == errSecSuccess else {
-            throw status == errSecItemNotFound ? KeychainError.notFound : KeychainError.retrievalFailed(status)
-        }
-        
-        guard let data = result as? Data,
-              let value = String(data: data, encoding: .utf8) else {
-            throw KeychainError.invalidData
-        }
-        
-        return value
-    }
-    
-    /// Delete any value
-    func delete(forKey key: String) async throws {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: key
-        ]
-        
-        let status = SecItemDelete(query as CFDictionary)
-        
-        guard status == errSecSuccess || status == errSecItemNotFound else {
-            throw KeychainError.deleteFailed(status)
-        }
-    }
 }
 
 // MARK: - Keychain Error

@@ -1,3 +1,10 @@
+//
+//  Station.swift
+//  InspiRail
+//
+//  Decodes the NS stations (v3) response
+//
+
 import Foundation
 import CoreLocation
 

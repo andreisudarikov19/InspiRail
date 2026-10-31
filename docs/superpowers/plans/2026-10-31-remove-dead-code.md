@@ -88,15 +88,15 @@
 - Modify: `InspiRail/ViewModels/DiscoveryViewModel.swift:36-43`, `:105-107`: delete `refresh()`. The `if repository == nil` block and the `guard` become a non-optional local that is stored back, so the first load creates the repository and later loads reuse it.
 - Modify: `InspiRail/BackendHealthMonitor.swift`: the members in Decision 5. The header drops "and diagnostics".
 
-- [ ] **Step 1: Make the changes.**
-- [ ] **Step 2: Typecheck.** Expected: 0 errors, 13 warnings (the `async` warning in `generateDiagnosticReport()` is gone).
-- [ ] **Step 3: Check that the stored schema is unchanged**
+- [x] **Step 1: Make the changes.**
+- [x] **Step 2: Typecheck.** Expected: 0 errors, 13 warnings (the `async` warning in `generateDiagnosticReport()` is gone).
+- [x] **Step 3: Check that the stored schema is unchanged**
 
   Run: the typecheck command with `-Xfrontend -dump-macro-expansions`, then `grep -E 'PropertyMetadata\(name: .*\\VisitedStation\.' | sort -u`, on this branch and on `main`.
   Expected: the same 6 lines on both: `stationCode` (with `.unique`), `stationName`, `dateVisited`, `notes`, `rating`, `_isFavorite`.
 
-- [ ] **Step 4: Run the default test plan.** Expected: as in Task 2, Step 3.
-- [ ] **Step 5: Commit** `refactor: remove unused members from the network, storage, model and view-model types (#16)`
+- [x] **Step 4: Run the default test plan.** Expected: as in Task 2, Step 3.
+- [x] **Step 5: Commit** `refactor: remove unused members from the network, storage, model and view-model types (#16)`
 
 ### Task 4: Update the docs, and check the app still works
 
