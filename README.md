@@ -34,7 +34,7 @@ The NS API key lives only in the iOS Keychain. Nothing is compiled into the app,
 ```
 InspiRail/
 ├── Models/                    SwiftData & Codable data models
-├── NetworkEngine/             HTTP plumbing and errors
+├── NetworkEngine/             Network error type, SwiftData migration plan
 ├── Pages/                     SwiftUI screens (Discovery, Onboarding,
 │                              Settings, VisitedList)
 ├── ViewModels/                @MainActor view-models and repositories
