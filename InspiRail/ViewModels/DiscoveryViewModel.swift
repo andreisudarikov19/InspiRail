@@ -34,13 +34,8 @@ class DiscoveryViewModel: ObservableObject {
         
         do {
             // Initialize repository if needed
-            if repository == nil {
-                repository = StationsRepository()
-            }
-            
-            guard let repository = repository else {
-                throw NetworkError.unknown(NSError(domain: "DiscoveryViewModel", code: -1))
-            }
+            let repository = self.repository ?? StationsRepository()
+            self.repository = repository
             
             let response = try await repository.stations(forceRefresh: forceRefresh)
             
@@ -100,10 +95,6 @@ class DiscoveryViewModel: ObservableObject {
     
     func getStation(byCode code: String) -> Station? {
         return allStations.first(where: { $0.identifiers.code == code })
-    }
-    
-    func refresh() async {
-        await loadStations(forceRefresh: true)
     }
 }
 

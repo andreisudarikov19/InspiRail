@@ -33,13 +33,11 @@ actor StationsRepository {
            let timestamp = cacheTimestamp,
            Date().timeIntervalSince(timestamp) < cacheLifetime {
             logger.debug("Returning cached stations (\(cached.count) items)")
-            await AnalyticsManager.shared.track(.cacheHit(endpoint: "/nsapp-stations/v3"))
             return StationResponse(payload: cached)
         }
         
         // Fetch fresh data
         logger.debug("Fetching fresh station data from API")
-        await AnalyticsManager.shared.track(.cacheMiss(endpoint: "/nsapp-stations/v3"))
         let response = try await backend.getStations(includeNonPlannable: false)
         
         // Update cache
@@ -48,35 +46,5 @@ actor StationsRepository {
         
         logger.debug("Cached \(response.payload.count) stations")
         return response
-    }
-    
-    /// Find a specific station by code
-    func station(byCode code: String) async throws -> Station? {
-        let response = try await stations()
-        return response.payload.first { $0.identifiers.code == code }
-    }
-    
-    /// Search stations by name
-    func search(query: String, country: String = "NL") async throws -> [Station] {
-        let response = try await stations()
-        
-        guard !query.isEmpty else {
-            return response.payload.filter { $0.country == country }
-        }
-        
-        return response.payload.filter {
-            $0.country == country && (
-                $0.names.long.localizedCaseInsensitiveContains(query) ||
-                $0.names.medium.localizedCaseInsensitiveContains(query) ||
-                $0.identifiers.code.localizedCaseInsensitiveContains(query)
-            )
-        }
-    }
-    
-    /// Clear the cache manually
-    func clearCache() {
-        logger.debug("Clearing station cache")
-        cachedStations = nil
-        cacheTimestamp = nil
     }
 }

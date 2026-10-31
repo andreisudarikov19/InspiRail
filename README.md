@@ -34,7 +34,7 @@ The NS API key lives only in the iOS Keychain. Nothing is compiled into the app,
 ```
 InspiRail/
 ├── Models/                    SwiftData & Codable data models
-├── NetworkEngine/             HTTP plumbing and errors
+├── NetworkEngine/             Network error type, SwiftData migration plan
 ├── Pages/                     SwiftUI screens (Discovery, Onboarding,
 │                              Settings, VisitedList)
 ├── ViewModels/                @MainActor view-models and repositories
@@ -42,9 +42,6 @@ InspiRail/
 ├── KeychainManager.swift      API-key storage
 ├── APIKeyProvider.swift       Picks the API key (Keychain, Debug env)
 ├── BackendHealthMonitor.swift Connectivity + backend health
-├── BackgroundRefreshManager.swift
-├── NetworkMonitor.swift
-├── AnalyticsManager.swift     Event tracking
 ├── AppConfiguration.swift     Centralised config (URLs, timeouts, flags)
 └── InspiRailApp.swift         App entry point
 ```

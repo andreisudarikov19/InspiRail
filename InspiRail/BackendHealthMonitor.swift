@@ -2,13 +2,12 @@
 //  BackendHealthMonitor.swift
 //  InspiRail
 //
-//  Backend health monitoring and diagnostics
+//  Backend health monitoring
 //
 
 import Foundation
 import OSLog
 import Network
-import Darwin
 
 /// Monitors backend health and connectivity
 actor BackendHealthMonitor {
@@ -72,21 +71,12 @@ actor BackendHealthMonitor {
         }
     }
     
-    var hasNetworkConnection: Bool {
-        isNetworkAvailable
-    }
-    
-    var connectionType: String {
-        connectionTypeDescription
-    }
-    
     // MARK: - Backend Health
     
     enum HealthStatus {
         case healthy
         case degraded
         case unavailable
-        case unknown
     }
     
     struct HealthReport {
@@ -102,8 +92,6 @@ actor BackendHealthMonitor {
         }
     }
     
-    private var lastHealthCheck: Date?
-    private var lastResponseTime: TimeInterval?
     private var consecutiveFailures = 0
     
     /// Perform a health check on the backend
@@ -126,8 +114,6 @@ actor BackendHealthMonitor {
             _ = try await backend.getStations()
             
             let responseTime = Date().timeIntervalSince(startTime)
-            lastResponseTime = responseTime
-            lastHealthCheck = Date()
             consecutiveFailures = 0
             
             let status: HealthStatus = responseTime < 2.0 ? .healthy : .degraded
@@ -145,7 +131,6 @@ actor BackendHealthMonitor {
             
         } catch {
             consecutiveFailures += 1
-            lastHealthCheck = Date()
             
             logger.error("❌ Health check failed: \(error.localizedDescription)")
             
@@ -158,103 +143,5 @@ actor BackendHealthMonitor {
                 connectionType: connectionTypeDescription
             )
         }
-    }
-    
-    // MARK: - Diagnostics
-    
-    struct DiagnosticReport {
-        let timestamp: Date
-        let appVersion: String
-        let buildNumber: String
-        let deviceModel: String
-        let osVersion: String
-        let networkStatus: String
-        let connectionType: String
-        let hasAPIKey: Bool
-        let cacheInfo: CacheInfo
-        let lastHealthCheck: Date?
-        let consecutiveFailures: Int
-        
-        struct CacheInfo {
-            let memoryUsed: Int
-            let diskUsed: Int
-            let itemCount: Int
-        }
-        
-        var description: String {
-            """
-            📊 Backend Diagnostics Report
-            ========================================
-            Timestamp: \(timestamp)
-            
-            App Information:
-            - Version: \(appVersion) (\(buildNumber))
-            - Device: \(deviceModel)
-            - OS: \(osVersion)
-            
-            Network Status:
-            - Status: \(networkStatus)
-            - Type: \(connectionType)
-            
-            Backend Status:
-            - API Key: \(hasAPIKey ? "✅ Present" : "❌ Missing")
-            - Last Health Check: \(lastHealthCheck?.formatted() ?? "Never")
-            - Consecutive Failures: \(consecutiveFailures)
-            
-            Cache Information:
-            - Memory Used: \(cacheInfo.memoryUsed / 1024 / 1024) MB
-            - Disk Used: \(cacheInfo.diskUsed / 1024 / 1024) MB
-            - Items Cached: \(cacheInfo.itemCount)
-            ========================================
-            """
-        }
-    }
-    
-    /// Generate a comprehensive diagnostic report
-    func generateDiagnosticReport() async -> DiagnosticReport {
-        let hasKey = await KeychainManager.shared.hasAPIKey()
-        
-        // Get cache information
-        let cache = URLCache.shared
-        let cacheInfo = DiagnosticReport.CacheInfo(
-            memoryUsed: cache.currentMemoryUsage,
-            diskUsed: cache.currentDiskUsage,
-            itemCount: 0 // URLCache doesn't expose this
-        )
-        
-        let report = DiagnosticReport(
-            timestamp: Date(),
-            appVersion: AppConfiguration.appVersion,
-            buildNumber: AppConfiguration.buildNumber,
-            deviceModel: deviceModel,
-            osVersion: osVersion,
-            networkStatus: isNetworkAvailable ? "Connected" : "Disconnected",
-            connectionType: connectionTypeDescription,
-            hasAPIKey: hasKey,
-            cacheInfo: cacheInfo,
-            lastHealthCheck: lastHealthCheck,
-            consecutiveFailures: consecutiveFailures
-        )
-        
-        logger.info("\(report.description)")
-        return report
-    }
-    
-    // MARK: - Device Information
-    
-    private var deviceModel: String {
-        var systemInfo = utsname()
-        uname(&systemInfo)
-        let machineMirror = Mirror(reflecting: systemInfo.machine)
-        let identifier = machineMirror.children.reduce("") { identifier, element in
-            guard let value = element.value as? Int8, value != 0 else { return identifier }
-            return identifier + String(UnicodeScalar(UInt8(value)))
-        }
-        return identifier
-    }
-    
-    private var osVersion: String {
-        let version = ProcessInfo.processInfo.operatingSystemVersion
-        return "\(version.majorVersion).\(version.minorVersion).\(version.patchVersion)"
     }
 }

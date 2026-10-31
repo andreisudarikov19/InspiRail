@@ -4,22 +4,4 @@
    <FileRef
       location = "self:">
    </FileRef>
-   <FileRef
-      location = "group:BackendAPI 2.swift">
-   </FileRef>
-   <FileRef
-      location = "group:StationsRepository 2.swift">
-   </FileRef>
-   <FileRef
-      location = "group:RoutesRepository.swift">
-   </FileRef>
-   <FileRef
-      location = "group:DisruptionsRepository.swift">
-   </FileRef>
-   <FileRef
-      location = "group:AppConfiguration.swift">
-   </FileRef>
-   <FileRef
-      location = "group:BACKEND_REVIEW.md">
-   </FileRef>
 </Workspace>
