@@ -31,6 +31,7 @@ final class Logbook {
     }
     
     /// Opens the store again after a failure. Does nothing while it is open.
+    /// Try Again calls it, and so does each window when it becomes active.
     func tryAgain() {
         guard case .failed = status else { return }
         status = Self.open(store)

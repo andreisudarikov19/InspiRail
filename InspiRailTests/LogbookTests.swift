@@ -64,6 +64,26 @@ final class LogbookTests {
         #expect(logbook.status.container != nil)
     }
 
+    @Test("Try Again opens the logbook with its visits once the store can be read")
+    func tryAgainOpensTheStoreOnceItCanBeRead() throws {
+        try autoreleasepool {
+            let container = try store.open()
+            container.mainContext.insert(VisitedStation(stationCode: "UT", stationName: "Utrecht Centraal"))
+            try container.mainContext.save()
+        }
+        // Stands in for the store's file protection before the first unlock.
+        try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: filePath(store.url))
+        let logbook = Logbook(store: store)
+
+        #expect(logbook.status.error != nil)
+
+        try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: filePath(store.url))
+        logbook.tryAgain()
+
+        let container = try #require(logbook.status.container)
+        #expect(try container.mainContext.fetch(FetchDescriptor<VisitedStation>()).map(\.stationCode) == ["UT"])
+    }
+
     @Test("Start a New Logbook moves the old store aside and opens an empty logbook")
     func startNewMovesAsideAndOpensEmptyLogbook() throws {
         try garbage.write(to: store.url)

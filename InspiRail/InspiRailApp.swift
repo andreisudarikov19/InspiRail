@@ -44,7 +44,24 @@ struct InspiRailApp: App {
 private struct LogbookRootView: View {
     let logbook: Logbook
     
+    @Environment(\.scenePhase) private var scenePhase
+    
     var body: some View {
+        content
+            // The App opens the logbook when it is created, which can be during
+            // prewarming after a restart, before the first unlock, while the
+            // store can't be read. So each time a window becomes active, a
+            // logbook that couldn't be opened is opened again. While it is open,
+            // this does nothing.
+            .onChange(of: scenePhase, initial: true) { _, phase in
+                if phase == .active {
+                    logbook.tryAgain()
+                }
+            }
+    }
+    
+    @ViewBuilder
+    private var content: some View {
         switch logbook.status {
         case .open(let container):
             MainTabView()
