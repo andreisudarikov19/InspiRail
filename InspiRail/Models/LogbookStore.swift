@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import OSLog
 import SwiftData
 
 /// The logbook's store at one URL: `default.store` and SQLite's `-wal` and
@@ -22,6 +23,8 @@ struct LogbookStore {
     
     let url: URL
     private let fileManager: FileManager
+    
+    private static let logger = Logger(subsystem: AppConfiguration.subsystem, category: "database")
     
     init(url: URL, fileManager: FileManager = .default) {
         self.url = url
@@ -47,9 +50,9 @@ struct LogbookStore {
     /// Moves the store and its `-wal` and `-shm` files into a new folder in
     /// `backupsFolder`, named after `date` in UTC, and returns that folder.
     /// Returns nil, creating nothing, when there is no store file. It never
-    /// reuses an existing folder, and if a move fails it puts the files it
-    /// already moved back before throwing, so a store is never split from its
-    /// WAL.
+    /// reuses an existing folder. If a move fails, it moves the files it
+    /// already moved back, so the store stays with its WAL, and throws the
+    /// move's error. A file it can't move back is named in the log.
     @discardableResult
     func moveAside(date: Date = .now) throws -> URL? {
         let files = [url, sideFile("-wal"), sideFile("-shm")]
@@ -69,7 +72,11 @@ struct LogbookStore {
             }
         } catch {
             for move in moved.reversed() {
-                try? fileManager.moveItem(at: move.to, to: move.from)
+                do {
+                    try fileManager.moveItem(at: move.to, to: move.from)
+                } catch let putBackError {
+                    Self.logger.error("Couldn't move \(move.from.lastPathComponent, privacy: .public) back from Logbook Backups/\(backup.lastPathComponent, privacy: .public): \(String(describing: putBackError))")
+                }
             }
             throw error
         }

@@ -169,6 +169,27 @@ final class LogbookStoreTests {
         }
     }
 
+    @Test("A move that fails part-way and can't put a file back throws the move's error, and loses no file")
+    func failedPutBackThrowsTheMoveError() throws {
+        var original: [String: Data] = [:]
+        for name in storeFileNames {
+            original[name] = Data("bytes of \(name)".utf8)
+            try original[name]!.write(to: dir.appending(path: name))
+        }
+        let store = LogbookStore(url: storeURL, fileManager: FailingAfterFirstMove())
+
+        let error = try #require(throws: CocoaError.self) {
+            try store.moveAside(date: Date(timeIntervalSince1970: 1_793_536_532))
+        }
+
+        #expect(error.code == .fileWriteUnknown)
+        let backup = store.backupsFolder.appending(path: "2026-11-01T12-35-32Z")
+        #expect(try Data(contentsOf: backup.appending(path: "default.store")) == original["default.store"])
+        for name in ["default.store-wal", "default.store-shm"] {
+            #expect(try Data(contentsOf: dir.appending(path: name)) == original[name], "\(name) in place")
+        }
+    }
+
     @Test("The app's store is the file SwiftData's default configuration used")
     func defaultLocationIsSwiftDataDefault() {
         let swiftDataDefault = ModelConfiguration(schema: LogbookStore.schema, isStoredInMemoryOnly: false)
@@ -223,6 +244,21 @@ private final class FailingSecondMove: FileManager {
             throw CocoaError(.fileWriteUnknown)
         }
         try super.moveItem(at: srcURL, to: dstURL)
+    }
+}
+
+/// A file manager whose first move works and whose second fails, and which
+/// then can't move the first file back either.
+private final class FailingAfterFirstMove: FileManager {
+    private var moves = 0
+
+    override func moveItem(at srcURL: URL, to dstURL: URL) throws {
+        moves += 1
+        switch moves {
+        case 1: try super.moveItem(at: srcURL, to: dstURL)
+        case 2: throw CocoaError(.fileWriteUnknown)
+        default: throw CocoaError(.fileWriteNoPermission)
+        }
     }
 }
 
