@@ -38,12 +38,8 @@ actor StationsRepository {
     // MARK: - Public Methods
     
     /// The Dutch stations, sorted by name.
-    ///
-    /// - Parameter forceRefresh: Skips the stored list. A download already
-    ///   running is still shared, since its list is fresh.
-    func dutchStations(forceRefresh: Bool = false) async throws -> [Station] {
-        if !forceRefresh,
-           let stored,
+    func dutchStations() async throws -> [Station] {
+        if let stored,
            now().timeIntervalSince(stored.date) < cacheLifetime {
             logger.debug("Returning cached stations (\(stored.stations.count) items)")
             return stored.stations

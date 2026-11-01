@@ -28,13 +28,13 @@ class DiscoveryViewModel: ObservableObject {
     // MARK: - Public Methods
     
     /// Loads the Dutch stations from the app's station store (#18).
-    func loadStations(from repository: StationsRepository, forceRefresh: Bool = false) async {
+    func loadStations(from repository: StationsRepository) async {
         isLoading = true
         errorMessage = nil
         
         do {
             // The Dutch stations
-            self.allStations = try await repository.dutchStations(forceRefresh: forceRefresh)
+            self.allStations = try await repository.dutchStations()
             
             logger.debug("Loaded \(self.allStations.count) Dutch stations")
             
