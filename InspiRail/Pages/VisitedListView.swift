@@ -117,9 +117,8 @@ struct VisitedListView: View {
     /// the hero so the next launch renders instantly.
     private func refreshTotalStationCount() async {
         do {
-            let repository = StationsRepository()
-            let response = try await repository.stations()
-            let dutchCount = response.payload.filter { $0.country == "NL" }.count
+            let repository = StationsRepository(backend: BackendAPI())
+            let dutchCount = try await repository.dutchStationCount()
             if dutchCount > 0 {
                 cachedTotalStations = dutchCount
             }

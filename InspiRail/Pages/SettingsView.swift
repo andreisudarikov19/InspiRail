@@ -239,9 +239,8 @@ struct StationSelectorView: View {
     private func fetchStations() async {
         guard allStations.isEmpty else { return }
         do {
-            let repository = StationsRepository()
-            let response = try await repository.stations()
-            let sorted = response.payload.filter { $0.country == "NL" }.sorted { $0.names.long < $1.names.long }
+            let repository = StationsRepository(backend: BackendAPI())
+            let sorted = try await repository.dutchStations()
             await MainActor.run { 
                 self.allStations = sorted
                 self.isLoading = false

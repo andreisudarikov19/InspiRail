@@ -34,13 +34,11 @@ class DiscoveryViewModel: ObservableObject {
         
         do {
             // Initialize repository if needed
-            let repository = self.repository ?? StationsRepository()
+            let repository = self.repository ?? StationsRepository(backend: BackendAPI())
             self.repository = repository
             
-            let response = try await repository.stations(forceRefresh: forceRefresh)
-            
-            // Filter only Dutch stations
-            self.allStations = response.payload.filter { $0.country == "NL" }
+            // The Dutch stations
+            self.allStations = try await repository.dutchStations(forceRefresh: forceRefresh)
             
             logger.debug("Loaded \(self.allStations.count) Dutch stations")
             

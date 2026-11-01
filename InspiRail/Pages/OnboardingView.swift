@@ -161,12 +161,10 @@ struct OnboardingView: View {
         isUnauthorized = false
 
         do {
-            let repository = StationsRepository()
-            let stationResponse = try await repository.stations()
+            let repository = StationsRepository(backend: BackendAPI())
             
-            // Filter only Dutch stations and sort A-Z
-            let dutchStations = stationResponse.payload.filter { $0.country == "NL" }
-            let sorted = dutchStations.sorted { $0.names.long < $1.names.long }
+            // The Dutch stations, sorted A-Z
+            let sorted = try await repository.dutchStations()
             
             await MainActor.run {
                 self.allStations = sorted
