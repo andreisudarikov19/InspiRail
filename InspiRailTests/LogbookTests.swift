@@ -40,7 +40,7 @@ final class LogbookTests {
 
         let logbook = Logbook(store: store)
 
-        #expect(logbook.status.error != nil)
+        #expect(logbook.status.isFailed)
         #expect(try Data(contentsOf: store.url) == garbage)
     }
 
@@ -51,7 +51,7 @@ final class LogbookTests {
 
         logbook.tryAgain()
 
-        #expect(logbook.status.error != nil)
+        #expect(logbook.status.isFailed)
         #expect(try Data(contentsOf: store.url) == garbage)
 
         // The cause goes away.
@@ -75,7 +75,7 @@ final class LogbookTests {
         try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: filePath(store.url))
         let logbook = Logbook(store: store)
 
-        #expect(logbook.status.error != nil)
+        #expect(logbook.status.isFailed)
 
         try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: filePath(store.url))
         logbook.tryAgain()
@@ -118,7 +118,7 @@ extension Logbook.Status {
         if case .open(let container) = self { container } else { nil }
     }
 
-    var error: (any Error)? {
-        if case .failed(let error) = self { error } else { nil }
+    var isFailed: Bool {
+        if case .failed = self { true } else { false }
     }
 }

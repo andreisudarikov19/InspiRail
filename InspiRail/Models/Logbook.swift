@@ -16,7 +16,8 @@ import SwiftData
 final class Logbook {
     enum Status {
         case open(ModelContainer)
-        case failed(any Error)
+        /// The store couldn't be opened. The reason is in the log.
+        case failed
     }
     
     private(set) var status: Status
@@ -48,7 +49,7 @@ final class Logbook {
             }
         } catch {
             Self.logger.error("Couldn't move the logbook aside: \(String(describing: error))")
-            status = .failed(error)
+            status = .failed
             return
         }
         status = Self.open(store)
@@ -59,7 +60,7 @@ final class Logbook {
             return .open(try store.open())
         } catch {
             logger.error("Couldn't open the logbook: \(String(describing: error))")
-            return .failed(error)
+            return .failed
         }
     }
 }

@@ -8,7 +8,6 @@
 import SwiftUI
 
 struct LogbookUnavailableView: View {
-    let error: any Error
     let tryAgain: () -> Void
     let startNew: () -> Void
     
@@ -18,13 +17,7 @@ struct LogbookUnavailableView: View {
         ContentUnavailableView {
             Label("Can't Open Your Logbook", systemImage: "book.closed")
         } description: {
-            VStack(spacing: 12) {
-                Text("The logbook with your visits couldn't be opened. Nothing has been deleted.")
-                Text(error.localizedDescription)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .textSelection(.enabled)
-            }
+            Text("The logbook with your visits couldn't be opened. Nothing has been deleted.")
         } actions: {
             Button("Try Again", action: tryAgain)
                 .buttonStyle(.borderedProminent)

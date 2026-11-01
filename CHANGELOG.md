@@ -40,7 +40,7 @@ Both live in `InspiRail.xcodeproj/project.pbxproj` on the app target and flow th
 - Debug builds no longer write part of the API key to the log.
 - A test run no longer sends requests to the NS API or opens the simulator's stored visits: while hosting the unit tests, the app shows an empty screen.
 - Without code signing (`CODE_SIGNING_ALLOWED=NO`), the Keychain tests are skipped with a reason instead of failing with -34018.
-- The app no longer erases the logbook when it can't open it, and no longer carries on with a temporary logbook whose visits are lost when the app quits. It shows what went wrong, with Try Again and Start a New Logbook, and tries again by itself each time the app comes to the foreground. Starting a new logbook asks first, then moves the old one into a backup folder on the device instead of deleting it.
+- The app no longer erases the logbook when it can't open it, and no longer carries on with a temporary logbook whose visits are lost when the app quits. It says the logbook couldn't be opened, offers Try Again and Start a New Logbook, and tries again by itself each time the app comes to the foreground. Starting a new logbook asks first, then moves the old one into a backup folder on the device instead of deleting it.
 - On iPad, all windows share one logbook, so a visit marked in one window shows in the others.
 
 ---
