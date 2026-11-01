@@ -19,6 +19,8 @@ struct VisitedListView: View {
     /// hero stats don't flicker on first frame. Zero means "not yet known".
     @AppStorage("cachedTotalStations") private var cachedTotalStations: Int = 0
 
+    @Environment(\.stationsRepository) private var stationsRepository
+
     private var visitedExcludingHome: [VisitedStation] {
         visitedStations.filter { $0.stationCode != homeStationCode }
     }
@@ -113,13 +115,16 @@ struct VisitedListView: View {
 
     // MARK: - Data
 
-    /// Refresh the total Dutch station count from the API. Cached value backs
+    /// Refresh the total Dutch station count from the app's station store,
+    /// which downloads the list at most once an hour (#18). Cached value backs
     /// the hero so the next launch renders instantly.
     private func refreshTotalStationCount() async {
+        guard let stationsRepository else {
+            reportMissingStationStore(in: "The Logbook")
+            return
+        }
         do {
-            let repository = StationsRepository()
-            let response = try await repository.stations()
-            let dutchCount = response.payload.filter { $0.country == "NL" }.count
+            let dutchCount = try await stationsRepository.dutchStationCount()
             if dutchCount > 0 {
                 cachedTotalStations = dutchCount
             }

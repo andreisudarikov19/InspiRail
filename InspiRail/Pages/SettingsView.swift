@@ -10,6 +10,7 @@ import SwiftData
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.stationsRepository) private var stationsRepository
     @AppStorage("homeStationCode") private var homeStationCode: String = ""
     @AppStorage("homeStationName") private var homeStationName: String = ""
     @State private var showingResetAlert = false
@@ -161,8 +162,12 @@ struct SettingsView: View {
         let keyPresent = await KeychainManager.shared.hasAPIKey()
         var healthy = true
         if keyPresent {
-            let report = await BackendHealthMonitor.shared.checkHealth()
-            healthy = report.isHealthy
+            if let stationsRepository {
+                let report = await BackendHealthMonitor.shared.checkHealth(using: stationsRepository.backend)
+                healthy = report.isHealthy
+            } else {
+                reportMissingStationStore(in: "Settings")
+            }
         }
         await MainActor.run {
             hasAPIKey = keyPresent
@@ -197,6 +202,7 @@ struct StationSelectorView: View {
     @Binding var selectedCode: String
     @Binding var selectedName: String
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.stationsRepository) private var stationsRepository
     @State private var allStations: [Station] = []
     @State private var searchText = ""
     @State private var isLoading = true
@@ -238,10 +244,12 @@ struct StationSelectorView: View {
     
     private func fetchStations() async {
         guard allStations.isEmpty else { return }
+        guard let stationsRepository else {
+            reportMissingStationStore(in: "The Home Station picker")
+            return
+        }
         do {
-            let repository = StationsRepository()
-            let response = try await repository.stations()
-            let sorted = response.payload.filter { $0.country == "NL" }.sorted { $0.names.long < $1.names.long }
+            let sorted = try await stationsRepository.dutchStations()
             await MainActor.run { 
                 self.allStations = sorted
                 self.isLoading = false

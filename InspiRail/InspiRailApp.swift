@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import OSLog
 
 @main
 struct InspiRailApp: App {
@@ -20,11 +21,17 @@ struct InspiRailApp: App {
     /// one container (#17). Nil while hosting the unit tests.
     @State private var logbook: Logbook?
     
+    /// The station list and the one network session, created once for the
+    /// whole app so that every window and screen shares one download (#18).
+    /// Nil while hosting the unit tests, so a test run starts no fetch.
+    @State private var stationsRepository: StationsRepository?
+    
     init() {
         guard !isHostingUnitTests else { return }
         // Log app configuration on startup
         AppConfiguration.logConfiguration()
         _logbook = State(initialValue: Logbook(store: LogbookStore(url: LogbookStore.defaultURL)))
+        _stationsRepository = State(initialValue: StationsRepository(backend: BackendAPI()))
     }
     
     var body: some Scene {
@@ -34,9 +41,29 @@ struct InspiRailApp: App {
                     .modelContainer(for: VisitedStation.self, inMemory: true)
             } else if let logbook {
                 LogbookRootView(logbook: logbook)
+                    .environment(\.stationsRepository, stationsRepository)
             }
         }
     }
+}
+
+extension EnvironmentValues {
+    /// The app's one station store, which `InspiRailApp` sets on every window
+    /// (#18). Nil only while hosting the unit tests, where no screen loads
+    /// stations. Its default builds nothing, so a view that reads it without
+    /// the App's store never makes one of its own.
+    @Entry var stationsRepository: StationsRepository? = nil
+}
+
+/// Reports a screen that found no station store in its environment. Only the
+/// unit-test host, which shows no screens, should be without one, so anywhere
+/// else this logs a fault and stops a Debug build. The screen still loads
+/// nothing.
+func reportMissingStationStore(in screen: String, file: StaticString = #file, line: UInt = #line) {
+    guard !AppConfiguration.isHostingUnitTests() else { return }
+    let message = "\(screen) found no station store in its environment"
+    Logger(subsystem: AppConfiguration.subsystem, category: "repository").fault("\(message, privacy: .public)")
+    assertionFailure(message, file: file, line: line)
 }
 
 /// A window's content: the tabs with the app's one container, or the error

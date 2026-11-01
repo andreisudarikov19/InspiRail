@@ -11,6 +11,7 @@ import CoreLocation
 
 struct DiscoveryView: View {
     @StateObject private var viewModel = DiscoveryViewModel()
+    @Environment(\.stationsRepository) private var stationsRepository
     
     @Environment(\.modelContext) private var modelContext
     @Query private var visitedStations: [VisitedStation]
@@ -54,7 +55,11 @@ struct DiscoveryView: View {
                 .padding(.horizontal)
                 .padding(.bottom) // Respects safe area
                 .task {
-                    await viewModel.loadStations()
+                    guard let stationsRepository else {
+                        reportMissingStationStore(in: "Discover")
+                        return
+                    }
+                    await viewModel.loadStations(from: stationsRepository)
                 }
             }
             .toolbar(.hidden, for: .navigationBar)

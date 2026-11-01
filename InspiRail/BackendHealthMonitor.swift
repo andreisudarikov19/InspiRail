@@ -94,8 +94,8 @@ actor BackendHealthMonitor {
     
     private var consecutiveFailures = 0
     
-    /// Perform a health check on the backend
-    func checkHealth() async -> HealthReport {
+    /// Perform a health check on the backend, through the app's one API (#18)
+    func checkHealth(using backend: BackendAPI) async -> HealthReport {
         let startTime = Date()
         
         guard isNetworkAvailable else {
@@ -110,7 +110,6 @@ actor BackendHealthMonitor {
         }
         
         do {
-            let backend = BackendAPI()
             _ = try await backend.getStations()
             
             let responseTime = Date().timeIntervalSince(startTime)
