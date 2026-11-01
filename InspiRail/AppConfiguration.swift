@@ -45,8 +45,6 @@ enum AppConfiguration {
         
         // Cache settings
         static let cacheLifetime: TimeInterval = 3600 // 1 hour
-        static let memoryCacheSize = 10 * 1024 * 1024 // 10 MB
-        static let diskCacheSize = 50 * 1024 * 1024   // 50 MB
     }
     
     // MARK: - App Info

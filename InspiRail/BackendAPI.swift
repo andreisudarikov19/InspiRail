@@ -13,10 +13,6 @@ actor BackendAPI {
     // MARK: - Configuration
     
     private let baseURL: String
-    private let timeout: TimeInterval
-    private let resourceTimeout: TimeInterval
-    private let memoryCacheSize: Int
-    private let diskCacheSize: Int
     private let maxRequestsPerMinute: Int
     private let maxRetries: Int
     private let enableNetworkLogging: Bool
@@ -26,13 +22,15 @@ actor BackendAPI {
 
     private let logger = Logger(subsystem: AppConfiguration.subsystem, category: "backend")
     
-    init() {
+    /// - Parameters:
+    ///   - keyProvider: Finds the API key for each request. Nil means the
+    ///     app's: the Keychain and, in Debug builds, the launch environment.
+    ///   - sessionConfiguration: The configuration the session starts from.
+    ///     The API applies its own settings to it. Tests pass one whose
+    ///     protocol classes answer every request.
+    init(keyProvider: APIKeyProvider? = nil, sessionConfiguration: URLSessionConfiguration = .default) {
         // Access configuration values during initialization
         self.baseURL = AppConfiguration.API.baseURL
-        self.timeout = AppConfiguration.API.timeout
-        self.resourceTimeout = AppConfiguration.API.resourceTimeout
-        self.memoryCacheSize = AppConfiguration.API.memoryCacheSize
-        self.diskCacheSize = AppConfiguration.API.diskCacheSize
         self.maxRequestsPerMinute = AppConfiguration.API.maxRequestsPerMinute
         self.maxRetries = AppConfiguration.API.maxRetries
         self.enableNetworkLogging = AppConfiguration.Features.enableNetworkLogging
@@ -44,18 +42,29 @@ actor BackendAPI {
         #else
         let allowsEnvironmentOverride = false
         #endif
-        self.keyProvider = APIKeyProvider(
+        self.keyProvider = keyProvider ?? APIKeyProvider(
             keychain: .shared,
             environment: ProcessInfo.processInfo.environment,
             allowsEnvironmentOverride: allowsEnvironmentOverride
+        )
+        self.session = Self.makeSession(
+            configuration: sessionConfiguration,
+            timeout: AppConfiguration.API.timeout,
+            resourceTimeout: AppConfiguration.API.resourceTimeout
         )
     }
     
     // MARK: - Session Configuration
     
-    private lazy var session: URLSession = {
-        let config = URLSessionConfiguration.default
-        
+    /// The API's one session, created with it. The app creates one API, so
+    /// every request shares this session and its connections (#18).
+    let session: URLSession
+    
+    private static func makeSession(
+        configuration config: URLSessionConfiguration,
+        timeout: TimeInterval,
+        resourceTimeout: TimeInterval
+    ) -> URLSession {
         // Performance optimizations
         config.timeoutIntervalForRequest = timeout
         config.timeoutIntervalForResource = resourceTimeout
@@ -64,12 +73,10 @@ actor BackendAPI {
         config.allowsExpensiveNetworkAccess = true
         config.allowsConstrainedNetworkAccess = true
         
-        // Cache policy
+        // Cache policy: requests ignore cached responses, so the session
+        // keeps no URLCache. The station store keeps the list (#18).
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
-        config.urlCache = URLCache(
-            memoryCapacity: memoryCacheSize,
-            diskCapacity: diskCacheSize
-        )
+        config.urlCache = nil
         
         // HTTP settings
         config.httpMaximumConnectionsPerHost = 4
@@ -77,7 +84,7 @@ actor BackendAPI {
         config.httpCookieAcceptPolicy = .never
         
         return URLSession(configuration: config)
-    }()
+    }
     
     // MARK: - Rate Limiting
     
