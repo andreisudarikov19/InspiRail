@@ -58,6 +58,8 @@ actor BackendAPI {
     
     /// The API's one session, created with it. The app creates one API, so
     /// every request shares this session and its connections (#18).
+    /// Visible to the module for tests only: app code goes through the API's
+    /// methods, which read the key and apply the rate limiter.
     let session: URLSession
     
     private static func makeSession(
