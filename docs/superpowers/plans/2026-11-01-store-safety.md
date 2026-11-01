@@ -102,18 +102,18 @@
   - `func tryAgain()`: when `.failed`, opens again and sets `.open` or `.failed` with the new error. When `.open`, does nothing.
   - `func startNew(date: Date = .now)`: when `.failed`, `moveAside(date:)` then `open()`. Either error sets `.failed`. When `.open`, does nothing.
 
-- [ ] **Step 1: Write the failing tests.** A `@MainActor` suite `LogbookTests`, with a temporary-directory fixture like Task 1's. Tests:
+- [x] **Step 1: Write the failing tests.** A `@MainActor` suite `LogbookTests`, with a temporary-directory fixture like Task 1's. Tests:
   - `opensOnCreation`: an empty `dir`. Expect `.open`.
   - `failedOpenLeavesStoreAlone`: garbage at `storeURL`. Expect `.failed`, and the file unchanged.
   - `tryAgainOpensOnceTheStoreCanBeOpened`: garbage, then `tryAgain()`. Expect `.failed` and the garbage unchanged. Move the garbage file out of `dir` (standing in for the cause going away), then `tryAgain()`. Expect `.open`.
   - `startNewMovesAsideAndOpensEmptyLogbook`: garbage, then `startNew(date:)`. Expect `.open` with 0 visits, and the garbage bytes in `backupsFolder/<stamp>/default.store`.
   - `startNewDoesNothingWhileOpen`: open and add a visit. `startNew()`, then `tryAgain()`. Expect the same container instance (`===`), the visit still there, and no `backupsFolder`.
 
-- [ ] **Step 2: Run the tests to verify they fail.** `-only-testing:InspiRailTests/LogbookTests`. Expected: `cannot find 'Logbook' in scope`.
-- [ ] **Step 3: Implement `Logbook` in `InspiRail/Models/Logbook.swift`.** The store is `@ObservationIgnored`. Logging is as in Decision 7: `Logger(subsystem: AppConfiguration.subsystem, category: "database")`, `.error` with the error on a failed open or move, and `.notice` with the backup folder's name after a move.
-- [ ] **Step 4: Run the tests to verify they pass.** Expected: 5 passed.
-- [ ] **Step 5: Typecheck.** Expected: 0 errors, 13 warnings.
-- [ ] **Step 6: Commit** `feat: add the app-wide logbook state behind Try Again and Start a New Logbook (#17)`
+- [x] **Step 2: Run the tests to verify they fail.** `-only-testing:InspiRailTests/LogbookTests`. Expected: `cannot find 'Logbook' in scope`.
+- [x] **Step 3: Implement `Logbook` in `InspiRail/Models/Logbook.swift`.** The store is a `let`, which Observation never tracks (changed during execution: it was to be `@ObservationIgnored`, which a `let` doesn't need). Logging is as in Decision 7: `Logger(subsystem: AppConfiguration.subsystem, category: "database")`, `.error` with the error on a failed open or move, and `.notice` with the backup folder's name after a move.
+- [x] **Step 4: Run the tests to verify they pass.** Expected: 5 passed. (Added during execution: a mutant without `startNew`'s guard fails `startNewDoesNothingWhileOpen()`.)
+- [x] **Step 5: Typecheck.** Expected: 0 errors, 13 warnings.
+- [x] **Step 6: Commit** `feat: add the app-wide logbook state behind Try Again and Start a New Logbook (#17)`
 
 ### Task 3: Open the logbook once for every window, and show the error screen instead of erasing it
 
