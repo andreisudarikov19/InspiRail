@@ -143,11 +143,11 @@
 - Consumes: nothing. Nothing references `VisitedStationMigrationPlan`, `VisitedStationSchemaV1`, `VisitedStationSchemaV2` or `createWithMigration()`.
 - Produces: nothing.
 
-- [ ] **Step 1: Delete the file, and make the two edits.**
-- [ ] **Step 2: Check the stored schema is unchanged.** Run the typecheck with `-Xfrontend -dump-macro-expansions`, then `grep -E 'PropertyMetadata\(name: .*\\VisitedStation\.' | sort -u`, on this branch and on `main`. Expected: the same 6 lines on both.
-- [ ] **Step 3: Check for leftovers.** Run `git grep -nE "VisitedStationMigration|VisitedStationSchemaV|createWithMigration|SchemaMigrationPlan" -- . ':!docs/archive' ':!docs/superpowers'`. Expected: only `CHANGELOG.md`'s 1.3.0 entry.
-- [ ] **Step 4: Typecheck, and run the default test plan.** Expected: 0 errors, 13 warnings. 30 tests passed.
-- [ ] **Step 5: Commit** `refactor: delete the unused migration plan, which matched no stored schema (#17)`
+- [x] **Step 1: Delete the file, and make the two edits.**
+- [x] **Step 2: Check the stored schema is unchanged.** Run the typecheck with `-Xfrontend -dump-macro-expansions`, then `grep -E 'PropertyMetadata\(name: .*\\VisitedStation\.' | sort -u`, on this branch and on `main`. Expected: the same 6 lines on both.
+- [x] **Step 3: Check for leftovers.** Run `git grep -nE "VisitedStationMigration|VisitedStationSchemaV|createWithMigration|SchemaMigrationPlan" -- . ':!docs/archive' ':!docs/superpowers'`. Expected: only `CHANGELOG.md`'s 1.3.0 entry, and the new comment on `VisitedStation`, which names `SchemaMigrationPlan` (changed during execution: the pattern matches that comment too).
+- [x] **Step 4: Typecheck, and run the default test plan.** Expected: 0 errors, 13 warnings. 30 tests passed.
+- [x] **Step 5: Commit** `refactor: delete the unused migration plan, which matched no stored schema (#17)`
 
 ### Task 5: Record the fix in the changelog, and check it on a simulator
 
