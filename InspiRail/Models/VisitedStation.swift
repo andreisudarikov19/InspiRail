@@ -7,6 +7,13 @@
 import Foundation
 import SwiftData
 
+/// A visit in the logbook.
+///
+/// The stored fields have changed once: 1.3.0 added the optional `notes`,
+/// `rating` and `_isFavorite`, which SwiftData migrates by itself. The first
+/// change it can't migrate by itself must bring in versioned schemas (a
+/// `VersionedSchema` per shape and a `SchemaMigrationPlan`), with this shape
+/// as V1 (#17).
 @Model
 final class VisitedStation {
     @Attribute(.unique) var stationCode: String // Unique ID (e.g., "UT")
@@ -17,9 +24,9 @@ final class VisitedStation {
     var notes: String?
     var rating: Int? // 1-5 star rating
     
-    // Optional to support migration from older versions. Nothing reads
-    // `notes`, `rating` or `_isFavorite`, but they are part of the stored
-    // schema: they go only with a versioned schema (#17).
+    // Optional, so that stores from before 1.3.0 open. Nothing reads
+    // `notes`, `rating` or `_isFavorite`, but they are stored: removing them
+    // changes the schema.
     private var _isFavorite: Bool?
     
     init(
