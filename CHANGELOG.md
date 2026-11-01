@@ -43,7 +43,7 @@ Both live in `InspiRail.xcodeproj/project.pbxproj` on the app target and flow th
 - Without code signing (`CODE_SIGNING_ALLOWED=NO`), the Keychain tests are skipped with a reason instead of failing with -34018.
 - The app no longer erases the logbook when it can't open it, and no longer carries on with a temporary logbook whose visits are lost when the app quits. It says the logbook couldn't be opened, offers Try Again and Start a New Logbook, and tries again by itself each time the app comes to the foreground. Starting a new logbook asks first, then moves the old one into a backup folder on the device instead of deleting it.
 - On iPad, all windows share one logbook, so a visit marked in one window shows in the others.
-- The station list is downloaded once and shared by every screen and window for an hour. Opening the Logbook or the Home Station picker no longer downloads it again, Discover no longer downloads it again right after onboarding, and screens that load at the same time share one download. All requests go through one network session, so they reuse its connections.
+- The station list is downloaded once and shared by every screen and window for an hour. Opening the Logbook or the Home Station picker no longer downloads it again, Discover no longer downloads it again right after onboarding, and screens that load at the same time share one download. Settings' API key check still downloads the list each time Settings opens (#19). All requests go through one network session, so they reuse its connections.
 
 ---
 
