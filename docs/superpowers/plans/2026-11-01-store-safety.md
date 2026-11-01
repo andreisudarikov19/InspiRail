@@ -71,7 +71,7 @@
   - `var backupsFolder: URL` = `url.deletingLastPathComponent().appending(path: "Logbook Backups")`
   - `@discardableResult func moveAside(date: Date = .now) throws -> URL?`: moves whichever of `url`, `url-wal` and `url-shm` exist into a new folder `backupsFolder/<stamp>` (see Decision 3), and returns that folder. With none of the files there, it creates nothing and returns `nil`. It creates the dated folder with `withIntermediateDirectories: false` under an existing `backupsFolder`, so an existing folder throws before anything moves. If a move throws, it moves the files already moved back, then rethrows.
 
-- [ ] **Step 1: Write the failing tests.** A `@MainActor` suite `LogbookStoreTests` (a `final class`, so `deinit` removes its directory). `init()` makes `dir = temporaryDirectory/LogbookStoreTests-<UUID>` and `storeURL = dir/default.store`, and the fixture checks `!dir.path.hasPrefix(URL.applicationSupportDirectory.path)`. Helpers: `addVisit(code:name:to:)` inserts and saves through a container's `mainContext`, and `visits(in:)` fetches `[VisitedStation]` sorted by code. Tests:
+- [x] **Step 1: Write the failing tests.** A `@MainActor` suite `LogbookStoreTests` (a `final class`, so `deinit` removes its directory). `init()` makes `dir = temporaryDirectory/LogbookStoreTests-<UUID>` and `storeURL = dir/default.store`, and the fixture checks `!dir.path.hasPrefix(URL.applicationSupportDirectory.path)`. Helpers: `addVisit(code:name:to:)` inserts and saves through a container's `mainContext`, and `visits(in:)` fetches `[VisitedStation]` sorted by code. Tests:
   - `opensExistingStoreAndKeepsVisits`: open, add `UT`/"Utrecht Centraal" dated `Date(timeIntervalSince1970: 1_780_000_000)`, drop the container, open a new `LogbookStore(url: storeURL)`. Expect one visit with the same code, name and date.
   - `opensThreeFieldStore`: a test-only `enum ThreeFieldLogbook { @Model final class VisitedStation { @Attribute(.unique) var stationCode: String; var stationName: String; var dateVisited: Date } }` writes a store at `storeURL` with `ASD`/"Amsterdam Centraal". Then `LogbookStore(url: storeURL).open()`. Expect that visit, with `notes == nil` and `rating == nil`.
   - `unreadableStoreIsLeftAlone`: write 4096 bytes of `0x5A` to `storeURL` and `Data("wal".utf8)` to `default.store-wal`. Expect `open()` to throw, both files byte for byte unchanged, and the directory listing unchanged apart from the folder's own entries.
@@ -81,11 +81,11 @@
   - `failedMovePutsFilesBack`: create all three files with distinct bytes. Use a `FileManager` subclass whose `moveItem(at:to:)` throws on its second call and otherwise calls `super`. Expect `moveAside` to throw, all three files back at their original paths with their bytes, and no store file in the backup folder.
   - `defaultLocationIsSwiftDataDefault`: `LogbookStore(url: LogbookStore.defaultURL).configuration.url == ModelConfiguration(schema: LogbookStore.schema, isStoredInMemoryOnly: false).url`, and `LogbookStore.defaultURL.lastPathComponent == "default.store"`. This opens nothing.
 
-- [ ] **Step 2: Run the tests to verify they fail.** Run the test command with `-only-testing:InspiRailTests/LogbookStoreTests`. Expected: a build failure, `cannot find 'LogbookStore' in scope`.
-- [ ] **Step 3: Implement `LogbookStore` in `InspiRail/Models/LogbookStore.swift`** as in Interfaces. The stamp uses a `DateFormatter` with `en_US_POSIX`, `TimeZone(identifier: "UTC")` and `yyyy-MM-dd'T'HH-mm-ss'Z'`. The header comment says it never deletes a file.
-- [ ] **Step 4: Run the tests to verify they pass.** Same command. Expected: 8 passed.
-- [ ] **Step 5: Typecheck.** Expected: 0 errors, 13 warnings.
-- [ ] **Step 6: Commit** `feat: add a logbook store type that opens or moves aside the store, never deleting it (#17)`
+- [x] **Step 2: Run the tests to verify they fail.** Run the test command with `-only-testing:InspiRailTests/LogbookStoreTests`. Expected: a build failure, `cannot find 'LogbookStore' in scope`.
+- [x] **Step 3: Implement `LogbookStore` in `InspiRail/Models/LogbookStore.swift`** as in Interfaces. The stamp uses a `DateFormatter` with `en_US_POSIX`, `TimeZone(identifier: "UTC")` and `yyyy-MM-dd'T'HH-mm-ss'Z'`. The header comment says it never deletes a file.
+- [x] **Step 4: Run the tests to verify they pass.** Same command. Expected: 8 passed. (Added during execution: since these tests first failed only at compile time, a mutant `LogbookStore` that skips the put-back and deletes the store on a failed open was run against `failedMovePutsFilesBack()` and `unreadableStoreIsLeftAlone()`; both failed, then the file was restored.)
+- [x] **Step 5: Typecheck.** Expected: 0 errors, 13 warnings.
+- [x] **Step 6: Commit** `feat: add a logbook store type that opens or moves aside the store, never deleting it (#17)`
 
 ### Task 2: `Logbook` holds the open container or the error, behind Try Again and Start a New Logbook
 
