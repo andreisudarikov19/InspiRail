@@ -195,6 +195,13 @@ final class StationStoreTests {
     func environmentHasNoStoreByDefault() {
         #expect(EnvironmentValues().stationsRepository == nil)
     }
+
+    @Test("While hosting the unit tests, which have no store by design, a missing store isn't reported")
+    func missingStoreIsNotReportedInTheTestHost() {
+        // Outside the test host this stops a Debug build, and so would stop
+        // this test run.
+        reportMissingStationStore(in: "A test")
+    }
 }
 
 /// A clock that moves only when a test moves it.

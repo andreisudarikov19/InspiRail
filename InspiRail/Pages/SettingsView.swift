@@ -161,9 +161,13 @@ struct SettingsView: View {
     private func refreshKeyStatus() async {
         let keyPresent = await KeychainManager.shared.hasAPIKey()
         var healthy = true
-        if keyPresent, let stationsRepository {
-            let report = await BackendHealthMonitor.shared.checkHealth(using: stationsRepository.backend)
-            healthy = report.isHealthy
+        if keyPresent {
+            if let stationsRepository {
+                let report = await BackendHealthMonitor.shared.checkHealth(using: stationsRepository.backend)
+                healthy = report.isHealthy
+            } else {
+                reportMissingStationStore(in: "Settings")
+            }
         }
         await MainActor.run {
             hasAPIKey = keyPresent
@@ -239,7 +243,11 @@ struct StationSelectorView: View {
     }
     
     private func fetchStations() async {
-        guard allStations.isEmpty, let stationsRepository else { return }
+        guard allStations.isEmpty else { return }
+        guard let stationsRepository else {
+            reportMissingStationStore(in: "The Home Station picker")
+            return
+        }
         do {
             let sorted = try await stationsRepository.dutchStations()
             await MainActor.run { 

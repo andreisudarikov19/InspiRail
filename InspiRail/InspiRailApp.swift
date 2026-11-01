@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import OSLog
 
 @main
 struct InspiRailApp: App {
@@ -52,6 +53,17 @@ extension EnvironmentValues {
     /// stations. Its default builds nothing, so a view that reads it without
     /// the App's store never makes one of its own.
     @Entry var stationsRepository: StationsRepository? = nil
+}
+
+/// Reports a screen that found no station store in its environment. Only the
+/// unit-test host, which shows no screens, should be without one, so anywhere
+/// else this logs a fault and stops a Debug build. The screen still loads
+/// nothing.
+func reportMissingStationStore(in screen: String, file: StaticString = #file, line: UInt = #line) {
+    guard !AppConfiguration.isHostingUnitTests() else { return }
+    let message = "\(screen) found no station store in its environment"
+    Logger(subsystem: AppConfiguration.subsystem, category: "repository").fault("\(message, privacy: .public)")
+    assertionFailure(message, file: file, line: line)
 }
 
 /// A window's content: the tabs with the app's one container, or the error

@@ -55,7 +55,10 @@ struct DiscoveryView: View {
                 .padding(.horizontal)
                 .padding(.bottom) // Respects safe area
                 .task {
-                    guard let stationsRepository else { return }
+                    guard let stationsRepository else {
+                        reportMissingStationStore(in: "Discover")
+                        return
+                    }
                     await viewModel.loadStations(from: stationsRepository)
                 }
             }

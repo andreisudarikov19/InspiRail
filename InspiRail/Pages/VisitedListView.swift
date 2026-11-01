@@ -119,7 +119,10 @@ struct VisitedListView: View {
     /// which downloads the list at most once an hour (#18). Cached value backs
     /// the hero so the next launch renders instantly.
     private func refreshTotalStationCount() async {
-        guard let stationsRepository else { return }
+        guard let stationsRepository else {
+            reportMissingStationStore(in: "The Logbook")
+            return
+        }
         do {
             let dutchCount = try await stationsRepository.dutchStationCount()
             if dutchCount > 0 {

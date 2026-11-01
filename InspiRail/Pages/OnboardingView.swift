@@ -158,7 +158,10 @@ struct OnboardingView: View {
     }
     
     private func loadStations() async {
-        guard let stationsRepository else { return }
+        guard let stationsRepository else {
+            reportMissingStationStore(in: "Onboarding")
+            return
+        }
         isLoading = true
         errorMessage = nil
         isUnauthorized = false
