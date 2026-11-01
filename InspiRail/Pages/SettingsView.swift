@@ -10,6 +10,7 @@ import SwiftData
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.stationsRepository) private var stationsRepository
     @AppStorage("homeStationCode") private var homeStationCode: String = ""
     @AppStorage("homeStationName") private var homeStationName: String = ""
     @State private var showingResetAlert = false
@@ -160,8 +161,8 @@ struct SettingsView: View {
     private func refreshKeyStatus() async {
         let keyPresent = await KeychainManager.shared.hasAPIKey()
         var healthy = true
-        if keyPresent {
-            let report = await BackendHealthMonitor.shared.checkHealth()
+        if keyPresent, let stationsRepository {
+            let report = await BackendHealthMonitor.shared.checkHealth(using: stationsRepository.backend)
             healthy = report.isHealthy
         }
         await MainActor.run {
@@ -197,6 +198,7 @@ struct StationSelectorView: View {
     @Binding var selectedCode: String
     @Binding var selectedName: String
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.stationsRepository) private var stationsRepository
     @State private var allStations: [Station] = []
     @State private var searchText = ""
     @State private var isLoading = true
@@ -237,10 +239,9 @@ struct StationSelectorView: View {
     }
     
     private func fetchStations() async {
-        guard allStations.isEmpty else { return }
+        guard allStations.isEmpty, let stationsRepository else { return }
         do {
-            let repository = StationsRepository(backend: BackendAPI())
-            let sorted = try await repository.dutchStations()
+            let sorted = try await stationsRepository.dutchStations()
             await MainActor.run { 
                 self.allStations = sorted
                 self.isLoading = false

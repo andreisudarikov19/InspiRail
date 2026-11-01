@@ -15,6 +15,8 @@ struct OnboardingView: View {
     @AppStorage("homeStationCode") private var homeStationCode: String = ""
     @AppStorage("homeStationName") private var homeStationName: String = ""
     
+    @Environment(\.stationsRepository) private var stationsRepository
+    
     @State private var searchText = ""
     @State private var allStations: [Station] = []
     @State private var filteredStations: [Station] = []
@@ -156,15 +158,14 @@ struct OnboardingView: View {
     }
     
     private func loadStations() async {
+        guard let stationsRepository else { return }
         isLoading = true
         errorMessage = nil
         isUnauthorized = false
 
         do {
-            let repository = StationsRepository(backend: BackendAPI())
-            
             // The Dutch stations, sorted A-Z
-            let sorted = try await repository.dutchStations()
+            let sorted = try await stationsRepository.dutchStations()
             
             await MainActor.run {
                 self.allStations = sorted

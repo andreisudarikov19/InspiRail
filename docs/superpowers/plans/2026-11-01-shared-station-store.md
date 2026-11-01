@@ -127,13 +127,13 @@ The filter is the same in all four. Only the sort differs, and no screen can sho
   - `DiscoveryViewModel.loadStations(from repository: StationsRepository, forceRefresh: Bool = false) async`. The view model no longer holds a repository.
   - `BackendHealthMonitor.checkHealth(using backend: BackendAPI) async -> HealthReport`. Its body is unchanged apart from using `backend`.
 
-- [ ] **Step 1: Write the failing test.** `environmentHasNoStoreByDefault` (`@MainActor`): `#expect(EnvironmentValues().stationsRepository == nil)`. It pins that reading the value without the App's injection builds nothing.
-- [ ] **Step 2: Run it to verify it fails.** Expected: a build failure, `value of type 'EnvironmentValues' has no dynamic member 'stationsRepository'`.
-- [ ] **Step 3: The App.** `@State private var stationsRepository: StationsRepository?`, documented like the `Logbook`'s. In `init()`, after the test-host guard and the logbook: `_stationsRepository = State(initialValue: StationsRepository(backend: BackendAPI()))`. In the `WindowGroup`, `LogbookRootView(logbook: logbook)` gets `.environment(\.stationsRepository, stationsRepository)`. The test-host branch is unchanged.
-- [ ] **Step 4: The screens.** Each reads `@Environment(\.stationsRepository) private var stationsRepository` and does nothing when it is `nil`. The Logbook, the picker and onboarding call the repository instead of creating one. `DiscoveryView`'s `.task` passes it to `loadStations(from:)`. `SettingsView.refreshKeyStatus()` passes `stationsRepository.backend` to `checkHealth(using:)` when a key is present, and keeps `healthy = true` otherwise, as now. Then check for leftovers: `git grep -nE "StationsRepository\(|BackendAPI\(" -- InspiRail`. Expected: only `InspiRail/InspiRailApp.swift`.
-- [ ] **Step 5: Typecheck.** Expected: 0 errors, 11 warnings.
-- [ ] **Step 6: Run the default test plan.** Expected: `** TEST SUCCEEDED **`, 42 tests passed (33 + 2 + 6 + 1), including the 3 `TestHostTests`.
-- [ ] **Step 7: Commit** `fix: use one station store and one network session for the whole app (#18)`
+- [x] **Step 1: Write the failing test.** `environmentHasNoStoreByDefault` (`@MainActor`): `#expect(EnvironmentValues().stationsRepository == nil)`. It pins that reading the value without the App's injection builds nothing.
+- [x] **Step 2: Run it to verify it fails.** Expected: a build failure, `value of type 'EnvironmentValues' has no dynamic member 'stationsRepository'`.
+- [x] **Step 3: The App.** `@State private var stationsRepository: StationsRepository?`, documented like the `Logbook`'s. In `init()`, after the test-host guard and the logbook: `_stationsRepository = State(initialValue: StationsRepository(backend: BackendAPI()))`. In the `WindowGroup`, `LogbookRootView(logbook: logbook)` gets `.environment(\.stationsRepository, stationsRepository)`. The test-host branch is unchanged.
+- [x] **Step 4: The screens.** Each reads `@Environment(\.stationsRepository) private var stationsRepository` and does nothing when it is `nil`. The Logbook, the picker and onboarding call the repository instead of creating one. `DiscoveryView`'s `.task` passes it to `loadStations(from:)`. `SettingsView.refreshKeyStatus()` passes `stationsRepository.backend` to `checkHealth(using:)` when a key is present, and keeps `healthy = true` otherwise, as now. Then check for leftovers: `git grep -nE "StationsRepository\(|BackendAPI\(" -- InspiRail`. Expected: only `InspiRail/InspiRailApp.swift`.
+- [x] **Step 5: Typecheck.** Expected: 0 errors, 11 warnings.
+- [x] **Step 6: Run the default test plan.** Expected: `** TEST SUCCEEDED **`, 42 tests passed (33 + 2 + 6 + 1), including the 3 `TestHostTests`.
+- [x] **Step 7: Commit** `fix: use one station store and one network session for the whole app (#18)`
 
 ### Task 4: Record the fix, and measure it on a simulator
 

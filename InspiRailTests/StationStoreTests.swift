@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import SwiftUI
 import Testing
 @testable import InspiRail
 
@@ -170,5 +171,12 @@ final class StationStoreTests {
         // first. #25 changes the sort.
         #expect(try await repository.dutchStations().map(\.identifiers.code) == ["HT", "ASD", "UT", "ZL"])
         #expect(try await repository.dutchStationCount() == 4)
+    }
+
+    // MARK: - The app's one store
+
+    @Test("Reading the environment without the App's store builds none")
+    func environmentHasNoStoreByDefault() {
+        #expect(EnvironmentValues().stationsRepository == nil)
     }
 }
