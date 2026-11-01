@@ -18,24 +18,24 @@ final class Logbook {
         case open(ModelContainer)
         case failed(any Error)
     }
-
+    
     private(set) var status: Status
-
+    
     private let store: LogbookStore
-
+    
     private static let logger = Logger(subsystem: AppConfiguration.subsystem, category: "database")
-
+    
     init(store: LogbookStore) {
         self.store = store
         status = Self.open(store)
     }
-
+    
     /// Opens the store again after a failure. Does nothing while it is open.
     func tryAgain() {
         guard case .failed = status else { return }
         status = Self.open(store)
     }
-
+    
     /// Moves the store that couldn't be opened into a dated backup folder,
     /// and opens an empty one. Does nothing while the logbook is open, so a
     /// confirmation in a second window can't move the store in use.
@@ -52,7 +52,7 @@ final class Logbook {
         }
         status = Self.open(store)
     }
-
+    
     private static func open(_ store: LogbookStore) -> Status {
         do {
             return .open(try store.open())

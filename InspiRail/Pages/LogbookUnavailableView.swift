@@ -11,9 +11,9 @@ struct LogbookUnavailableView: View {
     let error: any Error
     let tryAgain: () -> Void
     let startNew: () -> Void
-
+    
     @State private var confirmingStartNew = false
-
+    
     var body: some View {
         ContentUnavailableView {
             Label("Can't Open Your Logbook", systemImage: "book.closed")
