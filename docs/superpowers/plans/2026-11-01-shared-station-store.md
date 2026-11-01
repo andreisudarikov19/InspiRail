@@ -177,3 +177,19 @@ On a throwaway iPhone 17 simulator (iOS 26.3), with the offline review stub and 
 A key changed in Settings, on the branch, with a scratch copy of the stub that answers 401 to one dummy key and logs a short hash of each request's key: with no key, Discover fails and nothing is sent. The first key is sent by the key check and rejected, and Settings says "Configured key isn't working". The second is sent by the next key check, which passes and hides the key section, and by Discover's next load, which shows a station. The same two states appear in onboarding's Settings sheet, and onboarding's list loads with the second key once the sheet is closed. No relaunch was needed.
 
 The default test plan passes 42 tests. A run on the simulator itself, with its network log streamed, shows the 10 requests the station-store tests make and no network connection.
+
+## Review fixes
+
+The review found no Critical or Important issues. The owner's rulings on its other findings:
+
+| Finding | Ruling | Commit |
+|---|---|---|
+| Nothing pins the hour's expiry: the lifetime comes from `AppConfiguration` and the clock is `Date()`, so a store that never expires passes every test, and expiry is now the only thing that refreshes the list. | Inject a clock, `init(backend:now:)`, defaulting to `Date()`, and test first: one request just before the configured lifetime passes, a second at it. A store that never expires fails the test. | 2651c79 |
+| The changelog says the list is downloaded once and shared for an hour, but Settings' key check still makes its own request on each visit. | Say so, pointing to #19. | b279e51 |
+| A screen that finds no store in its environment loads nothing, silently. | One helper, `reportMissingStationStore(in:)`, logs a fault and stops a Debug build, outside the test host only. The Logbook, Discover, onboarding, Settings' key check and the Home Station picker call it. What each screen shows, and what Settings reports, is unchanged (#19). A test pins that the test host isn't stopped. | c09134d |
+| `forceRefresh` has no caller, and this branch gave it new, untested behaviour. | Remove it from the store and from Discover's load. #29 can add what it needs. | 316b0ba |
+| `BackendAPI.session` is module-visible with no reason given. | A comment says it is visible for tests, and that app code goes through the API's methods, which read the key and apply the limiter. | dae77b7 |
+
+The consequences of one shared client for the rate limiter, and for failed loads with a rejected key, are recorded on #20. The key check's remaining download, and its timing that includes the limiter's wait, are recorded on #19.
+
+After the fixes: the typecheck prints 0 errors and the same 11 warnings, and the default test plan passes 44 tests (42 + 2). A Debug launch with the offline stub, a dummy key and `-homeStationCode ASD` makes one request and shows a station on Discover. Opening Settings then makes the key check's request, and the Logbook reads the stored list. No fault is logged and no assertion fires.
