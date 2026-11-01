@@ -141,20 +141,39 @@ The filter is the same in all four. Only the sort differs, and no screen can sho
 - Modify: `CHANGELOG.md`, `[Unreleased]`
 - Modify: `README.md:36-45` (the layout's `ViewModels/` and `BackendAPI.swift` lines)
 
-- [ ] **Step 1: `CHANGELOG.md`.** Under `### Fixed`, append:
+- [x] **Step 1: `CHANGELOG.md`.** Under `### Fixed`, append:
   - The station list is downloaded once and shared by every screen and window for an hour. Opening the Logbook or the Home Station picker no longer downloads it again, Discover no longer downloads it again right after onboarding, and screens that load at the same time share one download. All requests go through one network session, so they reuse its connections.
 
   Under `### Removed`, append:
   - The network session's response cache (10 MB in memory, 50 MB on disk), which was written and never read.
-- [ ] **Step 2: `README.md`.** `ViewModels/` reads "View-models, and the station store every screen shares", and `BackendAPI.swift` reads "NS API client (actor) and the app's one network session".
-- [ ] **Step 3: Builds.** In scratch worktrees of `main` (e8e110a) and of this branch, add a throwaway XCUITest driver to `InspiRailUITests/`, and add the UI target to the worktree's test plan and the scheme's testables. Build each with its own `-derivedDataPath` outside the repo. Create a throwaway iPhone 17 simulator on iOS 26.3 and run the driver on it with `-parallel-testing-enabled NO`, so it runs on that simulator and not a clone. Every launch uses the offline review stub and a dummy key, as in `docs/superpowers/plans/2026-10-28-remove-dead-key-path.md`, Task 2, Step 3: `NS_API_KEY=dummy-key`, `DYLD_INSERT_LIBRARIES=<stub>/ReviewStub.dylib`, `REVIEW_STUB_PAYLOAD=<stub>/stations.json`, set in the driver's `launchEnvironment`. The stub is a local review tool outside the repo, so these steps run only where it is installed. Never use a real key. Requests are counted from the stub's `REVIEWSTUB request #n` lines, streamed with `log stream --predicate 'subsystem == "annisu.inspirail" OR subsystem == "review.stub" OR subsystem == "review.uidriver"'`, between the driver's `UIDRIVER phase=…` markers, as #12 counted them.
-- [ ] **Step 4: Twenty rounds.** Launch with `-homeStationCode ASD`, wait until Discover shows a station, then 20 rounds of Logbook → Settings → Discover with 2 s on each tab, then open Settings › Home Station once.
+- [x] **Step 2: `README.md`.** `ViewModels/` reads "View-models, and the station store every screen shares", and `BackendAPI.swift` reads "NS API client (actor) and the app's one network session".
+- [x] **Step 3: Builds.** In scratch worktrees of `main` (e8e110a) and of this branch, add a throwaway XCUITest driver to `InspiRailUITests/`, and add the UI target to the worktree's test plan and the scheme's testables. Build each with its own `-derivedDataPath` outside the repo. Create a throwaway iPhone 17 simulator on iOS 26.3 and run the driver on it with `-parallel-testing-enabled NO`, so it runs on that simulator and not a clone. Every launch uses the offline review stub and a dummy key, as in `docs/superpowers/plans/2026-10-28-remove-dead-key-path.md`, Task 2, Step 3: `NS_API_KEY=dummy-key`, `DYLD_INSERT_LIBRARIES=<stub>/ReviewStub.dylib`, `REVIEW_STUB_PAYLOAD=<stub>/stations.json`, set in the driver's `launchEnvironment`. The stub is a local review tool outside the repo, so these steps run only where it is installed. Never use a real key. Requests are counted from the stub's `REVIEWSTUB request #n` lines, streamed with `log stream --predicate 'subsystem == "annisu.inspirail" OR subsystem == "review.stub" OR subsystem == "review.uidriver"'`, between the driver's `UIDRIVER phase=…` markers, as #12 counted them.
+  (Changed during execution: each scenario ran with `xcodebuild test-without-building -xctestrun` on a freshly erased simulator, and the driver finds list rows by their button labels, since a lazy list keeps rows off screen out of the accessibility tree.)
+- [x] **Step 4: Twenty rounds.** Launch with `-homeStationCode ASD`, wait until Discover shows a station, then 20 rounds of Logbook → Settings → Discover with 2 s on each tab, then open Settings › Home Station once.
   Expected: on `main`, 1 request at launch and 40 in the rounds (20 from the Logbook, 20 key checks), and 1 more for the picker. On the branch, 1 at launch, 20 in the rounds (the key checks, Decision 7, with no "Fetching fresh station data" line) and none for the picker.
-- [ ] **Step 5: Onboarding, then Discover.** On an erased simulator, launch with no home station, wait for the list, tap a station, and wait 10 s on Discover.
+  (The driver's check that the picker's rows appeared failed on both builds, for the reason above. The picker had loaded: its log lines are counted under Measurements.)
+- [x] **Step 5: Onboarding, then Discover.** On an erased simulator, launch with no home station, wait for the list, tap a station, and wait 10 s on Discover.
   Expected: 2 requests on `main`, 1 on the branch.
-- [ ] **Step 6: A key changed in Settings.** On an erased simulator, with no key anywhere, use a copy of the stub in the scratch directory that also answers 401 to one dummy key and logs a short hash of each request's key (never the key). Launch with `-homeStationCode ASD`: Discover fails with no key. In the Settings tab, save the rejected dummy key, then a second dummy key, then return to Discover. Then repeat through onboarding's Settings sheet: launch with no home station, Open Settings, save the rejected key, then the other.
+- [x] **Step 6: A key changed in Settings.** On an erased simulator, with no key anywhere, use a copy of the stub in the scratch directory that also answers 401 to one dummy key and logs a short hash of each request's key (never the key). Launch with `-homeStationCode ASD`: Discover fails with no key. In the Settings tab, save the rejected dummy key, then a second dummy key, then return to Discover. Then repeat through onboarding's Settings sheet: launch with no home station, Open Settings, save the rejected key, then the other.
   Expected on the branch: the Settings tab shows "Configured key isn't working" after the first key and hides the key section after the second; the stub logs the first key's hash with 401, then the second's with 200 for the key check and for Discover's load, which shows a station. In the sheet, the same two states, with the key checks logged, which shows that the sheet reaches the shared API.
-- [ ] **Step 7: Screenshots.** On the branch and on `main`, with the stub and `-homeStationCode ASD`, the driver attaches screenshots of Discover, the Logbook and Settings. Export them with `xcrun xcresulttool export attachments`, save them in the session's scratch directory as `18-<screen>-<branch|main>.png`, and compare them.
+- [x] **Step 7: Screenshots.** On the branch and on `main`, with the stub and `-homeStationCode ASD`, the driver attaches screenshots of Discover, the Logbook and Settings. Export them with `xcrun xcresulttool export attachments`, save them in the session's scratch directory as `18-<screen>-<branch|main>.png`, and compare them.
   Expected: the same layout and text, apart from Discover's random station. The Logbook reads "0 of 400".
-- [ ] **Step 8: Clean up.** Delete the simulator, the scratch worktrees and the derived data.
-- [ ] **Step 9: Commit** `docs: record the shared station store in the changelog and README (#18)`
+  (Added during execution: the Logbook and Settings screenshots are byte for byte the same on both builds below the status bar.)
+- [x] **Step 8: Clean up.** Delete the simulator, the scratch worktrees and the derived data.
+  (Changed during execution: the clean-up ran after this task's commit, because the final test run needs the simulator.)
+- [x] **Step 9: Commit** `docs: record the shared station store in the changelog and README (#18)`
+
+## Measurements
+
+On a throwaway iPhone 17 simulator (iOS 26.3), with the offline review stub and a dummy key. Requests are the stub's `REVIEWSTUB request` lines.
+
+| Scenario | `main` (e8e110a) | This branch |
+|---|---|---|
+| Launch with a home station | 1 | 1 |
+| 20 rounds of Logbook → Settings → Discover | 40: 20 Logbook downloads, 20 key checks | 20: the key checks; the Logbook and Discover read the stored list (40 "Returning cached stations") |
+| Then Settings › Home Station | 1 download | 0 (read the stored list) |
+| Onboarding, then Discover | 2 | 1 |
+
+A key changed in Settings, on the branch, with a scratch copy of the stub that answers 401 to one dummy key and logs a short hash of each request's key: with no key, Discover fails and nothing is sent. The first key is sent by the key check and rejected, and Settings says "Configured key isn't working". The second is sent by the next key check, which passes and hides the key section, and by Discover's next load, which shows a station. The same two states appear in onboarding's Settings sheet, and onboarding's list loads with the second key once the sheet is closed. No relaunch was needed.
+
+The default test plan passes 42 tests. A run on the simulator itself, with its network log streamed, shows the 10 requests the station-store tests make and no network connection.
