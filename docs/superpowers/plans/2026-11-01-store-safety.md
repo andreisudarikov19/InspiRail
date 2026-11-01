@@ -154,19 +154,21 @@
 **Files:**
 - Modify: `CHANGELOG.md`, `[Unreleased]`
 
-- [ ] **Step 1: `CHANGELOG.md`.** Under `### Fixed`, append:
+- [x] **Step 1: `CHANGELOG.md`.** Under `### Fixed`, append:
   - The app no longer erases the logbook when it can't open it, and no longer carries on with a temporary logbook whose visits are lost when the app quits. It shows what went wrong, with Try Again and Start a New Logbook. Starting a new logbook asks first, then moves the old one into a backup folder on the device instead of deleting it.
   - On iPad, all windows share one logbook, so a visit marked in one window shows in the others.
 
   Under `### Removed`, append:
   - The unused SwiftData migration plan (`VisitedStationMigration`), which described schemas the store never had.
 
-- [ ] **Step 2: Builds.** Build a Debug app of `main` (9752135, in a scratch worktree) and of this branch, each with its own `-derivedDataPath` outside the repo, for `generic/platform=iOS Simulator`. Create a throwaway iPhone 17 simulator on iOS 26.3. All launches use the offline review stub and a dummy key, as in `docs/superpowers/plans/2026-10-28-remove-dead-key-path.md`, Task 2, Step 3: `SIMCTL_CHILD_NS_API_KEY=dummy-key`, `SIMCTL_CHILD_DYLD_INSERT_LIBRARIES=<stub>/ReviewStub.dylib`, `SIMCTL_CHILD_REVIEW_STUB_PAYLOAD=<stub>/stations.json`. The stub is a local review tool outside the repo, so these steps run only where it is installed. Never use a real key.
-- [ ] **Step 3: Upgrade.** Install the `main` build and launch it once, so it creates `default.store`, then stop it. With the app stopped, add one visit with `sqlite3` (a `ZVISITEDSTATION` row, with `Z_PRIMARYKEY.Z_MAX` raised to match), and record a hash of `Z_METADATA`. Install this branch's build over it and launch it, streaming `subsystem == "annisu.inspirail" OR subsystem == "review.stub"`. Take a screenshot.
+- [x] **Step 2: Builds.** Build a Debug app of `main` (9752135, in a scratch worktree) and of this branch, each with its own `-derivedDataPath` outside the repo, for `generic/platform=iOS Simulator`. Create a throwaway iPhone 17 simulator on iOS 26.3. All launches use the offline review stub and a dummy key, as in `docs/superpowers/plans/2026-10-28-remove-dead-key-path.md`, Task 2, Step 3: `SIMCTL_CHILD_NS_API_KEY=dummy-key`, `SIMCTL_CHILD_DYLD_INSERT_LIBRARIES=<stub>/ReviewStub.dylib`, `SIMCTL_CHILD_REVIEW_STUB_PAYLOAD=<stub>/stations.json`. The stub is a local review tool outside the repo, so these steps run only where it is installed. Never use a real key.
+- [x] **Step 3: Upgrade.** Install the `main` build and launch it once, so it creates `default.store`, then stop it. With the app stopped, add one visit with `sqlite3` (a `ZVISITEDSTATION` row, with `Z_PRIMARYKEY.Z_MAX` raised to match), and record a hash of `Z_METADATA`. Install this branch's build over it and launch it, streaming `subsystem == "annisu.inspirail" OR subsystem == "review.stub"`. Take a screenshot.
   Expected: the onboarding station list, no `database` error line, and, after stopping the app, the visit still in the store and the same `Z_METADATA` hash.
-- [ ] **Step 4: Unreadable store.** With the app stopped, overwrite `default.store` with garbage bytes, and hash it with its `-wal` and `-shm`. Launch, and take a screenshot.
+  (Added during execution: `lsof` on a relaunch shows the branch's app holding `default.store` open, and a throwaway UI test (Step 5's worktree) shows the visit in the Logbook tab. The simulator moves the app's data container on each install, so its path is looked up again after every install.)
+- [x] **Step 4: Unreadable store.** With the app stopped, overwrite `default.store` with garbage bytes, and hash it with its `-wal` and `-shm`. Launch, and take a screenshot.
   Expected: the error screen, one `database` error line, and, after stopping the app, the same hashes.
-- [ ] **Step 5: Start a New Logbook.** In a scratch worktree of this branch, add a throwaway XCUITest that launches the app with `-homeStationCode UT` and the stub's environment, taps "Start a New Logbook" and then the alert's "Start New Logbook", and checks that the tabs appear and that the Logbook tab has no visits. Run only that test on the same simulator, with the garbage store from Step 4 in place.
+- [x] **Step 5: Start a New Logbook.** In a scratch worktree of this branch, add a throwaway XCUITest that launches the app with `-homeStationCode UT` and the stub's environment, taps "Start a New Logbook" and then the alert's "Start New Logbook", and checks that the tabs appear and that the Logbook tab has no visits. Run only that test on the same simulator, with the garbage store from Step 4 in place.
+  (Changed during execution: the home station is `ASD`, not `UT`, because the Logbook leaves out the home station's own visit, which would hide the visit from Step 3. The scratch worktree also adds the UI target to the scheme's testables and to the test plan, and the test taps Try Again once before Start a New Logbook.)
   Expected: the test passes. `Logbook Backups/<stamp>/` holds `default.store` with the garbage hash, and the `-wal` and `-shm` from Step 4. A new `default.store` exists and opens with 0 visits. If UI driving isn't practical, Task 2's `startNewMovesAsideAndOpensEmptyLogbook` stands in for it, and the report says so.
-- [ ] **Step 6: Clean up.** Delete the simulator, the scratch worktrees and the derived data.
-- [ ] **Step 7: Commit** `docs: record the safe store opening in the changelog (#17)`
+- [x] **Step 6: Clean up.** Delete the simulator, the scratch worktrees and the derived data.
+- [x] **Step 7: Commit** `docs: record the safe store opening in the changelog (#17)`

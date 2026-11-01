@@ -31,6 +31,7 @@ Both live in `InspiRail.xcodeproj/project.pbxproj` on the app target and flow th
 - The disruption and route models, which nothing fetched.
 - Unused members of `NetworkError`, `StationsRepository`, `KeychainManager`, `VisitedStation`, `DiscoveryViewModel` and `BackendHealthMonitor`. `VisitedStation`'s stored fields stay, so the logbook's storage is unchanged.
 - Six files listed in the Xcode workspace that don't exist.
+- The unused SwiftData migration plan (`VisitedStationMigration`), which described schemas the store never had.
 
 ### Fixed
 - The unit and UI test targets now compile their test folders. Before, neither target contained any code, and the unit-test stub imported a module that doesn't exist.
@@ -39,6 +40,8 @@ Both live in `InspiRail.xcodeproj/project.pbxproj` on the app target and flow th
 - Debug builds no longer write part of the API key to the log.
 - A test run no longer sends requests to the NS API or opens the simulator's stored visits: while hosting the unit tests, the app shows an empty screen.
 - Without code signing (`CODE_SIGNING_ALLOWED=NO`), the Keychain tests are skipped with a reason instead of failing with -34018.
+- The app no longer erases the logbook when it can't open it, and no longer carries on with a temporary logbook whose visits are lost when the app quits. It shows what went wrong, with Try Again and Start a New Logbook. Starting a new logbook asks first, then moves the old one into a backup folder on the device instead of deleting it.
+- On iPad, all windows share one logbook, so a visit marked in one window shows in the others.
 
 ---
 
