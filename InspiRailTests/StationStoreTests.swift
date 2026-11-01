@@ -163,6 +163,22 @@ final class StationStoreTests {
         #expect(StubURLProtocol.requests.count == 1)
     }
 
+    @Test("The stored list is kept for the configured lifetime, then downloaded again")
+    func storedListExpiresAfterItsLifetime() async throws {
+        let clock = TestClock()
+        let repository = StationsRepository(backend: api(), now: { clock.now })
+        let lifetime = AppConfiguration.API.cacheLifetime
+
+        _ = try await repository.dutchStations()
+        clock.advance(by: lifetime - 1)
+        _ = try await repository.dutchStations()
+        #expect(StubURLProtocol.requests.count == 1)
+
+        clock.advance(by: 1)
+        #expect(try await repository.dutchStations().map(\.identifiers.code) == dutchCodes)
+        #expect(StubURLProtocol.requests.count == 2)
+    }
+
     @Test("The Dutch stations come filtered and sorted by name, with their count")
     func dutchStationsAreFilteredAndSortedByName() async throws {
         let repository = repository()
@@ -178,5 +194,19 @@ final class StationStoreTests {
     @Test("Reading the environment without the App's store builds none")
     func environmentHasNoStoreByDefault() {
         #expect(EnvironmentValues().stationsRepository == nil)
+    }
+}
+
+/// A clock that moves only when a test moves it.
+final class TestClock: @unchecked Sendable {
+    private let lock = NSLock()
+    private var date = Date(timeIntervalSinceReferenceDate: 0)
+
+    var now: Date {
+        lock.withLock { date }
+    }
+
+    func advance(by interval: TimeInterval) {
+        lock.withLock { date += interval }
     }
 }

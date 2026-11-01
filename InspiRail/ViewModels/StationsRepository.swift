@@ -23,10 +23,16 @@ actor StationsRepository {
     private var stored: (stations: [Station], date: Date)?
     private var download: Task<[Station], Error>?
     private let cacheLifetime: TimeInterval
+    private let now: @Sendable () -> Date
     
-    init(backend: BackendAPI) {
+    /// - Parameters:
+    ///   - backend: The API the stations come from.
+    ///   - now: The clock the stored list's age is measured by. Tests pass
+    ///     one they move by hand.
+    init(backend: BackendAPI, now: @escaping @Sendable () -> Date = { Date() }) {
         self.backend = backend
         self.cacheLifetime = AppConfiguration.API.cacheLifetime
+        self.now = now
     }
     
     // MARK: - Public Methods
@@ -38,7 +44,7 @@ actor StationsRepository {
     func dutchStations(forceRefresh: Bool = false) async throws -> [Station] {
         if !forceRefresh,
            let stored,
-           Date().timeIntervalSince(stored.date) < cacheLifetime {
+           now().timeIntervalSince(stored.date) < cacheLifetime {
             logger.debug("Returning cached stations (\(stored.stations.count) items)")
             return stored.stations
         }
@@ -75,7 +81,7 @@ actor StationsRepository {
             .filter { $0.country == "NL" }
             .sorted { $0.names.long < $1.names.long }
         
-        stored = (stations, Date())
+        stored = (stations, now())
         logger.debug("Cached \(stations.count) stations")
         return stations
     }
