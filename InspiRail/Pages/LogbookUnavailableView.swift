@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct LogbookUnavailableView: View {
+    /// The old logbook is in a backup folder, and a new one couldn't be opened.
+    let movedAside: Bool
     let tryAgain: () -> Void
     let startNew: () -> Void
     
@@ -17,7 +19,11 @@ struct LogbookUnavailableView: View {
         ContentUnavailableView {
             Label("Can't Open Your Logbook", systemImage: "book.closed")
         } description: {
-            Text("The logbook with your visits couldn't be opened. Nothing has been deleted.")
+            if movedAside {
+                Text("Your old logbook was moved to a backup folder on this device, but a new one couldn't be opened.")
+            } else {
+                Text("The logbook with your visits couldn't be opened. Nothing has been deleted.")
+            }
         } actions: {
             Button("Try Again", action: tryAgain)
                 .buttonStyle(.borderedProminent)

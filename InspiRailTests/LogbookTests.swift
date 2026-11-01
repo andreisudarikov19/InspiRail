@@ -97,6 +97,27 @@ final class LogbookTests {
         #expect(try Data(contentsOf: backup) == garbage)
     }
 
+    @Test("When the old store was moved aside but a new one can't be opened, the logbook says the old one is in a backup")
+    func startNewThatCantOpenANewStoreSaysTheOldOneIsInABackup() throws {
+        try garbage.write(to: store.url)
+        let failingStore = LogbookStore(url: store.url, fileManager: CantCreateFolder(dir))
+        let logbook = Logbook(store: failingStore)
+
+        #expect(logbook.status.isFailed)
+        #expect(!logbook.status.movedAside)
+
+        logbook.startNew(date: Date(timeIntervalSince1970: 1_793_536_532))
+
+        #expect(logbook.status.isFailed)
+        #expect(logbook.status.movedAside)
+        let backup = failingStore.backupsFolder.appending(path: "2026-11-01T12-35-32Z/default.store")
+        #expect(try Data(contentsOf: backup) == garbage)
+
+        logbook.tryAgain()
+
+        #expect(logbook.status.movedAside, "the old store is still in the backup")
+    }
+
     @Test("While the logbook is open, Start a New Logbook and Try Again change nothing")
     func startNewDoesNothingWhileOpen() throws {
         let logbook = Logbook(store: store)
@@ -120,5 +141,26 @@ extension Logbook.Status {
 
     var isFailed: Bool {
         if case .failed = self { true } else { false }
+    }
+
+    var movedAside: Bool {
+        if case .failed(movedAside: true) = self { true } else { false }
+    }
+}
+
+/// A file manager that can't create one folder, so a store in it can't be
+/// opened, but can still be moved aside into a backup folder next to it.
+private final class CantCreateFolder: FileManager {
+    private let folder: URL
+
+    init(_ folder: URL) {
+        self.folder = folder
+    }
+
+    override func createDirectory(at url: URL, withIntermediateDirectories createIntermediates: Bool, attributes: [FileAttributeKey: Any]? = nil) throws {
+        if filePath(url) == filePath(folder) {
+            throw CocoaError(.fileWriteNoPermission)
+        }
+        try super.createDirectory(at: url, withIntermediateDirectories: createIntermediates, attributes: attributes)
     }
 }

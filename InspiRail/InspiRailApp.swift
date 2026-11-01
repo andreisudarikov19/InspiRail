@@ -66,8 +66,8 @@ private struct LogbookRootView: View {
         case .open(let container):
             MainTabView()
                 .modelContainer(container)
-        case .failed:
-            LogbookUnavailableView(tryAgain: logbook.tryAgain, startNew: { logbook.startNew() })
+        case .failed(let movedAside):
+            LogbookUnavailableView(movedAside: movedAside, tryAgain: logbook.tryAgain, startNew: { logbook.startNew() })
         }
     }
 }
