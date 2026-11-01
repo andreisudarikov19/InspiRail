@@ -124,20 +124,27 @@ final class LogbookStoreTests {
         #expect(!FileManager.default.fileExists(atPath: filePath(store.backupsFolder)))
     }
 
-    @Test("Moving aside never reuses or overwrites an earlier backup")
+    @Test("Moving aside never reuses a backup folder that already exists")
     func neverReusesBackupFolder() throws {
         let garbage = Data(repeating: 0x5A, count: 4096)
+        let wal = Data("wal".utf8)
         try garbage.write(to: storeURL)
+        try wal.write(to: storeURL.appendingStoreSuffix("-wal"))
+        // The folder holds no store file, so only refusing to reuse it can
+        // stop the move.
         let earlier = dir.appending(path: "Logbook Backups/2026-11-01T12-35-32Z")
+        let note = Data("earlier".utf8)
         try FileManager.default.createDirectory(at: earlier, withIntermediateDirectories: true)
-        try Data("earlier".utf8).write(to: earlier.appending(path: "default.store"))
+        try note.write(to: earlier.appending(path: "notes.txt"))
 
         #expect(throws: (any Error).self) {
             try LogbookStore(url: self.storeURL).moveAside(date: Date(timeIntervalSince1970: 1_793_536_532))
         }
 
-        #expect(try Data(contentsOf: earlier.appending(path: "default.store")) == Data("earlier".utf8))
+        #expect(try contents(of: earlier) == ["notes.txt"])
+        #expect(try Data(contentsOf: earlier.appending(path: "notes.txt")) == note)
         #expect(try Data(contentsOf: storeURL) == garbage)
+        #expect(try Data(contentsOf: storeURL.appendingStoreSuffix("-wal")) == wal)
     }
 
     @Test("A move that fails part-way puts every file back")
