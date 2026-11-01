@@ -36,7 +36,7 @@ InspiRail/
 ├── Models/                    SwiftData & Codable data models, logbook store
 ├── NetworkEngine/             Network error type
 ├── Pages/                     SwiftUI screens (Discovery, Onboarding,
-│                              Settings, VisitedList)
+│                              Settings, VisitedList, LogbookUnavailable)
 ├── ViewModels/                @MainActor view-models and repositories
 ├── BackendAPI.swift           NS API client (actor)
 ├── KeychainManager.swift      API-key storage

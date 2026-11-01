@@ -47,7 +47,7 @@
 
 1. **An existing store must open as before, with its visits and metadata unchanged.** Pinned by Task 1's `defaultLocationIsSwiftDataDefault` and `opensExistingStoreAndKeepsVisits`, and checked end to end in Task 5, Step 3: a `main` build's store, with a visit added by `sqlite3`, opened by this branch's build, with `Z_METADATA` unchanged.
 2. **A store written before 1.3.0 (three fields) must still open, with its visits.** Pinned by Task 1's `opensThreeFieldStore`.
-3. **A store that can't be opened must be left byte for byte as it was, its `-wal` and `-shm` too.** Pinned by Task 1's `unreadableStoreIsLeftAlone` and Task 2's `failedOpenLeavesStoreAlone`, and checked in Task 5, Step 4 on a simulator.
+3. **A store that can't be opened must be left byte for byte as it was, its `-wal` too.** (Changed after review: a failed migration can rewrite the `-shm` header, which is harmless, since SQLite rebuilds the `-shm` from the store and its WAL.) Pinned by Task 1's `unreadableStoreIsLeftAlone` and Task 2's `failedOpenLeavesStoreAlone`, and checked in Task 5, Step 4 on a simulator.
 4. **A second confirmation (two iPad windows) must not move a store that is open.** Pinned by Task 2's `startNewDoesNothingWhileOpen`.
 5. **A move that fails part-way, or a backup folder that already exists, must not split a store from its WAL or overwrite an earlier backup.** Pinned by Task 1's `failedMovePutsFilesBack` and `neverReusesBackupFolder`.
 

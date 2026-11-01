@@ -41,7 +41,7 @@ struct LogbookStore {
     }
     
     /// Opens the store, creating it if there is none. On failure it throws
-    /// and leaves the files as they are.
+    /// and leaves the store and its WAL as they are.
     func open() throws -> ModelContainer {
         try fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         return try ModelContainer(for: Self.schema, configurations: [configuration])
