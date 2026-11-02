@@ -13,12 +13,15 @@ actor BackendAPI {
     // MARK: - Configuration
     
     private let baseURL: String
-    private let maxRequestsPerMinute: Int
-    private let maxRetries: Int
+    private let maxAttempts: Int
+    private let longestRetryWait: TimeInterval
     private let enableNetworkLogging: Bool
     private let enableDetailedLogging: Bool
     private let userAgent: String
     private let keyProvider: APIKeyProvider
+    private let now: @Sendable () -> Date
+    private let sleep: @Sendable (TimeInterval) async throws -> Void
+    private let reportFailure: @Sendable (NetworkError) -> Void
 
     private let logger = Logger(subsystem: AppConfiguration.subsystem, category: "backend")
     
@@ -28,11 +31,22 @@ actor BackendAPI {
     ///   - sessionConfiguration: The configuration the session starts from.
     ///     The API applies its own settings to it. Tests pass one whose
     ///     protocol classes answer every request.
-    init(keyProvider: APIKeyProvider? = nil, sessionConfiguration: URLSessionConfiguration = .default) {
+    ///   - now: The clock a `Retry-After` date is measured by.
+    ///   - sleep: Waits that many seconds between attempts. Tests pass one
+    ///     that returns at once.
+    ///   - reportFailure: Told once about each load that fails. By default
+    ///     it logs the failure.
+    init(
+        keyProvider: APIKeyProvider? = nil,
+        sessionConfiguration: URLSessionConfiguration = .default,
+        now: @escaping @Sendable () -> Date = { Date() },
+        sleep: @escaping @Sendable (TimeInterval) async throws -> Void = { try await Task.sleep(for: .seconds($0)) },
+        reportFailure: @escaping @Sendable (NetworkError) -> Void = { BackendAPI.logFailure($0) }
+    ) {
         // Access configuration values during initialization
         self.baseURL = AppConfiguration.API.baseURL
-        self.maxRequestsPerMinute = AppConfiguration.API.maxRequestsPerMinute
-        self.maxRetries = AppConfiguration.API.maxRetries
+        self.maxAttempts = AppConfiguration.API.maxAttempts
+        self.longestRetryWait = AppConfiguration.API.longestRetryWait
         self.enableNetworkLogging = AppConfiguration.Features.enableNetworkLogging
         self.enableDetailedLogging = AppConfiguration.Features.enableDetailedLogging
         self.userAgent = AppConfiguration.userAgent
@@ -47,6 +61,9 @@ actor BackendAPI {
             environment: ProcessInfo.processInfo.environment,
             allowsEnvironmentOverride: allowsEnvironmentOverride
         )
+        self.now = now
+        self.sleep = sleep
+        self.reportFailure = reportFailure
         self.session = Self.makeSession(
             configuration: sessionConfiguration,
             timeout: AppConfiguration.API.timeout,
@@ -59,7 +76,7 @@ actor BackendAPI {
     /// The API's one session, created with it. The app creates one API, so
     /// every request shares this session and its connections (#18).
     /// Visible to the module for tests only: app code goes through the API's
-    /// methods, which read the key and apply the rate limiter.
+    /// methods, which read the key, retry and hold back a refused key.
     let session: URLSession
     
     private static func makeSession(
@@ -88,10 +105,6 @@ actor BackendAPI {
         return URLSession(configuration: config)
     }
     
-    // MARK: - Rate Limiting
-    
-    private var requestTimestamps: [Date] = []
-    
     // MARK: - Public API Methods
     
     /// Fetch all stations from the NS API
@@ -111,10 +124,29 @@ actor BackendAPI {
     
     // MARK: - Private Request Logic
     
-    private func request<T: Decodable>(url: URL, as type: T.Type, retryCount: Int = 0) async throws -> T {
-        // Rate limiting check
-        try await checkRateLimit()
-        
+    /// One attempt's result: the decoded reply, or the failure with the wait
+    /// before the next attempt, nil when another attempt can't help.
+    private enum Outcome<T> {
+        case success(T)
+        case failure(NetworkError, wait: TimeInterval?)
+    }
+    
+    /// Sends the request, and tries again what a retry can fix (#20): at most
+    /// `maxAttempts` attempts, waiting as long as `Retry-After` asks on a 429
+    /// or 503, otherwise 1 s and then 2 s. When the server asks for a wait
+    /// longer than `longestRetryWait`, it fails at once. The key is read once,
+    /// so every attempt sends the same one. A failure is reported once; a
+    /// cancellation passes through unreported.
+    private func request<T: Decodable>(url: URL, as type: T.Type) async throws -> T {
+        do {
+            return try await sendWithRetries(url: url, as: type)
+        } catch let error as NetworkError {
+            reportFailure(error)
+            throw error
+        }
+    }
+    
+    private func sendWithRetries<T: Decodable>(url: URL, as type: T.Type) async throws -> T {
         // Build request
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "GET"
@@ -134,86 +166,97 @@ actor BackendAPI {
             logger.debug("   Has API Key header: \(urlRequest.value(forHTTPHeaderField: "Ocp-Apim-Subscription-Key") != nil)")
         }
         
+        var attempt = 1
+        while true {
+            try Task.checkCancellation()
+            switch try await send(urlRequest, as: type, attempt: attempt) {
+            case .success(let value):
+                return value
+            case .failure(let error, let wait):
+                try Task.checkCancellation()
+                guard attempt < maxAttempts, let wait else {
+                    throw error
+                }
+                guard wait <= longestRetryWait else {
+                    logger.notice("NS asked to wait \(wait)s, longer than \(self.longestRetryWait)s: not retrying")
+                    throw error
+                }
+                logger.notice("Attempt \(attempt) failed (\(String(describing: error), privacy: .public)): retrying in \(wait)s")
+                try await sleep(wait)
+                attempt += 1
+            }
+        }
+    }
+    
+    /// One attempt: sends the request and maps what comes back.
+    private func send<T: Decodable>(_ urlRequest: URLRequest, as type: T.Type, attempt: Int) async throws -> Outcome<T> {
+        let data: Data
+        let response: URLResponse
         do {
-            let (data, response) = try await session.data(for: urlRequest)
-            
-            // Handle HTTP response
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw NetworkError.unreadableData
-            }
-            
-            logger.debug("📥 Response: \(httpResponse.statusCode) from \(url.path, privacy: .public)")
-            
-            // Log response details in debug mode
-            if enableDetailedLogging {
-                if let headers = httpResponse.allHeaderFields as? [String: String] {
-                    logger.debug("Response headers: \(headers, privacy: .private)")
-                }
-            }
-            
-            // Handle status codes
-            switch httpResponse.statusCode {
-            case 200...299:
-                // Success - decode response
-                return try decodeResponse(data: data, type: type)
-                
-            case 401, 403:
-                logger.error("❌ Authentication failed with status \(httpResponse.statusCode)")
-                logger.error("   This usually means:")
-                if httpResponse.statusCode == 401 {
-                    if keyProvider.usesEnvironmentKey {
-                        logger.error("   - The API key from NS_API_KEY is invalid or expired: change or remove it in the launch environment (it overrides Settings)")
-                    } else {
-                        logger.error("   - The API key is missing, invalid or expired: check it in Settings")
-                    }
-                } else {
-                    logger.error("   - The API key is over its usage quota, or isn't allowed to use this API")
-                }
-                
-                #if DEBUG
-                // In debug, log response body for more details
-                if let responseText = String(data: data, encoding: .utf8) {
-                    logger.debug("Response body: \(responseText, privacy: .private)")
-                }
-                #endif
-                
-                throw failure(forStatus: httpResponse.statusCode)
-                
-            case 429:
-                // Rate limited - implement exponential backoff
-                if retryCount < maxRetries {
-                    let delay = pow(2.0, Double(retryCount)) * 1.0 // 1s, 2s, 4s
-                    logger.warning("⚠️ Rate limited. Retrying in \(delay)s...")
-                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-                    return try await request(url: url, as: type, retryCount: retryCount + 1)
-                } else {
-                    throw failure(forStatus: httpResponse.statusCode)
-                }
-                
-            case 500...599:
-                // Server error - retry if appropriate
-                if retryCount < maxRetries - 1 {
-                    let delay = pow(2.0, Double(retryCount)) * 0.5
-                    logger.warning("⚠️ Server error \(httpResponse.statusCode). Retrying in \(delay)s...")
-                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-                    return try await request(url: url, as: type, retryCount: retryCount + 1)
-                } else {
-                    throw failure(forStatus: httpResponse.statusCode)
-                }
-                
-            default:
-                throw failure(forStatus: httpResponse.statusCode)
-            }
-            
-        } catch let error as NetworkError {
-            throw error
+            (data, response) = try await session.data(for: urlRequest)
+        } catch let error as URLError {
+            let failure = try failure(for: error)
+            return .failure(failure, wait: RetryPolicy.isTransient(error.code) ? RetryPolicy.backoff(afterAttempt: attempt) : nil)
         } catch let error as CancellationError {
             // A cancellation passes through unchanged, and callers ignore it (#20).
             throw error
-        } catch let error as URLError {
-            throw try failure(for: error)
         } catch {
-            throw NetworkError.offline(.unknown)
+            return .failure(.offline(.unknown), wait: nil)
+        }
+        
+        // Handle HTTP response
+        guard let httpResponse = response as? HTTPURLResponse else {
+            return .failure(.unreadableData, wait: nil)
+        }
+        
+        logger.debug("📥 Response: \(httpResponse.statusCode) from \(urlRequest.url?.path ?? "", privacy: .public)")
+        
+        // Log response details in debug mode
+        if enableDetailedLogging {
+            if let headers = httpResponse.allHeaderFields as? [String: String] {
+                logger.debug("Response headers: \(headers, privacy: .private)")
+            }
+        }
+        
+        // Handle status codes
+        let status = httpResponse.statusCode
+        switch status {
+        case 200...299:
+            // Success - decode response
+            return .success(try decodeResponse(data: data, type: type))
+            
+        case 401, 403:
+            logger.error("❌ Authentication failed with status \(status)")
+            logger.error("   This usually means:")
+            if status == 401 {
+                if keyProvider.usesEnvironmentKey {
+                    logger.error("   - The API key from NS_API_KEY is invalid or expired: change or remove it in the launch environment (it overrides Settings)")
+                } else {
+                    logger.error("   - The API key is missing, invalid or expired: check it in Settings")
+                }
+            } else {
+                logger.error("   - The API key is over its usage quota, or isn't allowed to use this API")
+            }
+            
+            #if DEBUG
+            // In debug, log response body for more details
+            if let responseText = String(data: data, encoding: .utf8) {
+                logger.debug("Response body: \(responseText, privacy: .private)")
+            }
+            #endif
+            
+            return .failure(failure(forStatus: status), wait: nil)
+            
+        case 429, 503:
+            // Throttled or unavailable: wait as long as the server asks
+            let asked = RetryPolicy.retryAfter(httpResponse.value(forHTTPHeaderField: "Retry-After"), now: now())
+            return .failure(failure(forStatus: status), wait: asked ?? RetryPolicy.backoff(afterAttempt: attempt))
+            
+        case 500...599:
+            return .failure(failure(forStatus: status), wait: RetryPolicy.backoff(afterAttempt: attempt))
+            
+        default:
+            return .failure(failure(forStatus: status), wait: nil)
         }
     }
     
@@ -240,29 +283,6 @@ actor BackendAPI {
             
             throw NetworkError.unreadableData
         }
-    }
-    
-    private func checkRateLimit() async throws {
-        let now = Date()
-        let oneMinuteAgo = now.addingTimeInterval(-60)
-        
-        // Remove old timestamps
-        requestTimestamps = requestTimestamps.filter { $0 > oneMinuteAgo }
-        
-        // Check if we're over the limit
-        if requestTimestamps.count >= maxRequestsPerMinute {
-            logger.warning("⚠️ Rate limit reached. Waiting...")
-            // Wait for the oldest request to expire
-            if let oldest = requestTimestamps.first {
-                let waitTime = 60 - now.timeIntervalSince(oldest)
-                if waitTime > 0 {
-                    try await Task.sleep(nanoseconds: UInt64(waitTime * 1_000_000_000))
-                }
-            }
-        }
-        
-        // Record this request
-        requestTimestamps.append(now)
     }
     
     /// The error a status that isn't a success stands for (#20). Any status
@@ -297,5 +317,11 @@ actor BackendAPI {
         default:
             return .offline(error.code)
         }
+    }
+    
+    /// Logs a failed load: once per load, not once per attempt (#20).
+    nonisolated static func logFailure(_ error: NetworkError) {
+        Logger(subsystem: AppConfiguration.subsystem, category: "backend")
+            .error("❌ Station request failed: \(String(describing: error), privacy: .public)")
     }
 }

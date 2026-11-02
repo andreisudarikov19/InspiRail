@@ -165,7 +165,7 @@ Settings' key check uses no field: it only needs the request to succeed.
   - The loop in `getStations` checks for cancellation, sends, and maps the outcome. On a failure it works out the wait: `retryAfter` on 429 and 503, else `backoff`, for retryable outcomes only. It retries while attempts remain and the wait is at most `longestRetryWait`; otherwise it reports once and throws.
   - Test target: `final class Recorder<Value: Sendable>: @unchecked Sendable` with `append(_:)` and `values`. The suite holds `clock = TestClock()`, `sleeps: Recorder<TimeInterval>` and `failures: Recorder<NetworkError>`, and `api(keyProvider:sleep:)` wires them, with a default sleep that records and returns at once.
 
-- [ ] **Step 1: Write the failing tests.**
+- [x] **Step 1: Write the failing tests.**
   - `retriedAtMostThreeTimes`, with arguments 429, 500, 502, 503 and 504, each the only reply: 3 requests, sleeps `[1, 2]`, and the case `.tooManyRequests` or `.serviceUnavailable(status:)`.
   - `retryAfterInSecondsIsHonoured`, with arguments 429 and 503 × `"7"` and `"10"`: replies `[.status(status, headers: ["Retry-After": value]), .stations]`. The load succeeds, sleeps are `[7]` or `[10]`, 2 requests.
   - `retryAfterAsADateIsHonoured`, with arguments 429 and 503: `Retry-After: Mon, 01 Jan 2001 00:00:07 GMT`, which is the test clock's start plus 7 s. Sleeps `[7]`.
@@ -176,11 +176,12 @@ Settings' key check uses no field: it only needs the request to succeed.
   - `cancellationDuringAWaitStopsTheLoop`: `.status(503, headers: ["Retry-After": "5"])`, and a sleep that records and then waits an hour with `Task.sleep`. Start the load in a `Task`, wait until one sleep is recorded, and cancel. Expected: `CancellationError`, 1 request, no failure reported.
   - `failureIsReportedOncePerLoad`: three 503s give one report, `[.serviceUnavailable(status: 503)]`. Then `[.status(429), .stations]` adds none. Then a load through the store with two callers sharing it gives one more.
   - `manyLoadsInAMinuteAreNotHeldBack`: 31 loads answered 404 in a row give 31 requests, no sleep, and take under 5 s. On `main` the 31st waits a minute.
-- [ ] **Step 2: Run them to verify they fail.** Expected: a build failure, `extra arguments at positions #3, #4, #5 in call`, since `BackendAPI.init` has no clock, sleep or report yet.
-- [ ] **Step 3: Implement** `RetryPolicy`, the init and the loop as in Interfaces, and delete the limiter and its configuration. The session's doc comment says app code goes through the API's methods, "which read the key, retry and hold back a refused key".
-- [ ] **Step 4: Run them to verify they pass.** Expected: the suite passes, 10 new tests. Then check that the tests can fail: a loop that ignores `Retry-After` fails `retryAfterInSecondsIsHonoured`, and one that allows four attempts fails `retriedAtMostThreeTimes`. Restore the file.
-- [ ] **Step 5: Typecheck.** Expected: 0 errors, 9 warnings (the `maxRequestsPerMinute` and `maxRetries` ones are gone).
-- [ ] **Step 6: Commit** `fix: retry only what can succeed, as Retry-After asks, and drop the client-side rate limiter (#20)`
+- [x] **Step 2: Run them to verify they fail.** Expected: a build failure, `extra arguments at positions #3, #4, #5 in call`, since `BackendAPI.init` has no clock, sleep or report yet.
+- [x] **Step 3: Implement** `RetryPolicy`, the init and the loop as in Interfaces, and delete the limiter and its configuration. The session's doc comment says app code goes through the API's methods, "which read the key, retry and hold back a refused key".
+- [x] **Step 4: Run them to verify they pass.** Expected: the suite passes, 10 new tests. Then check that the tests can fail: a loop that ignores `Retry-After` fails `retryAfterInSecondsIsHonoured`, and one that allows four attempts fails `retriedAtMostThreeTimes`. Restore the file.
+- [x] **Step 5: Typecheck.** Expected: 0 errors, 9 warnings (the `maxRequestsPerMinute` and `maxRetries` ones are gone).
+  (Changed during execution: the default `reportFailure` is the closure `{ BackendAPI.logFailure($0) }`, since a reference to the static function isn't inferred `@Sendable` in Swift 5 mode and added a warning. The suite reports 57 passed: 27 before this task and the 10 new tests as 30 cases.)
+- [x] **Step 6: Commit** `fix: retry only what can succeed, as Retry-After asks, and drop the client-side rate limiter (#20)`
 
 ### Task 3: Don't send a refused key again until it changes
 

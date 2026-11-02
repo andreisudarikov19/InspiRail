@@ -17,6 +17,12 @@ import Testing
 final class StationStoreTests {
     let service: String
     let keychain: KeychainManager
+    /// The API's clock, from 2001-01-01 00:00:00 GMT.
+    let clock = TestClock()
+    /// The waits the API asked for between attempts. Tests don't sit through them.
+    let sleeps = Recorder<TimeInterval>()
+    /// The failures the API reported, one per failed load.
+    let failures = Recorder<NetworkError>()
 
     init() {
         StubURLProtocol.reset()
@@ -39,10 +45,19 @@ final class StationStoreTests {
         APIKeyProvider(keychain: keychain, environment: [:], allowsEnvironmentOverride: false)
     }
 
-    func api(keyProvider: APIKeyProvider? = nil) -> BackendAPI {
-        BackendAPI(
+    /// An API on the stub, with the suite's clock and recorders. By default a
+    /// wait is recorded and returns at once.
+    func api(
+        keyProvider: APIKeyProvider? = nil,
+        sleep: (@Sendable (TimeInterval) async throws -> Void)? = nil
+    ) -> BackendAPI {
+        let clock = clock, sleeps = sleeps, failures = failures
+        return BackendAPI(
             keyProvider: keyProvider ?? environmentKeyProvider(),
-            sessionConfiguration: StubURLProtocol.configuration()
+            sessionConfiguration: StubURLProtocol.configuration(),
+            now: { clock.now },
+            sleep: sleep ?? { sleeps.append($0) },
+            reportFailure: { failures.append($0) }
         )
     }
 
@@ -201,6 +216,20 @@ final class StationStoreTests {
         // Outside the test host this stops a Debug build, and so would stop
         // this test run.
         reportMissingStationStore(in: "A test")
+    }
+}
+
+/// Collects values from any task, in the order they arrive.
+final class Recorder<Value: Sendable>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var collected: [Value] = []
+
+    var values: [Value] {
+        lock.withLock { collected }
+    }
+
+    func append(_ value: Value) {
+        lock.withLock { collected.append(value) }
     }
 }
 

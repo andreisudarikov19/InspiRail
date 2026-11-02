@@ -119,6 +119,146 @@ extension StationStoreTests {
         let keyCases: [NetworkError] = [.noKey, .keychainUnavailable, .keyRejected, .forbidden]
         #expect(messages.map(\.0).filter(\.concernsTheKey) == keyCases)
     }
+
+    // MARK: - Retries
+
+    /// The error a 429 or 5xx ends in.
+    func failure(forStatus status: Int) -> NetworkError {
+        status == 429 ? .tooManyRequests : .serviceUnavailable(status: status)
+    }
+
+    @Test("A 429 or 5xx is tried at most three times, 1 s and then 2 s apart", arguments: [429, 500, 502, 503, 504])
+    func retriedAtMostThreeTimes(status: Int) async {
+        StubURLProtocol.reset(replies: [.status(status)])
+
+        #expect(await networkError(from: api()) == failure(forStatus: status))
+        #expect(StubURLProtocol.requests.count == 3)
+        #expect(sleeps.values == [1, 2])
+    }
+
+    @Test("A 429 or 503 waits as long as Retry-After asks, in seconds, up to 10", arguments: [429, 503], ["7", "10"])
+    func retryAfterInSecondsIsHonoured(status: Int, value: String) async throws {
+        StubURLProtocol.reset(replies: [.status(status, headers: ["Retry-After": value]), .stations])
+
+        _ = try await api().getStations()
+        #expect(sleeps.values == [TimeInterval(value)!])
+        #expect(StubURLProtocol.requests.count == 2)
+    }
+
+    @Test("A 429 or 503 waits until the date Retry-After names", arguments: [429, 503])
+    func retryAfterAsADateIsHonoured(status: Int) async throws {
+        // Seven seconds after the test clock's start.
+        StubURLProtocol.reset(replies: [.status(status, headers: ["Retry-After": "Mon, 01 Jan 2001 00:00:07 GMT"]), .stations])
+
+        _ = try await api().getStations()
+        #expect(sleeps.values == [7])
+        #expect(StubURLProtocol.requests.count == 2)
+    }
+
+    @Test("A Retry-After longer than 10 s fails at once", arguments: [429, 503], ["11", "Mon, 01 Jan 2001 00:00:11 GMT"])
+    func retryAfterOverTheCapFailsAtOnce(status: Int, value: String) async {
+        StubURLProtocol.reset(replies: [.status(status, headers: ["Retry-After": value]), .stations])
+
+        #expect(await networkError(from: api()) == failure(forStatus: status))
+        #expect(StubURLProtocol.requests.count == 1)
+        #expect(sleeps.values.isEmpty)
+    }
+
+    @Test("A refused key, a missing resource and unreadable data aren't retried", arguments: [
+        StubURLProtocol.Reply.status(401), .status(403), .status(404), .body("{}"),
+    ])
+    func refusedMissingAndUnreadableAreNotRetried(reply: StubURLProtocol.Reply) async {
+        StubURLProtocol.reset(replies: [reply, .stations])
+
+        _ = await networkError(from: api())
+        #expect(StubURLProtocol.requests.count == 1)
+        #expect(sleeps.values.isEmpty)
+    }
+
+    @Test("A lost connection, or a failed lookup or connection, is retried", arguments: [
+        URLError.Code.networkConnectionLost, .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed,
+    ])
+    func transientFailuresAreRetried(code: URLError.Code) async {
+        StubURLProtocol.reset(replies: [.failure(code)])
+
+        #expect(await networkError(from: api()) == .offline(code))
+        #expect(StubURLProtocol.requests.count == 3)
+        #expect(sleeps.values == [1, 2])
+    }
+
+    @Test("No internet, a timeout or a TLS failure isn't retried", arguments: [
+        URLError.Code.notConnectedToInternet, .timedOut, .secureConnectionFailed, .serverCertificateUntrusted,
+    ])
+    func otherTransportFailuresAreNotRetried(code: URLError.Code) async {
+        StubURLProtocol.reset(replies: [.failure(code)])
+
+        #expect(await networkError(from: api()) == .offline(code))
+        #expect(StubURLProtocol.requests.count == 1)
+    }
+
+    @Test("Cancelling a load while it waits stops the retries, as a cancellation")
+    func cancellationDuringAWaitStopsTheLoop() async throws {
+        StubURLProtocol.reset(replies: [.status(503, headers: ["Retry-After": "5"])])
+        let sleeps = sleeps
+        let api = api(sleep: { seconds in
+            sleeps.append(seconds)
+            try await Task.sleep(for: .seconds(3600))
+        })
+
+        let load = Task { try await api.getStations() }
+        for _ in 0..<500 where sleeps.values.isEmpty {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        load.cancel()
+
+        await #expect(throws: CancellationError.self) {
+            try await load.value
+        }
+        #expect(sleeps.values == [5])
+        #expect(StubURLProtocol.requests.count == 1)
+        #expect(failures.values.isEmpty)
+    }
+
+    @Test("A failed load is reported once, not once per attempt")
+    func failureIsReportedOncePerLoad() async throws {
+        let api = api()
+
+        StubURLProtocol.reset(replies: [.status(503)])
+        _ = await networkError(from: api)
+        #expect(failures.values == [.serviceUnavailable(status: 503)])
+
+        StubURLProtocol.reset(replies: [.status(429), .stations])
+        _ = try await api.getStations()
+        #expect(failures.values.count == 1)
+
+        // Two screens sharing one failed download: one more report.
+        StubURLProtocol.reset(replies: [.status(503)])
+        let repository = StationsRepository(backend: api)
+        StubURLProtocol.hold()
+        defer { StubURLProtocol.release() }
+        async let first = try? repository.dutchStations()
+        await StubURLProtocol.waitForRequests(1)
+        async let second = try? repository.dutchStations()
+        try await Task.sleep(for: .milliseconds(300))
+        StubURLProtocol.release()
+        _ = await (first, second)
+        #expect(failures.values.count == 2)
+        #expect(StubURLProtocol.requests.count == 3)
+    }
+
+    @Test("Loads in quick succession aren't held back")
+    func manyLoadsInAMinuteAreNotHeldBack() async {
+        StubURLProtocol.reset(replies: [.status(404)])
+        let api = api()
+        let start = Date()
+
+        for _ in 0..<31 {
+            _ = await networkError(from: api)
+        }
+        #expect(StubURLProtocol.requests.count == 31)
+        #expect(sleeps.values.isEmpty)
+        #expect(Date().timeIntervalSince(start) < 5)
+    }
 }
 
 /// An API key store in memory: empty, holding a key, or failing as the

@@ -39,9 +39,12 @@ enum AppConfiguration {
         static let timeout: TimeInterval = 30
         static let resourceTimeout: TimeInterval = 60
         
-        // Rate limiting
-        static let maxRequestsPerMinute = 30
-        static let maxRetries = 3
+        // Retries (#20)
+        /// The most times one load sends its request.
+        nonisolated static let maxAttempts = 3
+        /// The longest wait between attempts. When NS asks for longer, the
+        /// load fails at once instead of keeping the screen loading.
+        nonisolated static let longestRetryWait: TimeInterval = 10
         
         // Cache settings
         static let cacheLifetime: TimeInterval = 3600 // 1 hour
