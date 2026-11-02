@@ -79,6 +79,13 @@ actor BackendAPI {
     /// methods, which read the key, retry and hold back a refused key.
     let session: URLSession
     
+    // MARK: - Refused Key
+    
+    /// The key NS last refused, while it is held back (#20). Loads with that
+    /// key fail at once and send nothing, until another key is used or, after
+    /// a 403, the pause ends. Keeps only a hash of the key.
+    private(set) var keyRefusal: KeyRefusal?
+    
     private static func makeSession(
         configuration config: URLSessionConfiguration,
         timeout: TimeInterval,
@@ -155,6 +162,15 @@ actor BackendAPI {
         let apiKey = try await keyProvider.currentKey()
         urlRequest.setValue(apiKey, forHTTPHeaderField: "Ocp-Apim-Subscription-Key")
         
+        // A key NS refused isn't sent again until it changes (#20)
+        if let keyRefusal {
+            guard !keyRefusal.holds(for: apiKey, at: now()) else {
+                logger.notice("Not sending the API key NS refused (\(String(describing: keyRefusal.reason), privacy: .public)) until it changes")
+                throw keyRefusal.error
+            }
+            self.keyRefusal = nil
+        }
+        
         // Headers
         urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
         urlRequest.setValue(userAgent, forHTTPHeaderField: "User-Agent")
@@ -171,8 +187,17 @@ actor BackendAPI {
             try Task.checkCancellation()
             switch try await send(urlRequest, as: type, attempt: attempt) {
             case .success(let value):
+                keyRefusal = nil
                 return value
             case .failure(let error, let wait):
+                switch error {
+                case .keyRejected:
+                    keyRefusal = KeyRefusal(.rejected, key: apiKey, at: now())
+                case .forbidden:
+                    keyRefusal = KeyRefusal(.forbidden, key: apiKey, at: now())
+                default:
+                    break
+                }
                 try Task.checkCancellation()
                 guard attempt < maxAttempts, let wait else {
                     throw error

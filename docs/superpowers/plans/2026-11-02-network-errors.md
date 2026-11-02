@@ -197,16 +197,17 @@ Settings' key check uses no field: it only needs the request to succeed.
   - `nonisolated struct KeyRefusal: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConvertible` with `enum Reason: Sendable { case rejected, forbidden }`, `let reason: Reason`, `let since: Date`, `let until: Date?` (`nil` means until the key changes), `init(_ reason: Reason, key: String, at date: Date)` (the 403 end date from `forbiddenKeyPause`), `func holds(for key: String, at date: Date) -> Bool` and `var error: NetworkError` (`.keyRejected` or `.forbidden`). It keeps `SHA256.hash(data: Data(key.utf8))` in a private property. Its descriptions name the reason and dates only.
   - `BackendAPI.keyRefusal: KeyRefusal?` (`private(set)`), and `StationsRepository.keyRefusal: KeyRefusal? { get async }`, which reads it.
 
-- [ ] **Step 1: Write the failing tests.** Each uses a provider over `TestKeyStorage` with `environment: [:]`.
+- [x] **Step 1: Write the failing tests.** Each uses a provider over `TestKeyStorage` with `environment: [:]`.
   - `rejectedKeyIsNotSentAgain`: `[.status(401), .stations]`. The store's load fails with `.keyRejected`. A second load through the store, and one through `repository.backend.getStations()` (Settings' path), also fail with `.keyRejected`. 1 request, 3 failures reported. `keyRefusal?.reason == .rejected`, with `until == nil`.
   - `changedKeyIsSentAfterARefusal`, with arguments 401 and 403: replies `[.status(status), .stations]`, key `"refused-test-key"`. The load fails. After `setKey("accepted-test-key")` the next load succeeds. `sentKeys == ["refused-test-key", "accepted-test-key"]`, and `keyRefusal == nil`.
   - `forbiddenKeyPausesUntilTheCoolOffEnds`: `[.status(403), .stations]`. The load fails with `.forbidden`. After advancing the clock by `forbiddenKeyPause - 1`, it fails again with 1 request. After 1 s more it succeeds, with 2 requests, and `keyRefusal == nil`.
   - `keyRefusalHoldsNothingOfTheKey`: after a 401 with key `"QWERTY-test-key"`, neither `String(describing:)` nor `String(reflecting:)` of the refusal, nor `dump`'s output, contains `"QWERTY"` (no hexadecimal digest can).
-- [ ] **Step 2: Run them to verify they fail.** Expected: a build failure, `value of type 'StationsRepository' has no member 'keyRefusal'`.
-- [ ] **Step 3: Implement** as in Interfaces and Decision 5. The check runs after the key is read and before the first attempt. It logs one notice without the key, e.g. "Not sending the API key NS refused (401) until it changes". It reports the failure once and throws `refusal.error`. A 401 or 403 records the refusal before reporting, and a 2xx clears it.
-- [ ] **Step 4: Run them to verify they pass.** Expected: the suite passes, 4 new tests. Then check that they can fail: an API that never records a refusal fails `rejectedKeyIsNotSentAgain`, and one whose 403 pause never ends fails `forbiddenKeyPausesUntilTheCoolOffEnds`. Restore the file.
-- [ ] **Step 5: Typecheck.** Expected: 0 errors, 9 warnings.
-- [ ] **Step 6: Commit** `fix: stop sending an API key NS refused until it changes, or for 15 minutes after a 403 (#20)`
+- [x] **Step 2: Run them to verify they fail.** Expected: a build failure, `value of type 'StationsRepository' has no member 'keyRefusal'`.
+- [x] **Step 3: Implement** as in Interfaces and Decision 5. The check runs after the key is read and before the first attempt. It logs one notice without the key, e.g. "Not sending the API key NS refused (401) until it changes". It reports the failure once and throws `refusal.error`. A 401 or 403 records the refusal before reporting, and a 2xx clears it.
+- [x] **Step 4: Run them to verify they pass.** Expected: the suite passes, 4 new tests. Then check that they can fail: an API that never records a refusal fails `rejectedKeyIsNotSentAgain`, and one whose 403 pause never ends fails `forbiddenKeyPausesUntilTheCoolOffEnds`. Restore the file.
+- [x] **Step 5: Typecheck.** Expected: 0 errors, 9 warnings.
+  (Changed during execution: `keyRefusalHoldsNothingOfTheKey` also checks that no output holds the start of the key's SHA-256 hash, and `KeyRefusal` gets a custom mirror so that `dump` shows only the reason and dates. The suite reports 62 passed: 57 and the 4 new tests as 5 cases.)
+- [x] **Step 6: Commit** `fix: stop sending an API key NS refused until it changes, or for 15 minutes after a 403 (#20)`
 
 ### Task 4: Decode stations one by one, and skip the ones that can't be read
 

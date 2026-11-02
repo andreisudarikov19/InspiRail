@@ -62,6 +62,12 @@ actor StationsRepository {
         try await dutchStations().count
     }
     
+    /// The API key NS last refused, while it is held back (#20). Settings can
+    /// read it to tell a refused key from other failures (#19).
+    var keyRefusal: KeyRefusal? {
+        get async { await backend.keyRefusal }
+    }
+    
     // MARK: - Private Methods
     
     /// Downloads the list, and keeps its Dutch stations if it succeeds. It

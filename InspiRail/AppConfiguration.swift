@@ -45,6 +45,10 @@ enum AppConfiguration {
         /// The longest wait between attempts. When NS asks for longer, the
         /// load fails at once instead of keeping the screen loading.
         nonisolated static let longestRetryWait: TimeInterval = 10
+        /// How long a key NS refused with a 403, which can mean a quota that
+        /// resets, is held back before it is sent again. Another key is sent
+        /// at once.
+        nonisolated static let forbiddenKeyPause: TimeInterval = 15 * 60
         
         // Cache settings
         static let cacheLifetime: TimeInterval = 3600 // 1 hour

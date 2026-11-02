@@ -3,6 +3,7 @@
 //  InspiRailTests
 //
 
+import CryptoKit
 import Foundation
 import Security
 import Testing
@@ -258,6 +259,71 @@ extension StationStoreTests {
         #expect(StubURLProtocol.requests.count == 31)
         #expect(sleeps.values.isEmpty)
         #expect(Date().timeIntervalSince(start) < 5)
+    }
+
+    // MARK: - A refused key
+
+    @Test("After a 401 the same key isn't sent again, by the store or by Settings' key check")
+    func rejectedKeyIsNotSentAgain() async throws {
+        StubURLProtocol.reset(replies: [.status(401), .stations])
+        let repository = StationsRepository(backend: api(keyProvider: provider(TestKeyStorage(key: "rejected-test-key"))))
+
+        await #expect(throws: NetworkError.keyRejected) { try await repository.dutchStations() }
+        await #expect(throws: NetworkError.keyRejected) { try await repository.dutchStations() }
+        await #expect(throws: NetworkError.keyRejected) { try await repository.backend.getStations() }
+
+        #expect(StubURLProtocol.requests.count == 1)
+        #expect(failures.values == [.keyRejected, .keyRejected, .keyRejected])
+        let refusal = try #require(await repository.keyRefusal)
+        #expect(refusal.reason == .rejected)
+        #expect(refusal.until == nil)
+    }
+
+    @Test("After a 401 or 403, another key is sent at once", arguments: [401, 403])
+    func changedKeyIsSentAfterARefusal(status: Int) async throws {
+        StubURLProtocol.reset(replies: [.status(status), .stations])
+        let storage = TestKeyStorage(key: "refused-test-key")
+        let repository = StationsRepository(backend: api(keyProvider: provider(storage)))
+
+        await #expect(throws: NetworkError.self) { try await repository.dutchStations() }
+        await storage.setKey("accepted-test-key")
+
+        #expect(try await repository.dutchStations().map(\.identifiers.code) == dutchCodes)
+        #expect(sentKeys == ["refused-test-key", "accepted-test-key"])
+        #expect(await repository.keyRefusal == nil)
+    }
+
+    @Test("After a 403 the same key is sent again once the pause ends")
+    func forbiddenKeyPausesUntilTheCoolOffEnds() async throws {
+        StubURLProtocol.reset(replies: [.status(403), .stations])
+        let repository = StationsRepository(backend: api(keyProvider: provider(TestKeyStorage(key: "forbidden-test-key"))))
+
+        await #expect(throws: NetworkError.forbidden) { try await repository.dutchStations() }
+        clock.advance(by: AppConfiguration.API.forbiddenKeyPause - 1)
+        await #expect(throws: NetworkError.forbidden) { try await repository.dutchStations() }
+        #expect(StubURLProtocol.requests.count == 1)
+
+        clock.advance(by: 1)
+        #expect(try await repository.dutchStations().map(\.identifiers.code) == dutchCodes)
+        #expect(StubURLProtocol.requests.count == 2)
+        #expect(await repository.keyRefusal == nil)
+    }
+
+    @Test("The refused-key memory shows nothing of the key, not even its hash")
+    func keyRefusalHoldsNothingOfTheKey() async throws {
+        let key = "QWERTY-test-key"
+        StubURLProtocol.reset(replies: [.status(401)])
+        let api = api(keyProvider: provider(TestKeyStorage(key: key)))
+        _ = await networkError(from: api)
+
+        let refusal = try #require(await api.keyRefusal)
+        var dumped = ""
+        dump(refusal, to: &dumped)
+        let hash = SHA256.hash(data: Data(key.utf8)).map { String(format: "%02x", $0) }.joined()
+        for text in [String(describing: refusal), String(reflecting: refusal), dumped] {
+            #expect(!text.contains("QWERTY"))
+            #expect(!text.lowercased().contains(hash.prefix(12)))
+        }
     }
 }
 

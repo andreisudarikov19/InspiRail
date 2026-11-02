@@ -22,7 +22,7 @@ nonisolated enum RetryPolicy {
             return false
         }
     }
-
+    
     /// The wait a `Retry-After` header asks for: whole seconds, or an HTTP
     /// date (IMF-fixdate, such as `Mon, 01 Jan 2001 00:00:07 GMT`). Never
     /// negative. Nil when the header is missing or can't be read.
@@ -42,7 +42,7 @@ nonisolated enum RetryPolicy {
         }
         return max(0, date.timeIntervalSince(now))
     }
-
+    
     /// The wait after attempt `attempt` when the server names none: 1 s,
     /// then 2 s.
     static func backoff(afterAttempt attempt: Int) -> TimeInterval {
