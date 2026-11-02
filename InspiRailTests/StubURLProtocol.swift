@@ -12,16 +12,30 @@ import Foundation
 /// Its state is shared by every session that uses it, so only the serialized
 /// "Station store" suite uses it.
 final class StubURLProtocol: URLProtocol {
-    struct Reply {
+    struct Reply: Sendable {
         let status: Int
         let body: Data
+        /// Sent with the reply, after `Content-Type`.
+        var headers: [String: String] = [:]
+        /// When set, the request fails with this transport error instead.
+        var failure: URLError.Code? = nil
 
         /// HTTP 200 with the six stations of `stationFixture`.
         static let stations = Reply(status: 200, body: Data(stationFixture.utf8))
 
-        /// That status, with an empty JSON object as the body.
-        static func status(_ code: Int) -> Reply {
-            Reply(status: code, body: Data("{}".utf8))
+        /// That status and headers, with an empty JSON object as the body.
+        static func status(_ code: Int, headers: [String: String] = [:]) -> Reply {
+            Reply(status: code, body: Data("{}".utf8), headers: headers)
+        }
+
+        /// HTTP 200 with that body.
+        static func body(_ json: String) -> Reply {
+            Reply(status: 200, body: Data(json.utf8))
+        }
+
+        /// No response: the request fails with that transport error.
+        static func failure(_ code: URLError.Code) -> Reply {
+            Reply(status: 0, body: Data(), failure: code)
         }
     }
 
@@ -104,11 +118,15 @@ final class StubURLProtocol: URLProtocol {
     override func stopLoading() {}
 
     private func respond(with reply: Reply) {
+        if let failure = reply.failure {
+            client?.urlProtocol(self, didFailWithError: URLError(failure))
+            return
+        }
         let response = HTTPURLResponse(
             url: request.url!,
             statusCode: reply.status,
             httpVersion: "HTTP/1.1",
-            headerFields: ["Content-Type": "application/json"]
+            headerFields: ["Content-Type": "application/json"].merging(reply.headers) { _, new in new }
         )!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: reply.body)

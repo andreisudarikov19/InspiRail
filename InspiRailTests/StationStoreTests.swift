@@ -134,8 +134,8 @@ final class StationStoreTests {
         let error = await #expect(throws: NetworkError.self) {
             try await repository.dutchStations()
         }
-        guard case .unauthorized? = error else {
-            Issue.record("expected .unauthorized, got \(String(describing: error))")
+        guard case .keyRejected? = error else {
+            Issue.record("expected .keyRejected, got \(String(describing: error))")
             return
         }
         try await keychain.saveAPIKey("accepted-test-key")

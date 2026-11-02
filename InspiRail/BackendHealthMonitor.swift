@@ -94,8 +94,10 @@ actor BackendHealthMonitor {
     
     private var consecutiveFailures = 0
     
-    /// Perform a health check on the backend, through the app's one API (#18)
-    func checkHealth(using backend: BackendAPI) async -> HealthReport {
+    /// Perform a health check on the backend, through the app's one API (#18).
+    /// Throws only `CancellationError`: a check cut short isn't a failure,
+    /// and the caller keeps the status it had (#20).
+    func checkHealth(using backend: BackendAPI) async throws -> HealthReport {
         let startTime = Date()
         
         guard isNetworkAvailable else {
@@ -128,6 +130,8 @@ actor BackendHealthMonitor {
                 connectionType: connectionTypeDescription
             )
             
+        } catch let error as CancellationError {
+            throw error
         } catch {
             consecutiveFailures += 1
             

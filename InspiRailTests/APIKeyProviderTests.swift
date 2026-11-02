@@ -74,13 +74,13 @@ final class APIKeyProviderTests {
         #expect(!provider(environment: ["NS_API_KEY": "fresh"], allowsEnvironmentOverride: false).usesEnvironmentKey)
     }
 
-    @Test("With no key anywhere, the request is unauthorized", .requiresKeychain)
-    func noKeyThrowsUnauthorized() async throws {
+    @Test("With no key anywhere, the request fails as no key", .requiresKeychain)
+    func noKeyThrowsNoKey() async throws {
         let error = await #expect(throws: NetworkError.self) {
             try await self.provider().currentKey()
         }
-        guard case .unauthorized? = error else {
-            Issue.record("expected .unauthorized, got \(String(describing: error))")
+        guard case .noKey? = error else {
+            Issue.record("expected .noKey, got \(String(describing: error))")
             return
         }
     }

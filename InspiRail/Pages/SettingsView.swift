@@ -163,8 +163,14 @@ struct SettingsView: View {
         var healthy = true
         if keyPresent {
             if let stationsRepository {
-                let report = await BackendHealthMonitor.shared.checkHealth(using: stationsRepository.backend)
-                healthy = report.isHealthy
+                do {
+                    let report = try await BackendHealthMonitor.shared.checkHealth(using: stationsRepository.backend)
+                    healthy = report.isHealthy
+                } catch {
+                    // The check was cut short, for example by leaving
+                    // Settings: keep the status as it was (#20).
+                    return
+                }
             } else {
                 reportMissingStationStore(in: "Settings")
             }
@@ -254,6 +260,8 @@ struct StationSelectorView: View {
                 self.allStations = sorted
                 self.isLoading = false
             }
+        } catch is CancellationError {
+            // A cancelled load leaves the picker as it was (#20).
         } catch { 
             print("Error loading stations: \(error)")
             await MainActor.run { self.isLoading = false }

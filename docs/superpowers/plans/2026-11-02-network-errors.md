@@ -126,7 +126,7 @@ Settings' key check uses no field: it only needs the request to succeed.
   - `BackendHealthMonitor.checkHealth(using:) async throws -> HealthReport`, which throws only `CancellationError`.
   - Test target: `StubURLProtocol.Reply` becomes `Sendable` and gains `headers: [String: String]` and `failure: URLError.Code?`, with `Reply.status(_:headers:)`, `Reply.body(_ json: String)` (200 with that body) and `Reply.failure(_:)`. A failure reply calls `urlProtocol(_:didFailWithError:)`. `actor TestKeyStorage: APIKeyStorage` with `init(key: String? = nil, failure: KeychainError? = nil)` and `func setKey(_:)`.
 
-- [ ] **Step 1: Write the failing tests** in `NetworkErrorTests.swift`, as `extension StationStoreTests`, so they share the serialized suite and its stub. Each expects its case, and the number of requests:
+- [x] **Step 1: Write the failing tests** in `NetworkErrorTests.swift`, as `extension StationStoreTests`, so they share the serialized suite and its stub. Each expects its case, and the number of requests:
   - `keyRejectedFor401`: `.status(401)` → `.keyRejected`.
   - `forbiddenFor403`: `.status(403)` → `.forbidden`.
   - `otherStatusIsUnreadableData`: `.status(404)` → `.unreadableData`.
@@ -138,11 +138,12 @@ Settings' key check uses no field: it only needs the request to succeed.
   - `eachErrorHasItsMessage`: `NetworkError.message(for:)` gives each case its text from the table, `nil` for `CancellationError()` and `URLError(.cancelled)`, and the fallback for another error. `concernsTheKey` is true for exactly `noKey`, `keychainUnavailable`, `keyRejected` and `forbidden`.
 
   Also change `rejectedKeyIsNotKeptAndTheNextLoadUsesTheNewKey` to expect `.keyRejected`, and `noKeyThrowsUnauthorized` to `noKeyThrowsNoKey`, expecting `.noKey`.
-- [ ] **Step 2: Run them to verify they fail.** Test command with `-only-testing:InspiRailTests/StationStoreTests -only-testing:InspiRailTests/APIKeyProviderTests`. Expected: a build failure, `type 'NetworkError' has no member 'keyRejected'` or similar.
-- [ ] **Step 3: Implement** the Interfaces above. The 401 branch keeps its log lines on where the key came from. The screens take their text from `NetworkError.message(for:)` and return without touching their state when it is `nil`. Onboarding sets `isUnauthorized` from `concernsTheKey`. The picker returns early on a cancellation. `checkHealth` rethrows a `CancellationError` without counting a failure, and `refreshKeyStatus()` returns without changing its state when the check throws.
-- [ ] **Step 4: Run them to verify they pass.** Expected: the two suites pass, 9 new tests. Then check that a test can fail: mapping `.cannotFindHost` back to `.serviceUnavailable(status: 503)` fails `transportFailuresMeanOffline`. Restore the file.
-- [ ] **Step 5: Typecheck.** Expected: 0 errors, 11 warnings.
-- [ ] **Step 6: Commit** `fix: give each network failure its own case and message, and pass cancellation through (#20)`
+- [x] **Step 2: Run them to verify they fail.** Test command with `-only-testing:InspiRailTests/StationStoreTests -only-testing:InspiRailTests/APIKeyProviderTests`. Expected: a build failure, `type 'NetworkError' has no member 'keyRejected'` or similar.
+- [x] **Step 3: Implement** the Interfaces above. The 401 branch keeps its log lines on where the key came from. The screens take their text from `NetworkError.message(for:)` and return without touching their state when it is `nil`. Onboarding sets `isUnauthorized` from `concernsTheKey`. The picker returns early on a cancellation. `checkHealth` rethrows a `CancellationError` without counting a failure, and `refreshKeyStatus()` returns without changing its state when the check throws.
+- [x] **Step 4: Run them to verify they pass.** Expected: the two suites pass, 9 new tests. Then check that a test can fail: mapping `.cannotFindHost` back to `.serviceUnavailable(status: 503)` fails `transportFailuresMeanOffline`. Restore the file.
+  (Changed during execution: the result bundle counts each argument of a parameterized test as a test, so the two suites report 34 passed: 18 existing tests, 8 new ones and the 8 cases of `transportFailuresMeanOffline`. The API's default provider now names `KeychainManager.shared`, since `.shared` doesn't resolve against `any APIKeyStorage`.)
+- [x] **Step 5: Typecheck.** Expected: 0 errors, 11 warnings.
+- [x] **Step 6: Commit** `fix: give each network failure its own case and message, and pass cancellation through (#20)`
 
 ### Task 2: Retry in a loop, as the server asks, and drop the client-side limiter
 

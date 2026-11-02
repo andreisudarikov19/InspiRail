@@ -43,7 +43,7 @@ actor BackendAPI {
         let allowsEnvironmentOverride = false
         #endif
         self.keyProvider = keyProvider ?? APIKeyProvider(
-            keychain: .shared,
+            keychain: KeychainManager.shared,
             environment: ProcessInfo.processInfo.environment,
             allowsEnvironmentOverride: allowsEnvironmentOverride
         )
@@ -139,7 +139,7 @@ actor BackendAPI {
             
             // Handle HTTP response
             guard let httpResponse = response as? HTTPURLResponse else {
-                throw NetworkError.unknown(NSError(domain: "BackendAPI", code: -1))
+                throw NetworkError.unreadableData
             }
             
             logger.debug("📥 Response: \(httpResponse.statusCode) from \(url.path, privacy: .public)")
@@ -167,7 +167,7 @@ actor BackendAPI {
                         logger.error("   - The API key is missing, invalid or expired: check it in Settings")
                     }
                 } else {
-                    logger.error("   - API key is valid but doesn't have permission for this endpoint")
+                    logger.error("   - The API key is over its usage quota, or isn't allowed to use this API")
                 }
                 
                 #if DEBUG
@@ -177,7 +177,7 @@ actor BackendAPI {
                 }
                 #endif
                 
-                throw NetworkError.unauthorized
+                throw failure(forStatus: httpResponse.statusCode)
                 
             case 429:
                 // Rate limited - implement exponential backoff
@@ -187,7 +187,7 @@ actor BackendAPI {
                     try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                     return try await request(url: url, as: type, retryCount: retryCount + 1)
                 } else {
-                    throw NetworkError.rateLimited
+                    throw failure(forStatus: httpResponse.statusCode)
                 }
                 
             case 500...599:
@@ -198,19 +198,22 @@ actor BackendAPI {
                     try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                     return try await request(url: url, as: type, retryCount: retryCount + 1)
                 } else {
-                    throw NetworkError.serverError(httpResponse.statusCode)
+                    throw failure(forStatus: httpResponse.statusCode)
                 }
                 
             default:
-                throw NetworkError.serverError(httpResponse.statusCode)
+                throw failure(forStatus: httpResponse.statusCode)
             }
             
         } catch let error as NetworkError {
             throw error
+        } catch let error as CancellationError {
+            // A cancellation passes through unchanged, and callers ignore it (#20).
+            throw error
         } catch let error as URLError {
-            throw mapURLError(error)
+            throw try failure(for: error)
         } catch {
-            throw NetworkError.unknown(error)
+            throw NetworkError.offline(.unknown)
         }
     }
     
@@ -235,7 +238,7 @@ actor BackendAPI {
             }
             #endif
             
-            throw NetworkError.decodingError(error)
+            throw NetworkError.unreadableData
         }
     }
     
@@ -262,16 +265,37 @@ actor BackendAPI {
         requestTimestamps.append(now)
     }
     
-    private func mapURLError(_ error: URLError) -> NetworkError {
-        switch error.code {
-        case .notConnectedToInternet, .networkConnectionLost:
-            return .noConnection
-        case .timedOut:
-            return .timeout
-        case .cannotFindHost, .cannotConnectToHost:
-            return .serverError(503)
+    /// The error a status that isn't a success stands for (#20). Any status
+    /// the app doesn't expect, such as 404, means NS answered with something
+    /// this version can't use.
+    private func failure(forStatus status: Int) -> NetworkError {
+        switch status {
+        case 401:
+            return .keyRejected
+        case 403:
+            return .forbidden
+        case 429:
+            return .tooManyRequests
+        case 500...599:
+            return .serviceUnavailable(status: status)
         default:
-            return .unknown(error)
+            return .unreadableData
+        }
+    }
+    
+    /// The error a transport failure stands for (#20). A cancellation isn't
+    /// one: it is thrown as `CancellationError`. A reply URLSession can't
+    /// parse is unreadable data. Every other failure means NS can't be
+    /// reached, so a failed name lookup or connection no longer reads as an
+    /// NS server error.
+    private func failure(for error: URLError) throws -> NetworkError {
+        switch error.code {
+        case .cancelled:
+            throw CancellationError()
+        case .badServerResponse, .cannotParseResponse, .cannotDecodeContentData, .cannotDecodeRawData, .zeroByteResource:
+            return .unreadableData
+        default:
+            return .offline(error.code)
         }
     }
 }

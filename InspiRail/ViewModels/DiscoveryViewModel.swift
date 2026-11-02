@@ -46,14 +46,12 @@ class DiscoveryViewModel: ObservableObject {
             self.isLoading = false
             self.isReady = true
             
-        } catch let error as NetworkError {
-            self.errorMessage = error.localizedDescription
+        } catch {
+            // A cancelled load leaves the screen as it was (#20).
+            guard let message = NetworkError.message(for: error) else { return }
+            self.errorMessage = message
             self.isLoading = false
             logger.error("Failed to load stations: \(error.localizedDescription)")
-        } catch {
-            self.errorMessage = "Could not load stations. Please check your connection."
-            self.isLoading = false
-            logger.error("Unexpected error: \(error.localizedDescription)")
         }
     }
     
