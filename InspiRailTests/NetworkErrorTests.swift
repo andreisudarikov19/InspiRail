@@ -87,6 +87,23 @@ extension StationStoreTests {
         #expect(failures.values.isEmpty)
     }
 
+    @Test("Settings' key check, cut short, throws a cancellation instead of counting a failure")
+    func cancelledKeyCheckPassesThroughAsCancellation() async {
+        let api = api()
+        StubURLProtocol.hold()
+        defer { StubURLProtocol.release() }
+
+        let check = Task { _ = try await BackendHealthMonitor.shared.checkHealth(using: api) }
+        await StubURLProtocol.waitForRequests(1)
+        check.cancel()
+
+        await #expect(throws: CancellationError.self) {
+            try await check.value
+        }
+        #expect(StubURLProtocol.requests.count == 1)
+        #expect(failures.values.isEmpty)
+    }
+
     @Test("A request the system cancels, when no task asked, means NS can't be reached")
     func requestCancelledByTheSystemIsOffline() async {
         StubURLProtocol.reset(replies: [.failure(.cancelled)])
