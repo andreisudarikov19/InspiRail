@@ -70,10 +70,10 @@ actor StationsRepository {
     
     // MARK: - Private Methods
     
-    /// Downloads the list, and keeps its Dutch stations if it succeeds. It
-    /// clears `download` before it returns, so a caller that comes after it
-    /// never waits for a finished download, and starts a new one after a
-    /// failure.
+    /// Downloads the list, and keeps its Dutch stations if it succeeds and
+    /// has any. It clears `download` before it returns, so a caller that
+    /// comes after it never waits for a finished download, and starts a new
+    /// one after a failure.
     private func fetchDutchStations() async throws -> [Station] {
         defer { download = nil }
         
@@ -82,6 +82,15 @@ actor StationsRepository {
         let stations = response.payload
             .filter { $0.country == "NL" }
             .sorted { $0.names.long < $1.names.long }
+        
+        // A list with no Dutch station is of no use to any screen: it fails
+        // as unreadable data and isn't kept, so the next call tries again
+        // (#20)
+        guard !stations.isEmpty else {
+            logger.error("❌ No Dutch station in the list could be read")
+            await backend.report(.unreadableData)
+            throw NetworkError.unreadableData
+        }
         
         stored = (stations, now())
         logger.debug("Cached \(stations.count) stations")

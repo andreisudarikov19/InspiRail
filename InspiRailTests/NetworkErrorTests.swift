@@ -400,6 +400,51 @@ extension StationStoreTests {
         #expect(try await repository.dutchStations().map(\.identifiers.code) == dutchCodes)
         #expect(StubURLProtocol.requests.count == 2)
     }
+
+    @Test("A list whose Dutch stations can't be read, though others can, is unreadable data, reported once and not kept")
+    func listWithNoReadableDutchStationIsUnreadable() async throws {
+        // Utrecht has no location and Amsterdam's is in text, which the map
+        // can't use. Berlin is whole.
+        StubURLProtocol.reset(replies: [.body("""
+        {"payload":[
+        {"id":{"code":"UT"},"stationType":"MEGA_STATION","names":{"long":"Utrecht Centraal","short":"Utrecht C"},"country":"NL"},
+        {"id":{"code":"ASD"},"stationType":"MEGA_STATION","names":{"long":"Amsterdam Centraal","short":"Amsterdm C"},"location":{"lat":"52.37888","lng":"4.900277"},"country":"NL"},
+        {"id":{"code":"BHF"},"stationType":"MEGA_STATION","names":{"long":"Berlin Hbf","short":"Berlin Hbf"},"location":{"lat":52.52508,"lng":13.369402},"country":"D"}
+        ]}
+        """), .stations])
+        let repository = repository()
+
+        await #expect(throws: NetworkError.unreadableData) { try await repository.dutchStations() }
+        #expect(failures.values == [.unreadableData])
+        #expect(try await repository.dutchStations().map(\.identifiers.code) == dutchCodes)
+        #expect(StubURLProtocol.requests.count == 2)
+    }
+
+    @Test("Dutch stations whose unused fields changed type, such as tracks as numbers, still load")
+    func unusedFieldsOfAnotherTypeDontSkipAStation() async throws {
+        // Every station's tracks are numbers. Utrecht's UIC code is a number
+        // too, and Amsterdam's medium name an object. No screen uses these.
+        StubURLProtocol.reset(replies: [.body("""
+        {"payload":[
+        {"id":{"code":"UT","uicCode":8400621},"stationType":"MEGA_STATION","names":{"long":"Utrecht Centraal","medium":"Utrecht C.","short":"Utrecht C"},"location":{"lat":52.08901,"lng":5.110268},"tracks":[5,7,11],"hasKnownFacilities":true,"country":"NL"},
+        {"id":{"code":"ASD","uicCode":"8400058"},"stationType":"MEGA_STATION","names":{"long":"Amsterdam Centraal","medium":{"text":"Amsterdam C."},"short":"Amsterdm C"},"location":{"lat":52.37888,"lng":4.900277},"tracks":[2,4],"country":"NL"},
+        {"id":{"code":"HT","uicCode":"8400319"},"stationType":"KNOOPPUNT_INTERCITY_STATION","names":{"long":"'s-Hertogenbosch","medium":"'s-Hertogenb.","short":"Den Bosch","synonyms":["Den Bosch"]},"location":{"lat":51.69048,"lng":5.29362},"tracks":[1,3],"country":"NL"},
+        {"id":{"code":"ZL","uicCode":"8400747"},"stationType":"KNOOPPUNT_INTERCITY_STATION","names":{"long":"Zwolle","medium":"Zwolle","short":"Zwolle"},"location":{"lat":52.50474,"lng":6.091102},"tracks":[1],"country":"NL"},
+        {"id":{"code":"BHF","uicCode":"8011160"},"stationType":"MEGA_STATION","names":{"long":"Berlin Hbf","medium":"Berlin Hbf","short":"Berlin Hbf"},"location":{"lat":52.52508,"lng":13.369402},"tracks":[1,2],"country":"D"}
+        ]}
+        """)])
+
+        let response = try await api().getStations()
+        #expect(response.payload.map(\.identifiers.code) == ["UT", "ASD", "HT", "ZL", "BHF"])
+        #expect(response.skipped.isEmpty)
+        let utrecht = try #require(response.payload.first)
+        #expect(utrecht.tracks == nil)
+        #expect(utrecht.identifiers.uicCode == nil)
+        #expect(utrecht.hasKnownFacilities == true)
+        #expect(response.payload[1].names.medium == nil)
+        #expect(response.payload[2].names.synonyms == ["Den Bosch"])
+        #expect(try await repository().dutchStations().map(\.identifiers.code) == dutchCodes)
+    }
 }
 
 /// An API key store in memory: empty, holding a key, or failing as the

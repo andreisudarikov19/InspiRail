@@ -35,17 +35,17 @@ The response is an object whose `payload` array holds one entry per station. The
 | Field | Meaning |
 |---|---|
 | `id.code` | Station code, the app's station identifier |
-| `id.uicCode` | UIC code (optional; no screen uses it) |
+| `id.uicCode` | UIC code (optional; no screen uses it, so a value of another type is ignored) |
 | `names.long`, `names.short` | Display names |
-| `names.medium` | Medium display name (optional; no screen uses it) |
+| `names.medium` | Medium display name (optional; no screen uses it, so a value of another type is ignored) |
 | `names.synonyms` | Alternative names (optional) |
 | `stationType` | Station category, as an upper-case enum value |
 | `location.lat`, `location.lng` | Coordinates |
 | `country` | Country code |
-| `tracks` | Track numbers (optional; no screen uses it) |
+| `tracks` | Track numbers (optional; no screen uses it, so a value of another type, such as numbers, is ignored) |
 | `hasKnownFacilities`, `hasTravelAssistance` | Optional details |
 
-The app reads the stations one at a time. A station it can't read, such as one without `location`, is skipped and logged with its code, and the others load. When no station can be read, the load fails.
+The app reads the stations one at a time. A station it can't read, such as one without `location`, is skipped and logged with its code, and the others load. When no station can be read, or no Dutch one, the load fails and nothing is kept.
 
 The list includes stations outside the Netherlands. The app keeps only those with `country` equal to `NL`, filtering after decoding.
 

@@ -49,7 +49,7 @@ Both live in `InspiRail.xcodeproj/project.pbxproj` on the app target and flow th
 - A load or key check that is cut short, for example by leaving Settings while it checks the key, no longer counts as a failure.
 - Retries follow NS's `Retry-After`, up to three attempts. A wait longer than 10 seconds fails at once instead of keeping the screen loading. Key, permission and data errors aren't retried, and a failure is logged once instead of once per attempt.
 - After NS rejects or refuses an API key (401 or 403), the app doesn't send that key again for 15 minutes, or until a key is saved in Settings, even the same one.
-- A station the app can't read is skipped and logged instead of failing the whole list. The medium name, which no screen shows, may be missing.
+- A station the app can't read is skipped and logged instead of failing the whole list. The fields no screen shows (the medium name, the UIC code and the tracks) may be missing or of another type. A list with no Dutch station the app can read fails as data it can't read, instead of leaving Discover with nothing to pick.
 
 ---
 

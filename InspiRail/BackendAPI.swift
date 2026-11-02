@@ -363,6 +363,13 @@ actor BackendAPI {
         }
     }
     
+    /// Reports a load that failed after the reply was read, such as a list
+    /// with no Dutch station, once, as the API reports its own failures
+    /// (#20).
+    func report(_ failure: NetworkError) {
+        reportFailure(failure)
+    }
+    
     /// Logs a failed load: once per load, not once per attempt (#20).
     nonisolated static func logFailure(_ error: NetworkError) {
         Logger(subsystem: AppConfiguration.subsystem, category: "backend")

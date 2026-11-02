@@ -98,6 +98,7 @@ nonisolated struct Station: Codable, Identifiable {
     let country: String
     
     // --- Rich Data Fields (Matched to English API v3) ---
+    /// Not shown anywhere, so it is read leniently (#20).
     let tracks: [String]?
     let hasKnownFacilities: Bool?
     let hasTravelAssistance: Bool?
@@ -112,21 +113,52 @@ nonisolated struct Station: Codable, Identifiable {
         case hasKnownFacilities
         case hasTravelAssistance
     }
+    
+    /// The fields a screen uses must be there, with their type. A field no
+    /// screen uses is read leniently: missing, or of another type, it is nil,
+    /// so a change in it doesn't skip the station (#20).
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        identifiers = try container.decode(StationIdentifiers.self, forKey: .identifiers)
+        stationType = try container.decode(String.self, forKey: .stationType)
+        names = try container.decode(StationNames.self, forKey: .names)
+        location = try container.decode(StationLocation.self, forKey: .location)
+        country = try container.decode(String.self, forKey: .country)
+        tracks = try? container.decodeIfPresent([String].self, forKey: .tracks)
+        hasKnownFacilities = try container.decodeIfPresent(Bool.self, forKey: .hasKnownFacilities)
+        hasTravelAssistance = try container.decodeIfPresent(Bool.self, forKey: .hasTravelAssistance)
+    }
 }
 
 // 1. Identifiers
 nonisolated struct StationIdentifiers: Codable {
     let code: String
+    /// Not shown anywhere, so it is read leniently (#20).
     let uicCode: String?
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        code = try container.decode(String.self, forKey: .code)
+        uicCode = try? container.decodeIfPresent(String.self, forKey: .uicCode)
+    }
 }
 
 // 2. Names (Synonyms are nested here now)
 nonisolated struct StationNames: Codable {
     let long: String
-    /// Not shown anywhere, so a station without it still loads (#20).
+    /// Not shown anywhere, so it is read leniently: a station without it,
+    /// or with another type, still loads (#20).
     let medium: String?
     let short: String
     let synonyms: [String]?
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        long = try container.decode(String.self, forKey: .long)
+        medium = try? container.decodeIfPresent(String.self, forKey: .medium)
+        short = try container.decode(String.self, forKey: .short)
+        synonyms = try container.decodeIfPresent([String].self, forKey: .synonyms)
+    }
 }
 
 // 3. Location
