@@ -162,23 +162,57 @@ extension StationStoreTests {
         #expect(StubURLProtocol.requests.count == 2)
     }
 
-    @Test("A 429 or 503 waits until the date Retry-After names", arguments: [429, 503])
-    func retryAfterAsADateIsHonoured(status: Int) async throws {
+    @Test("A 429 or 503 waits until the date Retry-After names, in any of HTTP's three forms", arguments: [429, 503], [
+        "Mon, 01 Jan 2001 00:00:07 GMT", "Monday, 01-Jan-01 00:00:07 GMT", "Mon Jan  1 00:00:07 2001", "mon, 01 jan 2001 00:00:07 gmt",
+    ])
+    func retryAfterAsADateIsHonoured(status: Int, value: String) async throws {
         // Seven seconds after the test clock's start.
-        StubURLProtocol.reset(replies: [.status(status, headers: ["Retry-After": "Mon, 01 Jan 2001 00:00:07 GMT"]), .stations])
+        StubURLProtocol.reset(replies: [.status(status, headers: ["Retry-After": value]), .stations])
 
         _ = try await api().getStations()
         #expect(sleeps.values == [7])
         #expect(StubURLProtocol.requests.count == 2)
     }
 
-    @Test("A Retry-After longer than 10 s fails at once", arguments: [429, 503], ["11", "Mon, 01 Jan 2001 00:00:11 GMT"])
+    @Test("A Retry-After longer than 10 s, or too long to read, fails at once", arguments: [429, 503], [
+        "11", "Mon, 01 Jan 2001 00:00:11 GMT", "99999999999999999999",
+    ])
     func retryAfterOverTheCapFailsAtOnce(status: Int, value: String) async {
         StubURLProtocol.reset(replies: [.status(status, headers: ["Retry-After": value]), .stations])
 
         #expect(await networkError(from: api()) == failure(forStatus: status))
         #expect(StubURLProtocol.requests.count == 1)
         #expect(sleeps.values.isEmpty)
+    }
+
+    @Test("Retry-After is read in seconds or as an HTTP date in any form and case; 0, a negative number or a past date asks no wait")
+    func retryAfterIsReadAsHTTPAllows() throws {
+        // The test clock's start, a Monday.
+        let start = Date(timeIntervalSinceReferenceDate: 0)
+        let waits: [(String?, TimeInterval?)] = [
+            (nil, nil),
+            ("", nil),
+            ("soon", nil),
+            ("Mon, 01 Jan 2001 00:00:07 UTC", nil),
+            ("0", 0),
+            ("-5", 0),
+            ("7", 7),
+            ("Sun, 31 Dec 2000 23:59:00 GMT", 0),
+            ("Sunday, 31-Dec-00 23:59:00 GMT", 0),
+            ("Sun Dec 31 23:59:00 2000", 0),
+            ("Mon, 01 Jan 2001 00:00:07 GMT", 7),
+            ("Monday, 01-Jan-01 00:00:07 GMT", 7),
+            ("Mon Jan  1 00:00:07 2001", 7),
+            ("MON, 01 JAN 2001 00:00:07 GMT", 7),
+            ("monday, 01-jan-01 00:00:07 gmt", 7),
+            ("mon jan  1 00:00:07 2001", 7),
+        ]
+        for (value, wait) in waits {
+            #expect(RetryPolicy.retryAfter(value, now: start) == wait, "Retry-After: \(value ?? "none")")
+        }
+        // More seconds than an Int holds: longer than any wait.
+        let oversized = try #require(RetryPolicy.retryAfter("99999999999999999999", now: start))
+        #expect(oversized > AppConfiguration.API.longestRetryWait)
     }
 
     @Test("A refused key, a missing resource and unreadable data aren't retried", arguments: [
