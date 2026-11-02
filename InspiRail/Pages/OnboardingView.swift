@@ -15,6 +15,8 @@ struct OnboardingView: View {
     @AppStorage("homeStationCode") private var homeStationCode: String = ""
     @AppStorage("homeStationName") private var homeStationName: String = ""
     
+    @Environment(\.stationsRepository) private var stationsRepository
+    
     @State private var searchText = ""
     @State private var allStations: [Station] = []
     @State private var filteredStations: [Station] = []
@@ -156,17 +158,17 @@ struct OnboardingView: View {
     }
     
     private func loadStations() async {
+        guard let stationsRepository else {
+            reportMissingStationStore(in: "Onboarding")
+            return
+        }
         isLoading = true
         errorMessage = nil
         isUnauthorized = false
 
         do {
-            let repository = StationsRepository()
-            let stationResponse = try await repository.stations()
-            
-            // Filter only Dutch stations and sort A-Z
-            let dutchStations = stationResponse.payload.filter { $0.country == "NL" }
-            let sorted = dutchStations.sorted { $0.names.long < $1.names.long }
+            // The Dutch stations, sorted A-Z
+            let sorted = try await stationsRepository.dutchStations()
             
             await MainActor.run {
                 self.allStations = sorted

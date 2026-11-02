@@ -19,7 +19,6 @@ class DiscoveryViewModel: ObservableObject {
     
     // MARK: - Private Properties
     private var allStations: [Station] = []
-    private var repository: StationsRepository?
     private let logger = Logger(subsystem: AppConfiguration.subsystem, category: "viewmodel")
     
     // Keep track of recently shown stations to avoid repetition
@@ -28,19 +27,14 @@ class DiscoveryViewModel: ObservableObject {
     
     // MARK: - Public Methods
     
-    func loadStations(forceRefresh: Bool = false) async {
+    /// Loads the Dutch stations from the app's station store (#18).
+    func loadStations(from repository: StationsRepository) async {
         isLoading = true
         errorMessage = nil
         
         do {
-            // Initialize repository if needed
-            let repository = self.repository ?? StationsRepository()
-            self.repository = repository
-            
-            let response = try await repository.stations(forceRefresh: forceRefresh)
-            
-            // Filter only Dutch stations
-            self.allStations = response.payload.filter { $0.country == "NL" }
+            // The Dutch stations
+            self.allStations = try await repository.dutchStations()
             
             logger.debug("Loaded \(self.allStations.count) Dutch stations")
             

@@ -37,8 +37,10 @@ InspiRail/
 ├── NetworkEngine/             Network error type
 ├── Pages/                     SwiftUI screens (Discovery, Onboarding,
 │                              Settings, VisitedList, LogbookUnavailable)
-├── ViewModels/                @MainActor view-models and repositories
-├── BackendAPI.swift           NS API client (actor)
+├── ViewModels/                View-models, and the station store every
+│                              screen shares
+├── BackendAPI.swift           NS API client (actor) and the app's one
+│                              network session
 ├── KeychainManager.swift      API-key storage
 ├── APIKeyProvider.swift       Picks the API key (Keychain, Debug env)
 ├── BackendHealthMonitor.swift Connectivity + backend health
