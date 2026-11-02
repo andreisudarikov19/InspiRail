@@ -144,13 +144,23 @@ extension StationStoreTests {
         status == 429 ? .tooManyRequests : .serviceUnavailable(status: status)
     }
 
-    @Test("A 429 or 5xx is tried at most three times, 1 s and then 2 s apart", arguments: [429, 500, 502, 503, 504])
+    @Test("A 429 or 5xx is tried at most three times, waiting as long as before #20: 1 s and 2 s after a 429, 0.5 s and 1 s after a 5xx", arguments: [429, 500, 502, 503, 504])
     func retriedAtMostThreeTimes(status: Int) async {
         StubURLProtocol.reset(replies: [.status(status)])
 
         #expect(await networkError(from: api()) == failure(forStatus: status))
         #expect(StubURLProtocol.requests.count == 3)
-        #expect(sleeps.values == [1, 2])
+        #expect(sleeps.values == (status == 429 ? [1, 2] : [0.5, 1]))
+    }
+
+    @Test("A 501, 505 or 511 isn't retried, and a 511, a network asking to sign in, means NS can't be reached", arguments: [501, 505, 511])
+    func statusesARetryCantFixAreNotRetried(status: Int) async {
+        StubURLProtocol.reset(replies: [.status(status), .stations])
+
+        let expected: NetworkError = status == 511 ? .offline(.userAuthenticationRequired) : .serviceUnavailable(status: status)
+        #expect(await networkError(from: api()) == expected)
+        #expect(StubURLProtocol.requests.count == 1)
+        #expect(sleeps.values.isEmpty)
     }
 
     @Test("A 429 or 503 waits as long as Retry-After asks, in seconds, up to 10", arguments: [429, 503], ["7", "10"])

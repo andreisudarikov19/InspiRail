@@ -158,10 +158,10 @@ actor BackendAPI {
     
     /// Sends the request, and tries again what a retry can fix (#20): at most
     /// `maxAttempts` attempts, waiting as long as `Retry-After` asks on a 429
-    /// or 503, otherwise 1 s and then 2 s. When the server asks for a wait
-    /// longer than `longestRetryWait`, it fails at once. The key is read once,
-    /// so every attempt sends the same one. A failure is reported once; a
-    /// cancellation passes through unreported.
+    /// or 503, otherwise as long as `RetryPolicy.backoff` says. When the
+    /// server asks for a wait longer than `longestRetryWait`, it fails at
+    /// once. The key is read once, so every attempt sends the same one. A
+    /// failure is reported once; a cancellation passes through unreported.
     private func request<T: Decodable>(url: URL, as type: T.Type) async throws -> T {
         do {
             return try await sendWithRetries(url: url, as: type)
@@ -247,7 +247,7 @@ actor BackendAPI {
             (data, response) = try await session.data(for: urlRequest)
         } catch let error as URLError {
             let failure = failure(for: error)
-            return .failure(failure, wait: RetryPolicy.isTransient(error.code) ? RetryPolicy.backoff(afterAttempt: attempt) : nil)
+            return .failure(failure, wait: RetryPolicy.isTransient(error.code) ? RetryPolicy.backoff(after: failure, attempt: attempt) : nil)
         } catch let error as CancellationError {
             // A cancellation passes through unchanged, and callers ignore it (#20).
             throw error
@@ -300,11 +300,19 @@ actor BackendAPI {
             
         case 429, 503:
             // Throttled or unavailable: wait as long as the server asks
+            let failure = failure(forStatus: status)
             let asked = RetryPolicy.retryAfter(httpResponse.value(forHTTPHeaderField: "Retry-After"), now: now())
-            return .failure(failure(forStatus: status), wait: asked ?? RetryPolicy.backoff(afterAttempt: attempt))
+            return .failure(failure, wait: asked ?? RetryPolicy.backoff(after: failure, attempt: attempt))
+            
+        case 501, 505, 511:
+            // Another attempt can't help: NS doesn't offer the request (501)
+            // or the HTTP version (505), or the network wants the user to
+            // sign in, as a captive portal does (511) (#20)
+            return .failure(failure(forStatus: status), wait: nil)
             
         case 500...599:
-            return .failure(failure(forStatus: status), wait: RetryPolicy.backoff(afterAttempt: attempt))
+            let failure = failure(forStatus: status)
+            return .failure(failure, wait: RetryPolicy.backoff(after: failure, attempt: attempt))
             
         default:
             return .failure(failure(forStatus: status), wait: nil)
@@ -338,7 +346,7 @@ actor BackendAPI {
     
     /// The error a status that isn't a success stands for (#20). Any status
     /// the app doesn't expect, such as 404, means NS answered with something
-    /// this version can't use.
+    /// this version can't use. A 511 means NS wasn't reached.
     private func failure(forStatus status: Int) -> NetworkError {
         switch status {
         case 401:
@@ -347,6 +355,10 @@ actor BackendAPI {
             return .forbidden
         case 429:
             return .tooManyRequests
+        case 511:
+            // Network Authentication Required: the network, such as a captive
+            // portal, answered instead of NS, and wants the user to sign in
+            return .offline(.userAuthenticationRequired)
         case 500...599:
             return .serviceUnavailable(status: status)
         default:

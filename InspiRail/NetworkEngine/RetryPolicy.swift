@@ -68,9 +68,17 @@ nonisolated enum RetryPolicy {
         return nil
     }
     
-    /// The wait after attempt `attempt` when the server names none: 1 s,
-    /// then 2 s.
-    static func backoff(afterAttempt attempt: Int) -> TimeInterval {
-        pow(2, Double(attempt - 1))
+    /// The wait after attempt `attempt` failed with `failure`, when the
+    /// server names none. After a 5xx, 0.5 s and then 1 s, and after a 429,
+    /// 1 s and then 2 s, as before #20. After a lost connection or a failed
+    /// lookup or connection, which weren't retried before, 1 s and then 2 s.
+    static func backoff(after failure: NetworkError, attempt: Int) -> TimeInterval {
+        let first: TimeInterval
+        if case .serviceUnavailable = failure {
+            first = 0.5
+        } else {
+            first = 1
+        }
+        return first * pow(2, Double(attempt - 1))
     }
 }
