@@ -325,6 +325,59 @@ extension StationStoreTests {
             #expect(!text.lowercased().contains(hash.prefix(12)))
         }
     }
+
+    // MARK: - Stations that can't be read
+
+    @Test("The fixture, in the documented shape with extra keys, decodes in full")
+    func documentedShapeFixtureDecodes() async throws {
+        let response = try await api().getStations()
+
+        #expect(response.payload.map(\.identifiers.code) == ["UT", "ASD", "HT", "ZL", "BHF", "BRUZ"])
+        #expect(response.skipped.isEmpty)
+        let denBosch = try #require(response.payload.first { $0.identifiers.code == "HT" })
+        #expect(denBosch.names.long == "'s-Hertogenbosch")
+        #expect(denBosch.names.synonyms?.first == "Den Bosch")
+        #expect(response.payload.first { $0.identifiers.code == "BHF" }?.country == "D")
+        let utrecht = try #require(response.payload.first)
+        #expect(utrecht.tracks?.isEmpty == false)
+        #expect(utrecht.hasKnownFacilities == true)
+    }
+
+    @Test("A station that can't be read is skipped, by its code, and the rest load")
+    func malformedStationIsSkippedAndTheRestLoad() async throws {
+        StubURLProtocol.reset(replies: [.body("""
+        {"payload":[
+        {"id":{"code":"UT"},"stationType":"MEGA_STATION","names":{"long":"Utrecht Centraal","medium":"Utrecht C.","short":"Utrecht C"},"location":{"lat":52.08901,"lng":5.110268},"country":"NL"},
+        {"id":{"code":"BAD"},"stationType":"STOPTREIN_STATION","names":{"long":"Broken","medium":"Broken","short":"Broken"},"country":"NL"},
+        null,
+        {"stationType":"STOPTREIN_STATION","names":{"long":"No Code","medium":"No Code","short":"No Code"},"location":{"lat":52.0,"lng":5.0},"country":"NL"},
+        {"id":{"code":"NM"},"stationType":"INTERCITY_STATION","names":{"long":"Nijmegen","short":"Nijmegen"},"location":{"lat":51.84376,"lng":5.85276},"country":"NL"},
+        {"id":{"code":"ASD"},"stationType":"MEGA_STATION","names":{"long":"Amsterdam Centraal","medium":"Amsterdam C.","short":"Amsterdm C"},"location":{"lat":52.37888,"lng":4.900277},"country":"NL"}
+        ]}
+        """)])
+
+        let response = try await api().getStations()
+        #expect(response.payload.map(\.identifiers.code) == ["UT", "NM", "ASD"])
+        #expect(response.skipped == [
+            SkippedStation(code: "BAD", field: "location"),
+            SkippedStation(code: nil, field: ""),
+            SkippedStation(code: nil, field: "id"),
+        ])
+        #expect(try await repository().dutchStations().map(\.identifiers.code) == ["ASD", "NM", "UT"])
+    }
+
+    @Test("A list where no station can be read, or an empty one, is unreadable data, and isn't kept", arguments: [
+        #"{"payload":[{"id":{"code":"BAD"}},null]}"#,
+        #"{"payload":[]}"#,
+    ])
+    func listWhereNothingDecodesIsUnreadable(body: String) async throws {
+        StubURLProtocol.reset(replies: [.body(body), .stations])
+        let repository = repository()
+
+        await #expect(throws: NetworkError.unreadableData) { try await repository.dutchStations() }
+        #expect(try await repository.dutchStations().map(\.identifiers.code) == dutchCodes)
+        #expect(StubURLProtocol.requests.count == 2)
+    }
 }
 
 /// An API key store in memory: empty, holding a key, or failing as the

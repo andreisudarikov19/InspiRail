@@ -136,13 +136,21 @@ final class StubURLProtocol: URLProtocol {
 
 /// Six stations in the NS stations (v3) shape: four Dutch ones, not in name
 /// order, one with an apostrophe, and two from other countries.
+///
+/// Built from the documented shape, not taken from a real response, since the
+/// repo holds none (#20). Each station has every field
+/// `docs/reference/ns-api.md` lists, plus extra keys of the kind the review
+/// stub's generator models on the public API (`evaCode`, `names.festive`,
+/// `isBorderStop`, `radius`), which the app ignores. The codes, UIC codes,
+/// names and countries are the real stations'; coordinates are approximate
+/// and the other values illustrative. Station data only: no headers, no keys.
 let stationFixture = """
 {"payload":[
-{"id":{"code":"UT","uicCode":"8400621"},"stationType":"MEGA_STATION","names":{"long":"Utrecht Centraal","medium":"Utrecht C.","short":"Utrecht C"},"location":{"lat":52.08901,"lng":5.110268},"country":"NL"},
-{"id":{"code":"ASD","uicCode":"8400058"},"stationType":"MEGA_STATION","names":{"long":"Amsterdam Centraal","medium":"Amsterdam C.","short":"Amsterdm C"},"location":{"lat":52.37888,"lng":4.900277},"country":"NL"},
-{"id":{"code":"HT","uicCode":"8400319"},"stationType":"KNOOPPUNT_INTERCITY_STATION","names":{"long":"'s-Hertogenbosch","medium":"'s-Hertogenb.","short":"Den Bosch"},"location":{"lat":51.69048,"lng":5.29362},"country":"NL"},
-{"id":{"code":"ZL","uicCode":"8400747"},"stationType":"KNOOPPUNT_INTERCITY_STATION","names":{"long":"Zwolle","medium":"Zwolle","short":"Zwolle"},"location":{"lat":52.50474,"lng":6.091102},"country":"NL"},
-{"id":{"code":"BHF","uicCode":"8011160"},"stationType":"MEGA_STATION","names":{"long":"Berlin Hbf","medium":"Berlin Hbf","short":"Berlin Hbf"},"location":{"lat":52.52508,"lng":13.369402},"country":"D"},
-{"id":{"code":"BRUZ","uicCode":"8814001"},"stationType":"MEGA_STATION","names":{"long":"Brussel-Zuid","medium":"Brussel-Zuid","short":"Brussel Z"},"location":{"lat":50.83588,"lng":4.33645},"country":"B"}
+{"id":{"code":"UT","uicCode":"8400621","evaCode":"8400621"},"stationType":"MEGA_STATION","names":{"long":"Utrecht Centraal","medium":"Utrecht C.","short":"Utrecht C","synonyms":["Utrecht"],"festive":null},"location":{"lat":52.08901,"lng":5.110268},"tracks":["5","7","11","12","14","15"],"hasKnownFacilities":true,"hasTravelAssistance":true,"isBorderStop":false,"radius":525,"country":"NL"},
+{"id":{"code":"ASD","uicCode":"8400058","evaCode":"8400058"},"stationType":"MEGA_STATION","names":{"long":"Amsterdam Centraal","medium":"Amsterdam C.","short":"Amsterdm C","synonyms":[],"festive":null},"location":{"lat":52.37888,"lng":4.900277},"tracks":["2","4","5","7","8","10"],"hasKnownFacilities":true,"hasTravelAssistance":true,"isBorderStop":false,"radius":525,"country":"NL"},
+{"id":{"code":"HT","uicCode":"8400319","evaCode":"8400319"},"stationType":"KNOOPPUNT_INTERCITY_STATION","names":{"long":"'s-Hertogenbosch","medium":"'s-Hertogenb.","short":"Den Bosch","synonyms":["Den Bosch"],"festive":null},"location":{"lat":51.69048,"lng":5.29362},"tracks":["1","3","4","6","7"],"hasKnownFacilities":true,"hasTravelAssistance":true,"isBorderStop":false,"radius":400,"country":"NL"},
+{"id":{"code":"ZL","uicCode":"8400747","evaCode":"8400747"},"stationType":"KNOOPPUNT_INTERCITY_STATION","names":{"long":"Zwolle","medium":"Zwolle","short":"Zwolle","synonyms":[],"festive":null},"location":{"lat":52.50474,"lng":6.091102},"tracks":["1","3","4","5","7"],"hasKnownFacilities":true,"hasTravelAssistance":false,"isBorderStop":false,"radius":400,"country":"NL"},
+{"id":{"code":"BHF","uicCode":"8011160","evaCode":"8011160"},"stationType":"MEGA_STATION","names":{"long":"Berlin Hbf","medium":"Berlin Hbf","short":"Berlin Hbf","synonyms":[],"festive":null},"location":{"lat":52.52508,"lng":13.369402},"tracks":[],"hasKnownFacilities":false,"hasTravelAssistance":false,"isBorderStop":false,"radius":500,"country":"D"},
+{"id":{"code":"BRUZ","uicCode":"8814001","evaCode":"8814001"},"stationType":"MEGA_STATION","names":{"long":"Brussel-Zuid","medium":"Brussel-Zuid","short":"Brussel Z","synonyms":["Bruxelles-Midi"],"festive":null},"location":{"lat":50.83588,"lng":4.33645},"tracks":[],"hasKnownFacilities":false,"hasTravelAssistance":false,"isBorderStop":false,"radius":500,"country":"B"}
 ]}
 """

@@ -223,16 +223,17 @@ Settings' key check uses no field: it only needs the request to succeed.
   - `nonisolated struct SkippedStation: Sendable, Equatable { let code: String?; let field: String }`. `field` is the failing coding path below the station, dot-joined (`"location"`, `"names.short"`; `""` for an element that isn't a station, such as `null`). For `keyNotFound` it is the path plus the missing key.
   - `init(from:)` walks the `payload` array with an unkeyed container. For each element: `decodeNil()` skips a `null`. Otherwise it tries `Station`, and on failure decodes a private `StationCode` whose init never throws (it reads `id.code` with `try?`), so the container moves past the element.
 
-- [ ] **Step 1: Write the failing tests.**
+- [x] **Step 1: Write the failing tests.**
   - `documentedShapeFixtureDecodes`: `stationFixture` gives six stations and no skipped ones, in fixture order. `HT`'s long name is "'s-Hertogenbosch" and its first synonym "Den Bosch". `BHF`'s country is `"D"`. `UT` has tracks and `hasKnownFacilities == true`.
   - `malformedStationIsSkippedAndTheRestLoad`: a list of `UT` (whole), `"BAD"` without `location`, `null`, an object without `id`, `NM` "Nijmegen" (`NL`) without `names.medium`, and `ASD` (whole). The payload is `["UT", "NM", "ASD"]` and the skipped are `[("BAD", "location"), (nil, ""), (nil, "id")]`. Through the store, the Dutch stations are `["ASD", "NM", "UT"]`.
   - `listWhereNothingDecodesIsUnreadable`, with arguments a list of two broken stations and `{"payload":[]}`: `.unreadableData`. A following load is sent again, so nothing was stored.
-- [ ] **Step 2: Run them to verify they fail.** Expected: a build failure, `value of type 'StationResponse' has no member 'skipped'`.
-- [ ] **Step 3: Implement** as in Interfaces and Decision 6. The API logs each skipped station at warning level as "Skipped station \<code or 'without a code'\>: can't read \<field\>", and throws `.unreadableData` when `payload` is empty. Upgrade `stationFixture` as in Decision 7, with a doc comment that says where its shape comes from.
-- [ ] **Step 4: Run them to verify they pass.** Expected: the suite passes, 3 new tests. Then check that one can fail: decoding the array in one go again fails `malformedStationIsSkippedAndTheRestLoad`. Restore the file.
-- [ ] **Step 5: Typecheck.** Expected: 0 errors, 8 warnings (`StationResponse`'s conformance warning is gone).
-- [ ] **Step 6: Run the default test plan.** Expected: `** TEST SUCCEEDED **`, 70 passed (44 + 9 + 10 + 4 + 3), 0 skipped.
-- [ ] **Step 7: Commit** `fix: decode stations one by one, skipping and logging any that can't be read (#20)`
+- [x] **Step 2: Run them to verify they fail.** Expected: a build failure, `value of type 'StationResponse' has no member 'skipped'`.
+- [x] **Step 3: Implement** as in Interfaces and Decision 6. The API logs each skipped station at warning level as "Skipped station \<code or 'without a code'\>: can't read \<field\>", and throws `.unreadableData` when `payload` is empty. Upgrade `stationFixture` as in Decision 7, with a doc comment that says where its shape comes from.
+- [x] **Step 4: Run them to verify they pass.** Expected: the suite passes, 3 new tests. Then check that one can fail: decoding the array in one go again fails `malformedStationIsSkippedAndTheRestLoad`. Restore the file.
+- [x] **Step 5: Typecheck.** Expected: 0 errors, 8 warnings (`StationResponse`'s conformance warning is gone).
+- [x] **Step 6: Run the default test plan.** Expected: `** TEST SUCCEEDED **`, 70 passed (44 + 9 + 10 + 4 + 3), 0 skipped.
+  (Changed during execution: the fixture was rebuilt in Step 1 with the tests, since it is test data. The result bundle reports 99 passed, 0 skipped: the 70 tests, with each argument of the parameterized ones counted as a test.)
+- [x] **Step 7: Commit** `fix: decode stations one by one, skipping and logging any that can't be read (#20)`
 
 ### Task 5: Record the fix, and check each failure on a simulator
 

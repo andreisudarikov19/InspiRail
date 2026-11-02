@@ -126,7 +126,18 @@ actor BackendAPI {
             throw NetworkError.invalidURL
         }
         
-        return try await request(url: url, as: StationResponse.self)
+        let response = try await request(url: url, as: StationResponse.self)
+        
+        // A station that can't be read is skipped, and the rest load (#20)
+        for station in response.skipped {
+            logger.warning("⚠️ Skipped station \(station.code ?? "without a code", privacy: .public): can't read \(station.field.isEmpty ? "the entry" : station.field, privacy: .public)")
+        }
+        guard !response.payload.isEmpty else {
+            logger.error("❌ No station in the list could be read")
+            reportFailure(.unreadableData)
+            throw NetworkError.unreadableData
+        }
+        return response
     }
     
     // MARK: - Private Request Logic
