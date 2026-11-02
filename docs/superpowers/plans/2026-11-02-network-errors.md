@@ -243,7 +243,7 @@ Settings' key check uses no field: it only needs the request to succeed.
 - Modify: `docs/reference/ns-api.md:33-45` (the decoded fields)
 - Modify: this plan (Measurements)
 
-- [ ] **Step 1: `CHANGELOG.md`.** Under `### Fixed`, append:
+- [x] **Step 1: `CHANGELOG.md`.** Under `### Fixed`, append:
   - When the station list can't be loaded, the message says why: no key stored, a stored key that can't be read right now, a key NS rejected, a key over its usage limit, too many requests, NS unavailable, no connection, or data this version can't read. Before, a Keychain problem and a usage limit both read as a missing key, and a failed name lookup read as an NS server error.
   - A load or key check that is cut short, for example by leaving Settings while it checks the key, no longer counts as a failure.
   - Retries follow NS's `Retry-After`, up to three attempts. A wait longer than 10 seconds fails at once instead of keeping the screen loading. Key, permission and data errors aren't retried, and a failure is logged once instead of once per attempt.
@@ -252,20 +252,44 @@ Settings' key check uses no field: it only needs the request to succeed.
 
   Under `### Removed`, append:
   - The client-side limit of 30 requests a minute, which delayed loads during an outage and counted requests that were never sent.
-- [ ] **Step 2: `README.md`.** The `NetworkEngine/` line reads "Network errors, retry timing, refused-key memory".
-- [ ] **Step 3: `docs/reference/ns-api.md`.** Mark `names.medium` and `tracks` as decoded but unused. Say that the app reads stations one at a time and skips, with a log line, any it can't read.
-- [ ] **Step 4: Build and stub.** Build a Debug app of this branch for the throwaway iPhone 15 (x86_64 simulator), with its own `-derivedDataPath` outside the repo. Make a scratch copy of the offline review stub (`.superpowers/scratch/review/runtime/stub/`), outside the repo, that still answers only `gateway.apiportal.ns.nl` and never forwards a request. It reads `REVIEW_STUB_STATUS`, `REVIEW_STUB_RETRY_AFTER` and `REVIEW_STUB_FAIL` (a `URLError` code to fail with), and logs each request as `REVIEWSTUB request #n <path> -> <status or error>`. Build it for x86_64 with `xcrun --sdk iphonesimulator clang`. Every launch uses `SIMCTL_CHILD_NS_API_KEY=dummy-key`, `SIMCTL_CHILD_DYLD_INSERT_LIBRARIES=<copy>` and `-homeStationCode ASD`, as in `docs/superpowers/plans/2026-10-28-remove-dead-key-path.md`, Task 2, Step 3. Never use a real key. Stream `log stream --predicate 'subsystem == "annisu.inspirail" OR subsystem == "review.stub"'`. Boot the simulator only for this step and Step 6, and shut it down between them.
-- [ ] **Step 5: One launch per case.** Wait until Discover settles, then screenshot it as `20-<case>.png` in the session's scratch directory. Count the stub's requests.
+- [x] **Step 2: `README.md`.** The `NetworkEngine/` line reads "Network errors, retry timing, refused-key memory".
+- [x] **Step 3: `docs/reference/ns-api.md`.** Mark `names.medium` and `tracks` (and, during execution, `id.uicCode`) as decoded but unused. Say that the app reads stations one at a time and skips, with a log line, any it can't read.
+- [x] **Step 4: Build and stub.** Build a Debug app of this branch for the throwaway iPhone 15 (x86_64 simulator), with its own `-derivedDataPath` outside the repo. Make a scratch copy of the offline review stub (`.superpowers/scratch/review/runtime/stub/`), outside the repo, that still answers only `gateway.apiportal.ns.nl` and never forwards a request. It reads `REVIEW_STUB_STATUS`, `REVIEW_STUB_RETRY_AFTER` and `REVIEW_STUB_FAIL` (a `URLError` code to fail with), and logs each request as `REVIEWSTUB request #n <path> -> <status or error>`. Build it for x86_64 with `xcrun --sdk iphonesimulator clang`. Every launch uses `SIMCTL_CHILD_NS_API_KEY=dummy-key`, `SIMCTL_CHILD_DYLD_INSERT_LIBRARIES=<copy>` and `-homeStationCode ASD`, as in `docs/superpowers/plans/2026-10-28-remove-dead-key-path.md`, Task 2, Step 3. Never use a real key. Stream `log stream --predicate 'subsystem == "annisu.inspirail" OR subsystem == "review.stub"'`. Boot the simulator only for this step and Step 6, and shut it down between them.
+  (Changed during execution: the branch's app came from Task 4's test build, since only docs changed after it, and `main`'s from the baseline's test build. The stub copy is built from `ReviewStub20.m` in the scratch directory.)
+- [x] **Step 5: One launch per case.** Wait until Discover settles, then screenshot it as `20-<case>.png` in the session's scratch directory. Count the stub's requests.
   - Expected: 401 gives "NS didn't accept your API key. Check it in Settings.", 1 request. 403 gives "NS refused your API key…", 1 request.
   - 429 with `Retry-After: 30` gives "NS is getting too many requests…" at once, 1 request. 429 with `Retry-After: 3` gives the same after about 6 s, 3 requests.
   - 503 gives "NS isn't available right now…" after about 3 s, 3 requests.
   - A list with one station missing `location` shows a station, 1 request, and one "Skipped station" line naming its code.
   - No internet (`-1009`) gives "Can't reach NS…", 1 request. A failed DNS lookup (`-1003`) gives the same, 3 requests. On `main`, `-1003` gave "Server error (503)".
   - No log line contains `dummy-key`.
-- [ ] **Step 6: The 401 tab count.** In a scratch worktree of this branch, add a throwaway XCUITest driver to `InspiRailUITests/`, and add that target to the worktree's test plan and the scheme's testables. The driver launches with the 401 stub, waits on Discover, then makes 5 rounds of Logbook → Settings → Discover, 2 s each. It runs with `-parallel-testing-enabled NO`, on the throwaway simulator, with nothing else booted. Expected: 1 request in all (on `main` there would be one per Discover, Logbook and Settings visit). Settings shows "Configured key isn't working".
-- [ ] **Step 7: Clean up.** Delete the worktree, the derived data, the stub copy's build, any test clones (`xcrun simctl --set ~/Library/Developer/XCTestDevices list devices`), the simulator once the last test run is done, and any crash reports the runs left in `~/Library/Logs/DiagnosticReports/`.
-- [ ] **Step 8: Commit** `docs: record clear network errors and retries in the changelog, README and API reference (#20)`
+  (Added during execution: a launch with the full list, and the 401 and DNS cases on `main` for comparison.)
+- [x] **Step 6: The 401 tab count.** In a scratch worktree of this branch, add a throwaway XCUITest driver to `InspiRailUITests/`, and add that target to the worktree's test plan and the scheme's testables. The driver launches with the 401 stub, waits on Discover, then makes 5 rounds of Logbook → Settings → Discover, 2 s each. It runs with `-parallel-testing-enabled NO`, on the throwaway simulator, with nothing else booted. Expected: 1 request in all (on `main` there would be one per Discover, Logbook and Settings visit). Settings shows "Configured key isn't working".
+  (Added during execution: a second driver test for Review Focus 1. The stub answers 401 to the first dummy key only, and the driver saves a second one in Settings, then returns to Discover. The driver runs with `test-without-building`.)
+- [x] **Step 7: Clean up.** Delete the worktree, the derived data, the stub copy's build, any test clones (`xcrun simctl --set ~/Library/Developer/XCTestDevices list devices`), the simulator once the last test run is done, and any crash reports the runs left in `~/Library/Logs/DiagnosticReports/`.
+  (Changed during execution: the clean-up ran after this task's commit, because the final test run needs the simulator.)
+- [x] **Step 8: Commit** `docs: record clear network errors and retries in the changelog, README and API reference (#20)`
 
 ## Measurements
 
-To be filled in during Task 5.
+On a throwaway iPhone 15 simulator (iOS 26.3), with a scratch copy of the offline review stub, a dummy key and `-homeStationCode ASD`. Requests are the stub's `REVIEWSTUB request` lines, and the waits come from their timestamps. `main` is 68f7c2c; the branch is 364183d (Task 4).
+
+| Stub answers | Requests | Discover shows | On `main` |
+|---|---|---|---|
+| 200, the full list | 1 | A station | |
+| 401 | 1 | "NS didn't accept your API key. Check it in Settings." | 1 request, "Authentication failed" |
+| 403 | 1 | "NS refused your API key. It may be over its usage limit. Try again later." | |
+| 429, `Retry-After: 30` | 1, then a failure at once ("NS asked to wait 30s, longer than 10s: not retrying") | "NS is getting too many requests. Try again in a minute." | |
+| 429, `Retry-After: 3` | 3, 3.1 s and 3.2 s apart | "NS is getting too many requests. Try again in a minute." | |
+| 503 | 3, 1.1 s and 2.1 s apart | "NS isn't available right now. Try again later." | |
+| 200, with `location` removed from one station (`S005`) | 1 | A station; the log says "Skipped station S005: can't read location" | |
+| No internet (`-1009`) | 1 | "Can't reach NS. Check your internet connection." | |
+| Failed DNS lookup (`-1003`) | 3, 1.1 s and 2.0 s apart | "Can't reach NS. Check your internet connection." | 1 request, "Server error (503)" |
+
+Each failed load logged one "Station request failed" line. No line in any of the runs' logs held the dummy key.
+
+**A rejected key while switching tabs.** With the stub answering 401, Discover's first load sent 1 request. Then 5 rounds of Logbook → Settings → Discover, 2 s on each tab, sent none: each of the 15 visits logged "Not sending the API key NS refused (rejected) until it changes". So 1 request in all, where on `main` each Discover, Logbook and Settings visit makes another (the issue's "From #18" section). Settings still showed "Configured key isn't working", and Discover still showed the rejected-key message.
+
+**A key saved in Settings after a 401.** With the stub answering 401 to the first dummy key only, and that key in the Keychain: Discover's load sent it and was rejected (1 request). The Settings tab's key check sent nothing and showed "Configured key isn't working". Saving a second dummy key in Settings sent it at once for the key check (200), and Discover's next load sent it too (200) and showed a station: 3 requests in all, with no relaunch.
+
+The default test plan passes 99 tests (70 test functions, with each argument of a parameterized test counted), 0 skipped. The typecheck prints 0 errors and 8 warnings, all of kinds already on `main`.
