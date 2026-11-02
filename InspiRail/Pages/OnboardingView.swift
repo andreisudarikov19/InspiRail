@@ -176,7 +176,8 @@ struct OnboardingView: View {
                 self.isLoading = false
             }
         } catch {
-            // A cancelled load leaves the screen as it was (#20).
+            // A cancelled load shows no message. Only leaving onboarding
+            // cancels it, so nobody sees it still loading (#20).
             guard let message = NetworkError.message(for: error) else { return }
             
             // Log the actual error for debugging
