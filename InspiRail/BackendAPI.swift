@@ -82,9 +82,16 @@ actor BackendAPI {
     // MARK: - Refused Key
     
     /// The key NS last refused, while it is held back (#20). Loads with that
-    /// key fail at once and send nothing, until another key is used or, after
-    /// a 403, the pause ends. Keeps only a hash of the key.
+    /// key fail at once and send nothing, until the pause ends, another key
+    /// is used or a key is saved. Keeps only a hash of the key.
     private(set) var keyRefusal: KeyRefusal?
+    
+    /// Forgets the refused key, so the next load sends the key, whatever it
+    /// is. Settings calls it when a key is saved, even the one NS refused,
+    /// since a refusal can pass (#20).
+    func forgetKeyRefusal() {
+        keyRefusal = nil
+    }
     
     private static func makeSession(
         configuration config: URLSessionConfiguration,
@@ -173,10 +180,11 @@ actor BackendAPI {
         let apiKey = try await keyProvider.currentKey()
         urlRequest.setValue(apiKey, forHTTPHeaderField: "Ocp-Apim-Subscription-Key")
         
-        // A key NS refused isn't sent again until it changes (#20)
+        // A key NS refused isn't sent again until the pause ends, it
+        // changes or a key is saved (#20)
         if let keyRefusal {
             guard !keyRefusal.holds(for: apiKey, at: now()) else {
-                logger.notice("Not sending the API key NS refused (\(String(describing: keyRefusal.reason), privacy: .public)) until it changes")
+                logger.notice("Not sending the API key NS refused (\(String(describing: keyRefusal.reason), privacy: .public)) until the pause ends, it changes or a key is saved")
                 throw keyRefusal.error
             }
             self.keyRefusal = nil

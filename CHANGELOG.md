@@ -48,7 +48,7 @@ Both live in `InspiRail.xcodeproj/project.pbxproj` on the app target and flow th
 - When the station list can't be loaded, the message says why: no key stored, a stored key that can't be read right now, a key NS rejected, a key over its usage limit, too many requests, NS unavailable, no connection, or data this version can't read. Before, a Keychain problem and a usage limit both read as a missing key, and a failed name lookup read as an NS server error.
 - A load or key check that is cut short, for example by leaving Settings while it checks the key, no longer counts as a failure.
 - Retries follow NS's `Retry-After`, up to three attempts. A wait longer than 10 seconds fails at once instead of keeping the screen loading. Key, permission and data errors aren't retried, and a failure is logged once instead of once per attempt.
-- After NS rejects an API key, the app doesn't send it again until a different key is saved. After a refusal for usage (403), it waits 15 minutes before sending the same key again.
+- After NS rejects or refuses an API key (401 or 403), the app doesn't send that key again for 15 minutes, or until a key is saved in Settings, even the same one.
 - A station the app can't read is skipped and logged instead of failing the whole list. The medium name, which no screen shows, may be missing.
 
 ---

@@ -276,7 +276,7 @@ extension StationStoreTests {
         #expect(failures.values == [.keyRejected, .keyRejected, .keyRejected])
         let refusal = try #require(await repository.keyRefusal)
         #expect(refusal.reason == .rejected)
-        #expect(refusal.until == nil)
+        #expect(refusal.until == refusal.since + AppConfiguration.API.refusedKeyPause)
     }
 
     @Test("After a 401 or 403, another key is sent at once", arguments: [401, 403])
@@ -293,19 +293,41 @@ extension StationStoreTests {
         #expect(await repository.keyRefusal == nil)
     }
 
-    @Test("After a 403 the same key is sent again once the pause ends")
-    func forbiddenKeyPausesUntilTheCoolOffEnds() async throws {
-        StubURLProtocol.reset(replies: [.status(403), .stations])
-        let repository = StationsRepository(backend: api(keyProvider: provider(TestKeyStorage(key: "forbidden-test-key"))))
+    /// The error a load with a key refused with `status` fails with.
+    func refusedKeyError(forStatus status: Int) -> NetworkError {
+        status == 401 ? .keyRejected : .forbidden
+    }
 
-        await #expect(throws: NetworkError.forbidden) { try await repository.dutchStations() }
-        clock.advance(by: AppConfiguration.API.forbiddenKeyPause - 1)
-        await #expect(throws: NetworkError.forbidden) { try await repository.dutchStations() }
+    @Test("After a 401 or 403 the same key is sent again once the 15-minute pause ends", arguments: [401, 403])
+    func refusedKeyPausesUntilTheCoolOffEnds(status: Int) async throws {
+        StubURLProtocol.reset(replies: [.status(status), .stations])
+        let repository = StationsRepository(backend: api(keyProvider: provider(TestKeyStorage(key: "refused-test-key"))))
+        let error = refusedKeyError(forStatus: status)
+
+        await #expect(throws: error) { try await repository.dutchStations() }
+        clock.advance(by: AppConfiguration.API.refusedKeyPause - 1)
+        await #expect(throws: error) { try await repository.dutchStations() }
         #expect(StubURLProtocol.requests.count == 1)
 
         clock.advance(by: 1)
         #expect(try await repository.dutchStations().map(\.identifiers.code) == dutchCodes)
         #expect(StubURLProtocol.requests.count == 2)
+        #expect(await repository.keyRefusal == nil)
+    }
+
+    @Test("After a 401 or 403, saving the same key again sends it at once", arguments: [401, 403])
+    func sameKeySavedAgainIsSentAfterARefusal(status: Int) async throws {
+        StubURLProtocol.reset(replies: [.status(status), .stations])
+        let storage = TestKeyStorage(key: "refused-test-key")
+        let repository = StationsRepository(backend: api(keyProvider: provider(storage)))
+
+        await #expect(throws: refusedKeyError(forStatus: status)) { try await repository.dutchStations() }
+        // What Settings does when a key is saved.
+        await storage.saveAPIKey("refused-test-key")
+        await repository.backend.forgetKeyRefusal()
+
+        #expect(try await repository.dutchStations().map(\.identifiers.code) == dutchCodes)
+        #expect(sentKeys == ["refused-test-key", "refused-test-key"])
         #expect(await repository.keyRefusal == nil)
     }
 

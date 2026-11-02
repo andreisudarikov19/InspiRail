@@ -128,6 +128,9 @@ struct SettingsView: View {
         Task {
             do {
                 try await KeychainManager.shared.saveAPIKey(key)
+                // The next load and key check send the saved key, even one
+                // NS refused before (#20)
+                await stationsRepository?.backend.forgetKeyRefusal()
                 await MainActor.run { apiKeyInput = "" }
                 await refreshKeyStatus()
                 await MainActor.run { keyOperationInFlight = false }
