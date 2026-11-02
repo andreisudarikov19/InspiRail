@@ -8,8 +8,8 @@
 import Foundation
 
 /// Why a request to the NS API failed: one case per cause, each with the
-/// message a screen shows (#20). A cancelled request isn't one of them: it
-/// passes through as `CancellationError`, and screens ignore it.
+/// message a screen shows (#20). A load whose task is cancelled isn't one of
+/// them: it passes through as `CancellationError`, and screens ignore it.
 nonisolated enum NetworkError: Error, LocalizedError, Equatable {
     /// The request's URL couldn't be built. It is built from constants, so
     /// this doesn't happen.
@@ -28,7 +28,8 @@ nonisolated enum NetworkError: Error, LocalizedError, Equatable {
     /// NS failed to answer (HTTP 5xx).
     case serviceUnavailable(status: Int)
     /// NS couldn't be reached: no internet, a lost connection, a timeout, a
-    /// failed name lookup or connection, or a TLS failure.
+    /// failed name lookup or connection, a TLS failure, or a request the
+    /// system cancelled.
     case offline(URLError.Code)
     /// NS answered with something this version can't use: a body that
     /// doesn't decode, no readable station, or a status it doesn't expect.

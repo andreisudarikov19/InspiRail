@@ -70,14 +70,30 @@ extension StationStoreTests {
         #expect(await networkError(from: api()) == .offline(code))
     }
 
-    @Test("A cancelled request passes through as a cancellation, not an error")
+    @Test("A load whose task is cancelled mid-request passes through as a cancellation, and isn't reported")
     func cancelledRequestPassesThroughAsCancellation() async {
-        StubURLProtocol.reset(replies: [.failure(.cancelled)])
         let api = api()
+        StubURLProtocol.hold()
+        defer { StubURLProtocol.release() }
+
+        let load = Task { try await api.getStations() }
+        await StubURLProtocol.waitForRequests(1)
+        load.cancel()
 
         await #expect(throws: CancellationError.self) {
-            try await api.getStations()
+            try await load.value
         }
+        #expect(StubURLProtocol.requests.count == 1)
+        #expect(failures.values.isEmpty)
+    }
+
+    @Test("A request the system cancels, when no task asked, means NS can't be reached")
+    func requestCancelledByTheSystemIsOffline() async {
+        StubURLProtocol.reset(replies: [.failure(.cancelled)])
+
+        #expect(await networkError(from: api()) == .offline(.cancelled))
+        #expect(StubURLProtocol.requests.count == 1)
+        #expect(failures.values == [.offline(.cancelled)])
     }
 
     @Test("With no key stored, the load fails as no key, and nothing is sent")

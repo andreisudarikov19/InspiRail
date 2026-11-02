@@ -115,9 +115,17 @@ final class StubURLProtocol: URLProtocol {
         }
     }
 
-    override func stopLoading() {}
+    /// Set when the session stops the load, for example because its task
+    /// was cancelled. Read and set on the loading thread only.
+    private var isStopped = false
+
+    override func stopLoading() {
+        isStopped = true
+    }
 
     private func respond(with reply: Reply) {
+        // A held answer to a load the session has stopped isn't sent.
+        guard !isStopped else { return }
         if let failure = reply.failure {
             client?.urlProtocol(self, didFailWithError: URLError(failure))
             return

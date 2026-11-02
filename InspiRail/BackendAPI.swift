@@ -217,6 +217,9 @@ actor BackendAPI {
                 default:
                     break
                 }
+                // A load whose task was cancelled ends as a cancellation,
+                // whatever the attempt failed with, such as the request
+                // URLSession cancelled for it (#20)
                 try Task.checkCancellation()
                 guard attempt < maxAttempts, let wait else {
                     throw error
@@ -239,7 +242,7 @@ actor BackendAPI {
         do {
             (data, response) = try await session.data(for: urlRequest)
         } catch let error as URLError {
-            let failure = try failure(for: error)
+            let failure = failure(for: error)
             return .failure(failure, wait: RetryPolicy.isTransient(error.code) ? RetryPolicy.backoff(afterAttempt: attempt) : nil)
         } catch let error as CancellationError {
             // A cancellation passes through unchanged, and callers ignore it (#20).
@@ -347,15 +350,14 @@ actor BackendAPI {
         }
     }
     
-    /// The error a transport failure stands for (#20). A cancellation isn't
-    /// one: it is thrown as `CancellationError`. A reply URLSession can't
-    /// parse is unreadable data. Every other failure means NS can't be
+    /// The error a transport failure stands for (#20). A reply URLSession
+    /// can't parse is unreadable data. Every other failure means NS can't be
     /// reached, so a failed name lookup or connection no longer reads as an
-    /// NS server error.
-    private func failure(for error: URLError) throws -> NetworkError {
+    /// NS server error. So does a request the system cancelled when no task
+    /// asked it to stop, so the screen doesn't keep loading. When the load's
+    /// own task was cancelled, the loop throws `CancellationError` instead.
+    private func failure(for error: URLError) -> NetworkError {
         switch error.code {
-        case .cancelled:
-            throw CancellationError()
         case .badServerResponse, .cannotParseResponse, .cannotDecodeContentData, .cannotDecodeRawData, .zeroByteResource:
             return .unreadableData
         default:
