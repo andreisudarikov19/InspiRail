@@ -347,6 +347,49 @@ extension StationStoreTests {
         #expect(await repository.keyRefusal == nil)
     }
 
+    @Test("A late success for an old key leaves the refusal of the key saved since")
+    func lateSuccessForAnOldKeyKeepsANewerRefusal() async throws {
+        StubURLProtocol.reset(replies: [.stations, .status(401)])
+        let storage = TestKeyStorage(key: "old-test-key")
+        let api = api(keyProvider: provider(storage))
+        StubURLProtocol.hold()
+        defer { StubURLProtocol.release() }
+
+        // The old key's load waits for its answer while NS rejects the new key.
+        let oldLoad = Task { try await api.getStations() }
+        await StubURLProtocol.waitForRequests(1)
+        await storage.setKey("new-test-key")
+        StubURLProtocol.stopHolding()
+        #expect(await networkError(from: api) == .keyRejected)
+        StubURLProtocol.release()
+        _ = try await oldLoad.value
+
+        #expect(await api.keyRefusal?.reason == .rejected)
+        #expect(await networkError(from: api) == .keyRejected)
+        #expect(sentKeys == ["old-test-key", "new-test-key"])
+    }
+
+    @Test("A late success for the refused key itself clears its refusal")
+    func lateSuccessForTheRefusedKeyClearsItsRefusal() async throws {
+        StubURLProtocol.reset(replies: [.stations, .status(401), .stations])
+        let api = api(keyProvider: provider(TestKeyStorage(key: "flaky-test-key")))
+        StubURLProtocol.hold()
+        defer { StubURLProtocol.release() }
+
+        // Two loads with the same key: NS rejects the second, then accepts
+        // the first.
+        let firstLoad = Task { try await api.getStations() }
+        await StubURLProtocol.waitForRequests(1)
+        StubURLProtocol.stopHolding()
+        #expect(await networkError(from: api) == .keyRejected)
+        StubURLProtocol.release()
+        _ = try await firstLoad.value
+
+        #expect(await api.keyRefusal == nil)
+        _ = try await api.getStations()
+        #expect(StubURLProtocol.requests.count == 3)
+    }
+
     @Test("The refused-key memory shows nothing of the key, not even its hash")
     func keyRefusalHoldsNothingOfTheKey() async throws {
         let key = "QWERTY-test-key"

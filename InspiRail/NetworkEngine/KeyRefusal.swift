@@ -37,9 +37,14 @@ nonisolated struct KeyRefusal: Sendable, Equatable, CustomStringConvertible, Cus
         self.keyHash = Self.hash(of: key)
     }
     
+    /// Whether `key` is the refused key.
+    func refuses(_ key: String) -> Bool {
+        Self.hash(of: key) == keyHash
+    }
+    
     /// Whether `key` is the refused key, and is still held back at `date`.
     func holds(for key: String, at date: Date) -> Bool {
-        Self.hash(of: key) == keyHash && date < until
+        refuses(key) && date < until
     }
     
     /// The error a load held back by this refusal fails with.

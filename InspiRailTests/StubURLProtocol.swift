@@ -72,6 +72,12 @@ final class StubURLProtocol: URLProtocol {
         lock.withLock { state.isHolding = true }
     }
 
+    /// Answers the next requests at once, and keeps the answers held so far
+    /// until `release()`.
+    static func stopHolding() {
+        lock.withLock { state.isHolding = false }
+    }
+
     /// Sends the answers held so far, and stops holding.
     static func release() {
         let held = lock.withLock {

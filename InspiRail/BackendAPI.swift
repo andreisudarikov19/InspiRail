@@ -206,7 +206,11 @@ actor BackendAPI {
             try Task.checkCancellation()
             switch try await send(urlRequest, as: type, attempt: attempt) {
             case .success(let value):
-                keyRefusal = nil
+                // Only a refusal of the key this load sent: a late success
+                // for an old key leaves the refusal of a newer one (#20)
+                if keyRefusal?.refuses(apiKey) == true {
+                    keyRefusal = nil
+                }
                 return value
             case .failure(let error, let wait):
                 switch error {
