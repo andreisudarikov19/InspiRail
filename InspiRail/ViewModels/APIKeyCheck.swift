@@ -106,6 +106,19 @@ final class APIKeyCheck {
     /// so Settings shows no key section while it checks for the first time.
     private(set) var status: APIKeyStatus?
     
+    /// Whether a key just saved or removed is being checked. Until that
+    /// check ends, the status still says what the last check said about the
+    /// key before it.
+    private(set) var isCheckingNewKey = false
+    
+    /// Whether Settings offers Remove Key, in every window: when the status
+    /// does, and no new key is being checked. Otherwise a window would offer
+    /// to remove the key just saved, for what NS said about the one before
+    /// it (#19).
+    var offersRemoval: Bool {
+        !isCheckingNewKey && status?.offersRemoval == true
+    }
+    
     /// Counts the keys saved or removed, so that a check started before the
     /// last change, which may be about the key since replaced, doesn't count.
     /// Checks started since then all ask about the key stored now and share
@@ -136,10 +149,17 @@ final class APIKeyCheck {
     /// A key was saved or removed: checks again with the key stored now,
     /// which the store sends whatever it knew about the old one. A check
     /// already running answers for the old key, so it no longer counts, from
-    /// before anything is awaited.
+    /// before anything is awaited. The new key counts as being checked until
+    /// this check ends, or, when another key was saved or removed meanwhile,
+    /// until that key's check ends.
     func keyChanged(in repository: StationsRepository) async {
         keyChanges += 1
+        let change = keyChanges
+        isCheckingNewKey = true
         await repository.forgetStations(keyChanged: true)
         await refresh(using: repository)
+        if change == keyChanges {
+            isCheckingNewKey = false
+        }
     }
 }

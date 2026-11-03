@@ -380,6 +380,75 @@ extension StationStoreTests {
         #expect(sentKeys == ["old-test-key", "new-test-key"])
     }
 
+    @Test("While a saved key is checked, no window offers to remove a key, and a 401 for it offers removal again")
+    func noRemovalWhileASavedKeyIsChecked() async throws {
+        StubURLProtocol.reset(replies: [.status(401)])
+        let (repository, storage) = keyCheckRepository(key: "old-test-key")
+        let keyCheck = APIKeyCheck()
+        await keyCheck.refresh(using: repository)
+        #expect(keyCheck.status == .rejected)
+        #expect(keyCheck.offersRemoval)
+        StubURLProtocol.hold()
+        defer { StubURLProtocol.release() }
+
+        await storage.setKey("new-test-key")
+        let save = Task { await keyCheck.keyChanged(in: repository) }
+        await StubURLProtocol.waitForRequests(2)
+        // The status is still the old key's, but the key stored now is the
+        // new one, so another window must not offer to remove it.
+        #expect(keyCheck.status == .rejected)
+        #expect(!keyCheck.offersRemoval)
+        StubURLProtocol.release()
+        await save.value
+
+        #expect(keyCheck.status == .rejected)
+        #expect(keyCheck.offersRemoval)
+        #expect(sentKeys == ["old-test-key", "new-test-key"])
+    }
+
+    @Test("A saved key's check that ends after another key is saved doesn't offer removal while the newer key is checked")
+    func noRemovalUntilTheNewestSavedKeyIsChecked() async throws {
+        // The old key's 401; the first saved key's list, held; a 503 for the
+        // second saved key, whose wait before the next attempt lasts until
+        // the gate opens; then a 401 for it.
+        StubURLProtocol.reset(replies: [.status(401), .stations, .status(503), .status(401)])
+        let storage = TestKeyStorage(key: "old-test-key")
+        let (gate, openGate) = AsyncStream<Void>.makeStream()
+        defer { openGate.finish() }
+        let sleeps = sleeps
+        let repository = StationsRepository(backend: api(keyProvider: provider(storage), sleep: { wait in
+            sleeps.append(wait)
+            for await _ in gate {}
+        }))
+        let keyCheck = APIKeyCheck()
+        await keyCheck.refresh(using: repository)
+        #expect(keyCheck.offersRemoval)
+        StubURLProtocol.hold()
+        defer { StubURLProtocol.release() }
+
+        await storage.setKey("first-test-key")
+        let firstSave = Task { await keyCheck.keyChanged(in: repository) }
+        await StubURLProtocol.waitForRequests(2)
+        await storage.setKey("second-test-key")
+        StubURLProtocol.stopHolding()
+        let secondSave = Task { await keyCheck.keyChanged(in: repository) }
+        for _ in 0..<500 where sleeps.values.isEmpty {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+
+        // The first saved key's check ends while the second's waits.
+        StubURLProtocol.release()
+        await firstSave.value
+        #expect(keyCheck.status == .rejected)
+        #expect(!keyCheck.offersRemoval)
+        openGate.finish()
+        await secondSave.value
+
+        #expect(keyCheck.status == .rejected)
+        #expect(keyCheck.offersRemoval)
+        #expect(sentKeys == ["old-test-key", "first-test-key", "second-test-key", "second-test-key"])
+    }
+
     @Test("A removed key reads as not configured, not as the stored list's success")
     func removedKeyIsNotConfigured() async {
         let (repository, storage) = keyCheckRepository()

@@ -52,7 +52,9 @@ struct SettingsView: View {
                             }
                             .disabled(apiKeyInput.trimmingCharacters(in: .whitespaces).isEmpty || keyOperationInFlight)
                         }
-                        if keyStatus.offersRemoval {
+                        // Not while a key just saved, here or in another
+                        // window, is being checked.
+                        if keyCheck?.offersRemoval == true {
                             Button(role: .destructive) {
                                 removeAPIKey()
                             } label: {
