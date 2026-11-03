@@ -201,15 +201,15 @@ While a Retry runs, each screen shows its usual loading state: Discover "Consult
 - Consumes: Task 1's `NetworkError.recoveryAction(for:)` (tests only); #19's `APIKeyCheck` and `APIKeyStatus`.
 - Produces: `APIKeyStatus.offersRetry: Bool` (`.cantCheck` only) and `APIKeyCheck.retry(using repository: StationsRepository) async` (Decision 7).
 
-- [ ] **Step 1: Write the failing tests** in `APIKeyCheckTests.swift`:
+- [x] **Step 1: Write the failing tests** in `APIKeyCheckTests.swift`:
   - `eachStatusSaysWhatItShows` gains a `retry` column: true for `.cantCheck(…)` only.
   - `keyStatusOffersWhatTheRecoveryActionSays`: for each error of Task 1's test, `APIKeyStatus(for:)` is nil exactly when `recoveryAction(for:)` is, and otherwise `offersRetry == (action == .retry)` and `offersKeyEntry == (action == .keyEntry)`.
   - `cantCheckOffersRetryAndRetryChecksAgain`: replies `[.failure(.notConnectedToInternet), .stations]`. After `refresh`, the status offers Retry and not key entry. After `retry(using:)`, it is `.working`, with 2 requests.
-- [ ] **Step 2: Run them to verify they fail.** Expected: a build failure, `value of type 'APIKeyStatus' has no member 'offersRetry'`.
-- [ ] **Step 3: Implement** as in Interfaces, and the row: when `keyStatus.offersRetry`, a button with `SettingsIcon(icon: "arrow.clockwise", color: .blue)` and `Text(retryInFlight ? "Checking…" : "Retry")`, disabled while `retryInFlight`. `retryKeyCheck()` reports a missing store or key check as `refreshKeyStatus()` does, sets `retryInFlight`, and runs `keyCheck.retry(using:)` in a `Task` that clears it.
-- [ ] **Step 4: Run them to verify they pass.** Expected: the suite passes, with 2 new tests.
-- [ ] **Step 5: Typecheck.** Expected: 0 errors, 5 warnings.
-- [ ] **Step 6: Commit** `fix: offer Retry in Settings when it can't check the key (#21)`
+- [x] **Step 2: Run them to verify they fail.** Expected: a build failure, `value of type 'APIKeyStatus' has no member 'offersRetry'`.
+- [x] **Step 3: Implement** as in Interfaces, and the row: when `keyStatus.offersRetry`, a button with `SettingsIcon(icon: "arrow.clockwise", color: .blue)` and `Text(retryInFlight ? "Checking…" : "Retry")`, disabled while `retryInFlight`. `retryKeyCheck()` reports a missing store or key check as `refreshKeyStatus()` does, sets `retryInFlight`, and runs `keyCheck.retry(using:)` in a `Task` that clears it.
+- [x] **Step 4: Run them to verify they pass.** Expected: the suite passes, with 2 new tests.
+- [x] **Step 5: Typecheck.** Expected: 0 errors, 5 warnings.
+- [x] **Step 6: Commit** `fix: offer Retry in Settings when it can't check the key (#21)`
 
 ### Task 7: Record the fix, and check each state on a simulator
 

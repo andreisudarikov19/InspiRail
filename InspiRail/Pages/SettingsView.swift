@@ -18,6 +18,8 @@ struct SettingsView: View {
     @State private var apiKeyInput: String = ""
     @State private var keyOperationInFlight: Bool = false
     @State private var keyOperationError: String?
+    /// Whether Settings' Retry is checking the key again (#21).
+    @State private var retryInFlight = false
     @Query private var visitedStations: [VisitedStation]
     /// Closes Settings when it is shown as a sheet. Nil on the Settings tab.
     private let done: (() -> Void)?
@@ -46,6 +48,19 @@ struct SettingsView: View {
                                     .font(.caption)
                                     .foregroundColor(.orange)
                             }
+                        }
+                        // When the key couldn't be checked, for a reason
+                        // another try can fix (#21)
+                        if keyStatus.offersRetry {
+                            Button {
+                                retryKeyCheck()
+                            } label: {
+                                HStack {
+                                    SettingsIcon(icon: "arrow.clockwise", color: .blue)
+                                    Text(retryInFlight ? "Checking…" : "Retry")
+                                }
+                            }
+                            .disabled(retryInFlight)
                         }
                         if keyStatus.offersKeyEntry {
                             SecureField("Paste your NS API key", text: $apiKeyInput)
@@ -183,6 +198,24 @@ struct SettingsView: View {
             return
         }
         await keyCheck.refresh(using: stationsRepository)
+    }
+    
+    /// Checks the key again after it couldn't be checked, in a task of its
+    /// own, so that leaving Settings doesn't cut it short (#21).
+    private func retryKeyCheck() {
+        guard let stationsRepository else {
+            reportMissingStationStore(in: "Settings")
+            return
+        }
+        guard let keyCheck else {
+            reportMissingKeyCheck(in: "Settings")
+            return
+        }
+        retryInFlight = true
+        Task {
+            await keyCheck.retry(using: stationsRepository)
+            retryInFlight = false
+        }
     }
     
     /// A key was saved or removed: the store forgets what it knew about the

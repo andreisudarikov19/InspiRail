@@ -82,6 +82,18 @@ nonisolated enum APIKeyStatus: Equatable, Sendable {
         }
     }
     
+    /// Whether the section offers Retry: when the key couldn't be checked,
+    /// for a reason another try can fix, which are the errors every screen
+    /// offers Retry for (#21).
+    var offersRetry: Bool {
+        switch self {
+        case .cantCheck:
+            return true
+        case .working, .noKey, .rejected, .refused, .keychainUnavailable:
+            return false
+        }
+    }
+    
     /// Whether the section offers Remove Key: only when NS rejected this very
     /// key (401). A key NS refused (403) may only be over its usage limit, so
     /// it is still a valid key, and the key field already replaces it.
@@ -144,6 +156,15 @@ final class APIKeyCheck {
         }
         guard let answer, !Task.isCancelled, keyChangesAtStart == keyChanges else { return }
         status = answer
+    }
+    
+    /// Settings' Retry, when the key couldn't be checked (#21): the store
+    /// drops its list, joins a download already in flight and keeps a
+    /// refused key held back, and the key is checked again as `refresh`
+    /// checks it.
+    func retry(using repository: StationsRepository) async {
+        await repository.forgetStations(keyChanged: false)
+        await refresh(using: repository)
     }
     
     /// A key was saved or removed: checks again with the key stored now,

@@ -23,18 +23,19 @@ extension StationStoreTests {
 
     @Test("Each key status has its text and controls, and each error its status")
     func eachStatusSaysWhatItShows() {
-        let shown: [(APIKeyStatus, String?, entry: Bool, removal: Bool)] = [
-            (.working, nil, false, false),
-            (.noKey, "Not configured", true, false),
-            (.rejected, "NS didn't accept this key.", true, true),
-            (.refused, "NS refused your API key. It may be over its usage limit. Try again later.", true, false),
-            (.keychainUnavailable, "Your NS API key can't be read right now. Try again in a moment.", true, false),
-            (.cantCheck("Can't reach NS. Check your internet connection."), "Can't reach NS. Check your internet connection.", false, false),
+        let shown: [(APIKeyStatus, String?, entry: Bool, removal: Bool, retry: Bool)] = [
+            (.working, nil, false, false, false),
+            (.noKey, "Not configured", true, false, false),
+            (.rejected, "NS didn't accept this key.", true, true, false),
+            (.refused, "NS refused your API key. It may be over its usage limit. Try again later.", true, false, false),
+            (.keychainUnavailable, "Your NS API key can't be read right now. Try again in a moment.", true, false, false),
+            (.cantCheck("Can't reach NS. Check your internet connection."), "Can't reach NS. Check your internet connection.", false, false, true),
         ]
-        for (status, message, entry, removal) in shown {
+        for (status, message, entry, removal, retry) in shown {
             #expect(status.message == message, "\(status)")
             #expect(status.offersKeyEntry == entry, "\(status)")
             #expect(status.offersRemoval == removal, "\(status)")
+            #expect(status.offersRetry == retry, "\(status)")
         }
 
         let statuses: [(Error, APIKeyStatus?)] = [
@@ -52,6 +53,25 @@ extension StationStoreTests {
         ]
         for (error, status) in statuses {
             #expect(APIKeyStatus(for: error) == status, "\(error)")
+        }
+    }
+
+    @Test("Settings offers Retry exactly where every other screen does, and the key field where they lead to key entry (#21)")
+    func keyStatusOffersWhatTheRecoveryActionSays() {
+        let errors: [any Error] = [
+            NetworkError.noKey, NetworkError.keychainUnavailable, NetworkError.keyRejected, NetworkError.forbidden,
+            NetworkError.tooManyRequests, NetworkError.serviceUnavailable(status: 503), NetworkError.offline(.notConnectedToInternet),
+            NetworkError.offline(.timedOut), NetworkError.unreadableData, NetworkError.invalidURL,
+            CocoaError(.fileNoSuchFile), CancellationError(), URLError(.cancelled),
+        ]
+        for error in errors {
+            let action = NetworkError.recoveryAction(for: error)
+            let status = APIKeyStatus(for: error)
+            #expect((status == nil) == (action == nil), "\(error)")
+            if let status {
+                #expect(status.offersRetry == (action == .retry), "\(error)")
+                #expect(status.offersKeyEntry == (action == .keyEntry), "\(error)")
+            }
         }
     }
 
@@ -125,6 +145,22 @@ extension StationStoreTests {
         #expect(!status.offersRemoval)
 
         #expect(StubURLProtocol.requests.isEmpty)
+    }
+
+    @Test("When the key can't be checked, Settings offers Retry, which checks again through the store (#21)")
+    func cantCheckOffersRetryAndRetryChecksAgain() async throws {
+        StubURLProtocol.reset(replies: [.failure(.notConnectedToInternet), .stations])
+        let (repository, _) = keyCheckRepository()
+        let keyCheck = APIKeyCheck()
+        await keyCheck.refresh(using: repository)
+        let status = try #require(keyCheck.status)
+        #expect(status.offersRetry)
+        #expect(!status.offersKeyEntry)
+
+        await keyCheck.retry(using: repository)
+
+        #expect(keyCheck.status == .working)
+        #expect(StubURLProtocol.requests.count == 2)
     }
 
     @Test("A second check within the hour sends nothing")
