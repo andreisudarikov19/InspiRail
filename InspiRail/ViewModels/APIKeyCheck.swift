@@ -105,17 +105,22 @@ final class APIKeyCheck {
     /// so Settings shows no key section while it checks for the first time.
     private(set) var status: APIKeyStatus?
     
-    /// Counts the checks started, so that only the newest one's answer counts.
-    @ObservationIgnored private var checksStarted = 0
+    /// Counts the keys saved or removed, so that a check started before the
+    /// last change, which may be about the key since replaced, doesn't count.
+    /// Checks started since then all ask about the key stored now and share
+    /// the store's download, so they agree, and a newer one doesn't void an
+    /// older one.
+    @ObservationIgnored private var keyChanges = 0
     
     /// Asks the store with the current key, and shows its answer. The store's
     /// download runs on when the check's task is cancelled, for example by
     /// leaving Settings, so the answer still arrives: it is dropped, and the
-    /// status stays as it was. So is the answer of a check a newer one has
-    /// overtaken, which may be about a key since replaced.
+    /// status stays as it was. So is the answer of a check that started
+    /// before a key was saved or removed. A check cut short doesn't stop
+    /// another check of the same key from counting, such as the one that
+    /// follows a save.
     func refresh(using repository: StationsRepository) async {
-        checksStarted += 1
-        let check = checksStarted
+        let keyChangesAtStart = keyChanges
         let answer: APIKeyStatus?
         do {
             _ = try await repository.dutchStations()
@@ -123,7 +128,7 @@ final class APIKeyCheck {
         } catch {
             answer = APIKeyStatus(for: error)
         }
-        guard let answer, !Task.isCancelled, check == checksStarted else { return }
+        guard let answer, !Task.isCancelled, keyChangesAtStart == keyChanges else { return }
         status = answer
     }
     
@@ -132,7 +137,7 @@ final class APIKeyCheck {
     /// already running answers for the old key, so it no longer counts, from
     /// before anything is awaited.
     func keyChanged(in repository: StationsRepository) async {
-        checksStarted += 1
+        keyChanges += 1
         await repository.forgetStations(keyChanged: true)
         await refresh(using: repository)
     }

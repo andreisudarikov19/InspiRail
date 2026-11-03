@@ -298,6 +298,32 @@ extension StationStoreTests {
         #expect(sentKeys == ["test-key", "new-test-key"])
     }
 
+    @Test("A check cut short after a key is saved doesn't void the saved key's check")
+    func cancelledCheckAfterAKeyChangeLeavesTheSavedKeysCheck() async throws {
+        StubURLProtocol.reset(replies: [.status(401), .stations])
+        let (repository, storage) = keyCheckRepository(key: "old-test-key")
+        let keyCheck = APIKeyCheck()
+        await keyCheck.refresh(using: repository)
+        #expect(keyCheck.status == .rejected)
+        StubURLProtocol.hold()
+        defer { StubURLProtocol.release() }
+
+        // Settings saves a key, is left, opened again and left again while
+        // the saved key's check waits for its answer.
+        await storage.setKey("new-test-key")
+        let save = Task { await keyCheck.keyChanged(in: repository) }
+        await StubURLProtocol.waitForRequests(2)
+        let visit = Task { await keyCheck.refresh(using: repository) }
+        try await Task.sleep(for: .milliseconds(200))
+        visit.cancel()
+        StubURLProtocol.release()
+        await save.value
+        await visit.value
+
+        #expect(keyCheck.status == .working)
+        #expect(sentKeys == ["old-test-key", "new-test-key"])
+    }
+
     @Test("A removed key reads as not configured, not as the stored list's success")
     func removedKeyIsNotConfigured() async {
         let (repository, storage) = keyCheckRepository()
