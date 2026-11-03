@@ -594,6 +594,9 @@ actor TestKeyStorage: APIKeyStorage {
         key
     }
 
+    /// How many keys were written.
+    private(set) var saves = 0
+
     func setKey(_ key: String) {
         self.key = key
     }
@@ -611,5 +614,6 @@ actor TestKeyStorage: APIKeyStorage {
     func saveAPIKey(_ key: String) throws {
         if let saveFailure { throw saveFailure }
         self.key = key
+        saves += 1
     }
 }

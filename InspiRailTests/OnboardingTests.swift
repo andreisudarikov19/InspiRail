@@ -369,6 +369,37 @@ extension StationStoreTests {
         #expect(StubURLProtocol.requests.count == 1)
     }
 
+    @Test("A second save while one runs, such as a tap on Save Key right after the return key, writes, checks and sends nothing more")
+    func aSecondSaveWhileOneRunsDoesNothing() async throws {
+        let storage = TestKeyStorage()
+        let repository = StationsRepository(backend: api(keyProvider: provider(storage)))
+        let keyCheck = APIKeyCheck()
+        let (defaults, suite) = scratchDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let onboarding = Onboarding(defaults: defaults)
+        await onboarding.load(from: repository, following: keyCheck)
+        onboarding.keyInput = "new-test-key"
+        StubURLProtocol.hold()
+        defer { StubURLProtocol.release() }
+
+        let first = Task { await onboarding.saveKey(to: storage, checkingWith: keyCheck, in: repository) }
+        let second = Task { await onboarding.saveKey(to: storage, checkingWith: keyCheck, in: repository) }
+        await StubURLProtocol.waitForRequests(1)
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(await storage.saves == 1)
+        #expect(keyCheck.keyChanges == 1)
+        #expect(StubURLProtocol.requests.count == 1)
+        StubURLProtocol.release()
+        await first.value
+        await second.value
+
+        #expect(onboarding.step == .station)
+        #expect(onboarding.stationList.stations.map(\.identifiers.code) == dutchCodes)
+        #expect(await storage.saves == 1)
+        #expect(keyCheck.keyChanges == 1)
+        #expect(sentKeys == ["new-test-key"])
+    }
+
     @Test("A key that can't be written to the Keychain shows the Keychain's error, and leaves the key step as it was")
     func aKeyThatCantBeWrittenShowsItsError() async {
         let storage = TestKeyStorage(saveFailure: .saveFailed(errSecInteractionNotAllowed))

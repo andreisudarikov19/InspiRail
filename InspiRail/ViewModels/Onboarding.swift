@@ -131,7 +131,9 @@ final class Onboarding {
     /// with the old one (#19). When another window saved a key meanwhile,
     /// the answer may be about this window's key, since replaced, so it
     /// shows the answer about the key stored now instead. A key that can't
-    /// be written shows its error, and nothing else changes.
+    /// be written shows its error, and nothing else changes. A second save
+    /// while one runs, such as a tap on Save Key right after the return
+    /// key, does nothing.
     func saveKey(to storage: any APIKeyStorage, checkingWith keyCheck: APIKeyCheck, in repository: StationsRepository) async {
         guard !isSavingKey else { return }
         isSavingKey = true
