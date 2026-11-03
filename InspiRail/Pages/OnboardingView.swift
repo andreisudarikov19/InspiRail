@@ -18,12 +18,19 @@ struct OnboardingView: View {
     @Environment(\.stationsRepository) private var stationsRepository
     
     @State private var searchText = ""
-    @State private var allStations: [Station] = []
-    @State private var filteredStations: [Station] = []
-    @State private var isLoading = true
-    @State private var errorMessage: String?
-    @State private var isUnauthorized = false
+    /// The stations to pick from, or why they couldn't be loaded (#21).
+    @State private var stationList = StationList()
     @State private var showingSettings = false
+    
+    private var filteredStations: [Station] {
+        if searchText.isEmpty {
+            return stationList.stations
+        }
+        return stationList.stations.filter {
+            $0.names.long.localizedCaseInsensitiveContains(searchText) ||
+            $0.identifiers.code.localizedCaseInsensitiveContains(searchText)
+        }
+    }
     
     var body: some View {
         NavigationStack {
@@ -51,27 +58,17 @@ struct OnboardingView: View {
                     .background(Color(.systemGray6))
                     .cornerRadius(10)
                     .padding(.horizontal)
-                    .onChange(of: searchText) { _, newValue in
-                        filterStations(with: newValue)
-                    }
                 
                 // List of Stations
                 ZStack {
-                    if isLoading {
+                    if stationList.isLoading {
                         ProgressView("Loading stations...")
-                    } else if let error = errorMessage {
+                    } else if let failure = stationList.failure {
                         VStack(spacing: 16) {
-                            ContentUnavailableView("Error", systemImage: "exclamationmark.triangle", description: Text(error))
-                            if isUnauthorized {
-                                Button {
-                                    showingSettings = true
-                                } label: {
-                                    Label("Open Settings", systemImage: "gear")
-                                        .padding(.horizontal, 16)
-                                        .padding(.vertical, 8)
-                                }
-                                .buttonStyle(.borderedProminent)
-                            }
+                            ContentUnavailableView("Error", systemImage: "exclamationmark.triangle", description: Text(failure.message))
+                            // Open Settings for the errors about the key, as
+                            // before, and Retry for the others (#21)
+                            RecoveryButton(action: failure.action, retry: retry, enterKey: { showingSettings = true })
                         }
                     } else {
                         List(filteredStations) { station in
@@ -133,7 +130,7 @@ struct OnboardingView: View {
             .sheet(isPresented: $showingSettings, onDismiss: {
                 Task { await loadStations() }
             }) {
-                SettingsView()
+                SettingsView(done: { showingSettings = false })
             }
         }
     }
@@ -146,51 +143,20 @@ struct OnboardingView: View {
         homeStationName = station.names.long
     }
     
-    private func filterStations(with query: String) {
-        if query.isEmpty {
-            filteredStations = allStations
-        } else {
-            filteredStations = allStations.filter {
-                $0.names.long.localizedCaseInsensitiveContains(query) ||
-                $0.identifiers.code.localizedCaseInsensitiveContains(query)
-            }
-        }
-    }
-    
     private func loadStations() async {
         guard let stationsRepository else {
             reportMissingStationStore(in: "Onboarding")
             return
         }
-        isLoading = true
-        errorMessage = nil
-        isUnauthorized = false
-
-        do {
-            // The Dutch stations, sorted A-Z
-            let sorted = try await stationsRepository.dutchStations()
-            
-            await MainActor.run {
-                self.allStations = sorted
-                self.filteredStations = sorted
-                self.isLoading = false
-            }
-        } catch {
-            // A cancelled load shows no message. Only leaving onboarding
-            // cancels it, so nobody sees it still loading (#20).
-            guard let message = NetworkError.message(for: error) else { return }
-            
-            // Log the actual error for debugging
-            print("❌ OnboardingView - Failed to load stations: \(error)")
-            print("   Error type: \(type(of: error))")
-            
-            await MainActor.run {
-                // The same message as Discover's, and Open Settings for the
-                // errors about the key (#20)
-                self.errorMessage = message
-                self.isUnauthorized = NetworkError.recoveryAction(for: error) == .keyEntry
-                self.isLoading = false
-            }
+        await stationList.load(from: stationsRepository)
+    }
+    
+    /// Loads the stations again, in a task of its own (#21).
+    private func retry() {
+        guard let stationsRepository else {
+            reportMissingStationStore(in: "Onboarding")
+            return
         }
+        Task { await stationList.retry(from: stationsRepository) }
     }
 }

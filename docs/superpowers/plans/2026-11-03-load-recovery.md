@@ -184,11 +184,11 @@ While a Retry runs, each screen shows its usual loading state: Discover "Consult
 - Consumes: Task 4's `StationList`; Task 3's `RecoveryButton`.
 - Produces: `SettingsView.init(done: (() -> Void)? = nil)`: with `done`, a `ToolbarItem(placement: .confirmationAction)` with `Button("Done", action: done)`; without, no toolbar item.
 
-- [ ] **Step 1: Onboarding.** `@State private var stationList = StationList()` replaces `allStations`, `filteredStations`, `isLoading`, `errorMessage` and `isUnauthorized`; `filteredStations` becomes a computed property over `stationList.stations` with the same filter, and the `.onChange(of: searchText)` and `filterStations(with:)` go. The error panel keeps its `ContentUnavailableView("Error", …)` and puts a `RecoveryButton` under it in place of the Open Settings button: key entry sets `showingSettings = true`, Retry runs `stationList.retry(from:)` in a `Task`. `loadStations()` reports a missing store as now and calls `stationList.load(from:)`; the `print`s and `MainActor.run`s go. The sheet shows `SettingsView(done: { showingSettings = false })`; its `onDismiss` reload stays.
-- [ ] **Step 2: Settings' Done button**, as in Interfaces. The tab's `SettingsView()` is unchanged.
-- [ ] **Step 3: Typecheck.** Expected: 0 errors, 5 warnings.
-- [ ] **Step 4: Run the default test plan.** Expected: `** TEST SUCCEEDED **`, 112 test functions (100, and 2 + 1 + 5 + 4 new), run as 170 cases (145, and 14 + 1 + 6 + 4), 0 skipped. Onboarding's logic is `StationList`'s, tested in Task 4; its buttons are checked on the simulator in Task 7, cases (c) and (d).
-- [ ] **Step 5: Commit** `fix: offer Retry in onboarding, and a Done button on its Settings sheet (#21)`
+- [x] **Step 1: Onboarding.** `@State private var stationList = StationList()` replaces `allStations`, `filteredStations`, `isLoading`, `errorMessage` and `isUnauthorized`; `filteredStations` becomes a computed property over `stationList.stations` with the same filter, and the `.onChange(of: searchText)` and `filterStations(with:)` go. The error panel keeps its `ContentUnavailableView("Error", …)` and puts a `RecoveryButton` under it in place of the Open Settings button: key entry sets `showingSettings = true`, Retry runs `stationList.retry(from:)` in a `Task`. `loadStations()` reports a missing store as now and calls `stationList.load(from:)`; the `print`s and `MainActor.run`s go. The sheet shows `SettingsView(done: { showingSettings = false })`; its `onDismiss` reload stays.
+- [x] **Step 2: Settings' Done button**, as in Interfaces. The tab's `SettingsView()` is unchanged.
+- [x] **Step 3: Typecheck.** Expected: 0 errors, 5 warnings.
+- [x] **Step 4: Run the default test plan.** Expected: `** TEST SUCCEEDED **`, 112 test functions (100, and 2 + 1 + 5 + 4 new), run as 170 cases (145, and 14 + 1 + 6 + 4), 0 skipped. Onboarding's logic is `StationList`'s, tested in Task 4; its buttons are checked on the simulator in Task 7, cases (c) and (d).
+- [x] **Step 5: Commit** `fix: offer Retry in onboarding, and a Done button on its Settings sheet (#21)`
 
 ### Task 6: Settings offers Retry when it can't check the key
 
