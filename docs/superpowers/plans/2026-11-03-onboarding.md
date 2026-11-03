@@ -86,7 +86,7 @@ On `main`: every load error showed the station step's search field above a panel
 ## Notes for other issues
 
 - **#25:** onboarding's search field shows only once the list has loaded, so it can't lose a query typed before the list; the result of case (g) is recorded under Measurements. The Home Station picker's `.searchable` field still shows while it loads; its filter is computed too.
-- **#31:** the key step's layout and copy (title, explanation, link, the orange message above the field); Save Key copies Start Exploring's look and the field the search field's; the station step's panel is still titled "Error".
+- **#31:** the key step's layout and copy (title, explanation, link, the orange message above the field); Save Key copies Start Exploring's look and the field the search field's; the station step's panel is still titled "Error". Seen on the simulator: the station step's header sits lower while the list loads or fails and moves up when the list arrives, and with the keyboard up its text is cut to one line, as on `main`.
 - **#34:** the UI test #42's last Fix line asks for: a fresh install with no key reaches the station list after a key is entered on the key step, with no sheet, and "Start Exploring" opens the tabs. The flow is covered here by unit tests and the simulator checks.
 - **#35:** after a Keychain read failure the key step says "Try again in a moment", but offers no Retry: only saving a key, which replaces the item, or a relaunch helps.
 - **#39:** the key step is now the way an end user enters a key; whether Release builds ask end users for one is #39's.
@@ -223,15 +223,15 @@ On `main`: every load error showed the station step's search field above a panel
 - Modify: `README.md:24`, `:30`, `:44-47` (the quick start, end users' key entry, the `ViewModels/` line)
 - Modify: this plan (Measurements)
 
-- [ ] **Step 1: `CHANGELOG.md`.** Under `### Fixed`, append:
+- [x] **Step 1: `CHANGELOG.md`.** Under `### Fixed`, append:
   - When no API key is stored, or the stored one can't be used (it can't be read, or NS rejected or refused it), onboarding opens on a key step: it says InspiRail needs a free NS API key, links to apiportal.ns.nl, and takes the key there, instead of a station search over an error panel. After Save Key it loads the stations with the new key at once, with one request: the list, or why NS didn't accept the key, or Retry when NS couldn't be reached. The Settings sheet onboarding opened for the key is gone. On iPad, a key that works, saved in one window's onboarding, moves the other windows on to the station list.
   - Onboarding's search field appears once the stations have loaded.
   - Tapping a station in onboarding selects it, with a checkmark, instead of ending onboarding; tapping another moves the selection. Start Exploring stores the home station and opens the tabs. Existing users, who already have a home station, go straight to the tabs as before.
 
   And edit #21's lines, which describe a sheet that never shipped: "Onboarding offers Retry for the errors that had no button, and keeps Open Settings for key errors." becomes "Onboarding offers Retry for the errors that had no button."; "Onboarding's Settings sheet has a Done button; onboarding loads the stations again when it closes." goes.
-- [ ] **Step 2: `README.md`.** The quick start says onboarding asks for the key on first launch, then for the home station. End users paste the key into onboarding's key step and tap Save Key, and can change it later in Settings. The `ViewModels/` line adds "onboarding's steps".
-- [ ] **Step 3: Run the default test plan.** Expected: as Task 5, Step 6.
-- [ ] **Step 4: Builds and stub.**
+- [x] **Step 2: `README.md`.** The quick start says onboarding asks for the key on first launch, then for the home station. End users paste the key into onboarding's key step and tap Save Key, and can change it later in Settings. The `ViewModels/` line adds "onboarding's steps".
+- [x] **Step 3: Run the default test plan.** Expected: as Task 5, Step 6.
+- [x] **Step 4: Builds and stub.**
   - **Stub.** A scratch copy of the offline review stub (`.superpowers/scratch/review/runtime/stub/`) in the session's scratch directory. It answers only `gateway.apiportal.ns.nl` and never forwards a request. It reads:
     - `REVIEW_STUB_PAYLOAD`: the station list.
     - `REVIEW_STUB_KEY_STATUS`: `key:status` pairs, so a listed dummy key gets its status and any other key the list.
@@ -242,7 +242,7 @@ On `main`: every load error showed the station step's search field above a panel
   - **Builds.** Scratch worktrees of `main` (9131266) and of this branch, outside the repo. Add a throwaway XCUITest driver to each worktree's `InspiRailUITests/`, and that target to the worktree's test plan, and build each with `build-for-testing` and its own `-derivedDataPath` in the scratch directory.
   - **Driver.** It launches the app with the stub and dummy keys only (`dummy-key-ok`, `dummy-key-reject`, `dummy-key-refuse`), never with `NS_API_KEY`, and logs `UIDRIVER phase=…` markers. It reads what a screen shows through the accessibility tree, and saves screenshots.
   - **Runs.** Each run uses `test-without-building -only-testing:… -parallel-testing-enabled NO` on `InspiRail-22`, erased first unless the case says otherwise, with nothing else booted, streaming `log stream --predicate 'subsystem == "annisu.inspirail" OR subsystem == "review.stub" OR subsystem == "review.uidriver"'`. Never a real key; "no connection" is the stub failing with `-1009`. Shut the simulator down between runs.
-- [ ] **Step 5: The cases.** Screenshots go to the session's scratch directory as `22-<case>-….png`. Requests are the stub's lines between the driver's markers.
+- [x] **Step 5: The cases.** Screenshots go to the session's scratch directory as `22-<case>-….png`. Requests are the stub's lines between the driver's markers.
   - (a) No key: the key step with its explanation, link and field, and no search field. Tap the field: with the keyboard up, the explanation is still on screen, above the keyboard. Save `dummy-key-ok`: the list shows at once, with no sheet. 0 requests before the save, 1 for it.
   - (b) The stub rejects `dummy-key-reject` (401). Save it: the key step stays, with "NS didn't accept your API key. Check it in Settings." (1 request). Save `dummy-key-ok`: the list shows (1 request).
   - (c) The first request fails with `-1009`. Save `dummy-key-ok`: the station step shows "Can't reach NS. Check your internet connection." with Retry (1 request). Retry: the list shows (1 request).
@@ -251,9 +251,27 @@ On `main`: every load error showed the station step's search field above a panel
   - (f) Upgrade: install `main`'s build, and pick a home station there (key through its sheet, Done, a tap). Then install the branch's build over it with `simctl install`, and launch it with the stub and no launch arguments: the tabs show at once, with no onboarding.
   - (g) The search field before and after the list loads. Every answer 3 s late and the first request failing: save `dummy-key-ok` ("Saving…" on the key step for the 3 s), then Retry: during the load, no search field; once the list shows, the field, and "Utrecht" typed as soon as it appears leaves only Utrecht Centraal. On `main`, also with answers 3 s late: after saving the key in the sheet and Done, "Utrecht" typed while the list loads; once it arrives, whether the list is filtered (#25).
   - No log line holds a dummy key, and no fault or assertion is logged.
-- [ ] **Step 6: Clean up.** Delete the worktrees, the derived data, the stub's build, any test clones (`xcrun simctl --set ~/Library/Developer/XCTestDevices list devices`), the simulator once the last run is done, and any crash reports the runs left in `~/Library/Logs/DiagnosticReports/`.
-- [ ] **Step 7: Commit** `docs: record onboarding's key step and Start Exploring in the changelog, README and plan (#22, #42)`
+  (Changed during execution: the stub is built for x86_64, this Mac's simulator architecture. The driver's own screenshots leave the keyboard out while the secure field has focus, so (a)'s keyboard screenshot is taken from the host with `simctl io` while the driver holds the keyboard up for 4 s. On `main`, (g) needed answers 8 s late, not 3, for the typing to end before the list arrived. In (f), the branch's build was installed with `simctl install` and launched with `simctl launch`, with the stub and no launch arguments, and checked by a host screenshot and the log; the driver isn't involved.)
+- [x] **Step 6: Clean up.** Delete the worktrees, the derived data, the stub's build, any test clones (`xcrun simctl --set ~/Library/Developer/XCTestDevices list devices`), the simulator once the last run is done, and any crash reports the runs left in `~/Library/Logs/DiagnosticReports/`.
+- [x] **Step 7: Commit** `docs: record onboarding's key step and Start Exploring in the changelog, README and plan (#22, #42)`
 
 ## Measurements
 
-To be filled in by Task 6.
+On the throwaway iPhone 15 simulator (iOS 26.3), erased before each case except where noted, with a scratch copy of the offline stub, dummy keys and no `NS_API_KEY`, driven by a throwaway UI test outside the repo. The branch is a5c18c2 (Task 5) and `main` is 9131266. Requests are the stub's `REVIEWSTUB request` lines; what a screen offers comes from the accessibility tree. Screenshots are in the session's scratch directory as `22-<case>-….png`. Every run passed.
+
+| Case | Requests | Seen |
+|---|---|---|
+| (a) No key | 0 at launch (the app logged "No API key"); 1 for `dummy-key-ok` (200), saved with the return key | The key step: "API key needed", the explanation, the link, the field, Save Key disabled; no search field, no Open Settings. With the field focused, the keyboard's top at y = 561 pt, the explanation at y = 250 to 314 pt, the field at 387 and Save Key at 440 to 492, all above it (`22-a-keyboard.png`, host capture). After the save, the station list with its search field, and no sheet, Settings bar or Done button |
+| (b) The stub rejects `dummy-key-reject` | 1 for it (401); 1 for `dummy-key-ok` (200) | After the first save, the key step again, with "NS didn't accept your API key. Check it in Settings." in orange above an emptied field. After the second, the list |
+| (c) The first request fails with `-1009` | 1 for the save; 1 for Retry (200) | The station step: "Error", "Can't reach NS. Check your internet connection.", Retry; no search field, Start Exploring disabled, no key step. Retry showed the list |
+| (d) The stub refuses `dummy-key-refuse` | 1 (403) | The key step with "NS refused your API key. It may be over its usage limit. Try again later." above the field |
+| (e) #22 | 1 for the key | Tapping "Amsterdam Centraal" (found through the search field) selected it: the checkmark, the row read as selected, Start Exploring enabled, still "Welcome to InspiRail", no tab bar. Tapping "Utrecht Centraal" selected it, and Amsterdam's row no longer read as selected. Start Exploring opened the tabs; Settings' Home Station row read "Utrecht Centraal" |
+| (f) Upgrade | `main`: 1 for the key saved in its sheet. Branch: 1 at launch, with the key from the Keychain | `main`'s build stored `homeStationCode` = "UT" and `homeStationName` = "Utrecht Centraal", and no `hasCompletedOnboarding` (read from the app's preferences file). The branch's build, installed over it and launched with no arguments, opened straight on Discover with the tab bar (`22-f-branch-tabs.png`) |
+| (g) Branch: answers 3 s late, the first failing with `-1009` | 1 for the save; 1 for Retry | "Saving…" with a spinner on the key step for the 3 s (`22-g-saving.png`), then the station step with Retry and no search field; during Retry's load, "Loading stations..." and no search field (`22-g-loading.png`). "Utrecht" typed as soon as the field appeared left one row, Utrecht Centraal |
+| (g) `main`: the key saved in the sheet, then a relaunch with answers 8 s late | 1, then 1 | The search field showed during the load; "Utrecht" was typed while "Loading stations..." still showed. Once the list arrived it showed one row, Utrecht Centraal, with "Utrecht" still in the field. So #21's computed filter already applies a query typed before the list arrives; on the branch the field doesn't exist before the list, so the query can't be typed early at all |
+
+No line in the runs' app and stub logs held a dummy key or named `NS_API_KEY`; every key the app sent came from the Keychain. No fault or assertion was logged. The unit-test runs' clones left seven crash reports (`siriactionsd`, `UsageTrackingAgent`), each written within 3 s of one of those runs ending, which were deleted. Two `localspeechrecognition` reports from an Apple TV simulator this branch didn't create were left alone.
+
+Seen on the simulator, for #31: on the station step, while the list loads or shows its error, the header sits lower, and it moves up when the list and its search field arrive; with the keyboard up, the station step's header text is cut to one line ("To get started, please select your…"), as on `main`.
+
+The default test plan passes 135 test functions, run as 199 cases, 0 skipped. The typecheck prints 0 errors and 5 warnings, the same as on `main`.

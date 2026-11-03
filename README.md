@@ -20,13 +20,13 @@ cd InspiRail
 open InspiRail.xcodeproj
 ```
 
-Press ⌘R to build and run. On first launch the app will prompt you to enter your NS API key — paste it in Settings and the rest of the app comes alive.
+Press ⌘R to build and run. On first launch, onboarding asks for your NS API key, then for your home station.
 
 ## API key handling
 
 The NS API key lives only in the iOS Keychain. Nothing is compiled into the app, and the project has no `Secrets.xcconfig`; a leftover local copy is ignored.
 
-- **End users** — launch the app, follow the "Open Settings" button on the onboarding error screen, paste the key, save. The key never leaves the device.
+- **End users** — launch the app, paste the key into onboarding's key step and tap Save Key. It can be changed later in Settings. The key never leaves the device.
 - **Developers (Debug builds only)** — set `NS_API_KEY` in the app's environment, either by launching with `SIMCTL_CHILD_NS_API_KEY=… xcrun simctl launch <device> annisu.rnsapp`, or on a duplicate of the `InspiRail` scheme with "Shared" unticked, so the value stays in the untracked `xcuserdata`. Don't set it on the shared scheme: that file is tracked. In Debug builds the variable wins over a stored key. When no key is stored yet, it is saved to the Keychain, so later launches work without it; it never replaces a key saved in Settings. Release builds never read it.
 
 ## Project layout
@@ -39,10 +39,10 @@ InspiRail/
 ├── Pages/                     SwiftUI screens (Discovery, Onboarding,
 │                              Settings, VisitedList, LogbookUnavailable),
 │                              and the button a failed load offers
-├── ViewModels/                View-models, the station list the
-│                              home-station pickers load, and the station
-│                              store and Settings' key check every window
-│                              shares
+├── ViewModels/                View-models, onboarding's steps, the
+│                              station list the home-station pickers load,
+│                              and the station store and Settings' key
+│                              check every window shares
 ├── BackendAPI.swift           NS API client (actor) and the app's one
 │                              network session
 ├── KeychainManager.swift      API-key storage
