@@ -38,8 +38,8 @@ InspiRail/
 │                              memory
 ├── Pages/                     SwiftUI screens (Discovery, Onboarding,
 │                              Settings, VisitedList, LogbookUnavailable)
-├── ViewModels/                View-models, Settings' key check, and the
-│                              station store every screen shares
+├── ViewModels/                View-models, and the station store and
+│                              Settings' key check every window shares
 ├── BackendAPI.swift           NS API client (actor) and the app's one
 │                              network session
 ├── KeychainManager.swift      API-key storage

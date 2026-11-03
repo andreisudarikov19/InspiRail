@@ -5,6 +5,7 @@
 
 import Foundation
 import Security
+import SwiftUI
 import Testing
 @testable import InspiRail
 
@@ -336,5 +337,19 @@ extension StationStoreTests {
 
         #expect(keyCheck.status == .noKey)
         #expect(StubURLProtocol.requests.count == 1)
+    }
+
+    // MARK: - The app's one key check
+
+    @Test("Reading the environment without the App's key check builds none")
+    func environmentHasNoKeyCheckByDefault() {
+        #expect(EnvironmentValues().apiKeyCheck == nil)
+    }
+
+    @Test("While hosting the unit tests, which have no key check by design, a missing key check isn't reported")
+    func missingKeyCheckIsNotReportedInTheTestHost() {
+        // Outside the test host this stops a Debug build, and so would stop
+        // this test run.
+        reportMissingKeyCheck(in: "A test")
     }
 }

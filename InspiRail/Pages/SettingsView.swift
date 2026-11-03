@@ -11,11 +11,11 @@ import SwiftData
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.stationsRepository) private var stationsRepository
+    @Environment(\.apiKeyCheck) private var keyCheck
     @AppStorage("homeStationCode") private var homeStationCode: String = ""
     @AppStorage("homeStationName") private var homeStationName: String = ""
     @State private var showingResetAlert = false
     @State private var apiKeyInput: String = ""
-    @State private var keyCheck = APIKeyCheck()
     @State private var keyOperationInFlight: Bool = false
     @State private var keyOperationError: String?
     @Query private var visitedStations: [VisitedStation]
@@ -25,8 +25,9 @@ struct SettingsView: View {
             Form {
                 // The API-key section shows only when there's something to
                 // say, and offers the key field and Remove Key only where a
-                // key can help (#19). Hidden until the first check ends.
-                if let keyStatus = keyCheck.status, let keyMessage = keyStatus.message {
+                // key can help (#19). Hidden until the first check ends. The
+                // status is the app's, so every window shows the same one.
+                if let keyStatus = keyCheck?.status, let keyMessage = keyStatus.message {
                     Section {
                         HStack {
                             SettingsIcon(icon: "key.fill", color: .orange)
@@ -159,6 +160,10 @@ struct SettingsView: View {
             reportMissingStationStore(in: "Settings")
             return
         }
+        guard let keyCheck else {
+            reportMissingKeyCheck(in: "Settings")
+            return
+        }
         await keyCheck.refresh(using: stationsRepository)
     }
     
@@ -168,6 +173,10 @@ struct SettingsView: View {
     private func keyChanged() async {
         guard let stationsRepository else {
             reportMissingStationStore(in: "Settings")
+            return
+        }
+        guard let keyCheck else {
+            reportMissingKeyCheck(in: "Settings")
             return
         }
         await keyCheck.keyChanged(in: stationsRepository)

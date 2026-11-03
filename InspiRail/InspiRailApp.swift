@@ -26,12 +26,19 @@ struct InspiRailApp: App {
     /// Nil while hosting the unit tests, so a test run starts no fetch.
     @State private var stationsRepository: StationsRepository?
     
+    /// What Settings says about the API key, created once for the whole app
+    /// so that every window and onboarding's Settings sheet show one status
+    /// for the one key they share (#19). Nil while hosting the unit tests,
+    /// like the store it checks.
+    @State private var apiKeyCheck: APIKeyCheck?
+    
     init() {
         guard !isHostingUnitTests else { return }
         // Log app configuration on startup
         AppConfiguration.logConfiguration()
         _logbook = State(initialValue: Logbook(store: LogbookStore(url: LogbookStore.defaultURL)))
         _stationsRepository = State(initialValue: StationsRepository(backend: BackendAPI()))
+        _apiKeyCheck = State(initialValue: APIKeyCheck())
     }
     
     var body: some Scene {
@@ -42,6 +49,7 @@ struct InspiRailApp: App {
             } else if let logbook {
                 LogbookRootView(logbook: logbook)
                     .environment(\.stationsRepository, stationsRepository)
+                    .environment(\.apiKeyCheck, apiKeyCheck)
             }
         }
     }
@@ -53,6 +61,13 @@ extension EnvironmentValues {
     /// stations. Its default builds nothing, so a view that reads it without
     /// the App's store never makes one of its own.
     @Entry var stationsRepository: StationsRepository? = nil
+    
+    /// What Settings says about the API key, which `InspiRailApp` sets on
+    /// every window beside the store, so that a key saved in one window shows
+    /// as checked in the others (#19). Nil only while hosting the unit tests.
+    /// Its default builds nothing, so a Settings screen without the App's
+    /// check never keeps a status of its own.
+    @Entry var apiKeyCheck: APIKeyCheck? = nil
 }
 
 /// Reports a screen that found no station store in its environment. Only the
@@ -60,9 +75,20 @@ extension EnvironmentValues {
 /// else this logs a fault and stops a Debug build. The screen still loads
 /// nothing.
 func reportMissingStationStore(in screen: String, file: StaticString = #file, line: UInt = #line) {
+    reportMissing("station store", in: screen, category: "repository", file: file, line: line)
+}
+
+/// Reports a screen that found no API key check in its environment, as
+/// `reportMissingStationStore(in:)` reports a missing store. The screen then
+/// checks nothing and shows no key section (#19).
+func reportMissingKeyCheck(in screen: String, file: StaticString = #file, line: UInt = #line) {
+    reportMissing("API key check", in: screen, category: "apikey", file: file, line: line)
+}
+
+private func reportMissing(_ object: String, in screen: String, category: String, file: StaticString, line: UInt) {
     guard !AppConfiguration.isHostingUnitTests() else { return }
-    let message = "\(screen) found no station store in its environment"
-    Logger(subsystem: AppConfiguration.subsystem, category: "repository").fault("\(message, privacy: .public)")
+    let message = "\(screen) found no \(object) in its environment"
+    Logger(subsystem: AppConfiguration.subsystem, category: category).fault("\(message, privacy: .public)")
     assertionFailure(message, file: file, line: line)
 }
 
