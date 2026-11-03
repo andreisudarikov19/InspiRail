@@ -1,0 +1,47 @@
+//
+//  RecoveryButton.swift
+//  InspiRail
+//
+//  The button a failed station load offers
+//
+
+import SwiftUI
+
+/// The one thing a screen offers when the stations couldn't be loaded (#21):
+/// Retry, or the way to Settings' key section when only a key can help
+/// (`NetworkError.recoveryAction(for:)`). Discover, onboarding and the Home
+/// Station picker show it, so the same error offers the same button
+/// everywhere, with the look onboarding's Open Settings button had.
+struct RecoveryButton: View {
+    let action: RecoveryAction
+    /// The key-entry button's title: where it leads from this screen.
+    var keyEntryTitle: LocalizedStringKey = "Open Settings"
+    let retry: () -> Void
+    let enterKey: () -> Void
+    
+    var body: some View {
+        Button {
+            switch action {
+            case .retry:
+                retry()
+            case .keyEntry:
+                enterKey()
+            }
+        } label: {
+            label
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+        }
+        .buttonStyle(.borderedProminent)
+    }
+    
+    @ViewBuilder
+    private var label: some View {
+        switch action {
+        case .retry:
+            Label("Retry", systemImage: "arrow.clockwise")
+        case .keyEntry:
+            Label(keyEntryTitle, systemImage: "gear")
+        }
+    }
+}

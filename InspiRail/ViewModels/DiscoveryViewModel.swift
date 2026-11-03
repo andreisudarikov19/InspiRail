@@ -15,7 +15,9 @@ class DiscoveryViewModel: ObservableObject {
     @Published var station: Station?
     @Published var isLoading = true
     @Published var isReady = false
-    @Published var errorMessage: String?
+    /// Why the stations couldn't be loaded, and what Discover offers for
+    /// it: Retry or Open Settings (#21).
+    @Published var failure: LoadFailure?
     
     // MARK: - Private Properties
     private var allStations: [Station] = []
@@ -30,7 +32,7 @@ class DiscoveryViewModel: ObservableObject {
     /// Loads the Dutch stations from the app's station store (#18).
     func loadStations(from repository: StationsRepository) async {
         isLoading = true
-        errorMessage = nil
+        failure = nil
         
         do {
             // The Dutch stations
@@ -49,11 +51,22 @@ class DiscoveryViewModel: ObservableObject {
         } catch {
             // A cancelled load shows no message. Only Discover going away
             // cancels it, so nobody sees it still loading (#20).
-            guard let message = NetworkError.message(for: error) else { return }
-            self.errorMessage = message
+            guard let failure = LoadFailure(error) else { return }
+            self.failure = failure
             self.isLoading = false
             logger.error("Failed to load stations: \(error.localizedDescription)")
         }
+    }
+    
+    /// Loads the stations again after a failure (#21). The store drops its
+    /// list, joins a download already in flight and keeps a refused key
+    /// held back, so this never starts a second download or sends a key NS
+    /// refused. Discover shows its loading state from the start.
+    func retry(from repository: StationsRepository) async {
+        isLoading = true
+        failure = nil
+        await repository.forgetStations(keyChanged: false)
+        await loadStations(from: repository)
     }
     
     func randomize(excludeHomeStation homeCode: String? = nil) {

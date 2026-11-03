@@ -138,18 +138,18 @@ While a Retry runs, each screen shows its usual loading state: Discover "Consult
   - `DiscoveryView.init(openSettings: @escaping () -> Void)`. Its error panel becomes `ContentUnavailableView` with the same title, icon and message, and a `RecoveryButton` as its action: Retry runs `viewModel.retry(from:)` in a `Task`, with the store from the environment (`reportMissingStationStore(in: "Discover")` without one); key entry calls `openSettings`.
   - `MainTabView`: `private enum MainTab: Hashable { case discover, logbook, settings }`, `@State private var selectedTab = MainTab.discover`, `TabView(selection: $selectedTab)` with each tab `.tag`ged, and `DiscoveryView(openSettings: { selectedTab = .settings })`.
 
-- [ ] **Step 1: Write the failing tests** in `LoadRecoveryTests.swift`, as `extension StationStoreTests`, over `repository()`:
+- [x] **Step 1: Write the failing tests** in `LoadRecoveryTests.swift`, as `extension StationStoreTests`, over `repository()`:
   - `discoverOffersRetryOrKeyEntry(status: Int, action: RecoveryAction)`, with arguments `(503, .retry)` and `(401, .keyEntry)`: after `loadStations`, `failure` has that action and the message of `.serviceUnavailable(status: 503)` or `.keyRejected`; `isLoading` and `isReady` are false, and no station is shown.
   - `discoverRetryShowsTheLoadingStateThenTheStation`: replies three 503s, then `.stations`. After the failed load (3 requests), hold, start `retry` in a `Task` and wait for request 4: `isLoading` is true and `failure` nil. Release: `failure` is nil, `isReady` true, the station is one of `dutchCodes`, 4 requests, and `failures.values == [.serviceUnavailable(status: 503)]`.
   - `discoverRetryJoinsTheDownloadInFlight`: replies `[.failure(.notConnectedToInternet), .stations]`. After the failed load, hold, start another caller's `dutchStations()` (another window), wait for request 2, start `retry`, wait 300 ms: 2 requests. Release: a station shows, still 2 requests.
   - `discoverRetryAfterARejectedKeySendsNothing`: replies `[.status(401), .stations]`. After the load and a `retry`: `failure == LoadFailure(message: "NS didn't accept your API key. Check it in Settings.", action: .keyEntry)`, 1 request, and `failures.values == [.keyRejected, .keyRejected]` (each load reported once).
   - `discoverFailedRetryShowsTheNewError`: replies `[.failure(.notConnectedToInternet), .status(503)]`. After the load and a `retry`: the 503's message with `.retry`, 4 requests, and `failures.values == [.offline(.notConnectedToInternet), .serviceUnavailable(status: 503)]`.
-- [ ] **Step 2: Run them to verify they fail.** Expected: a build failure, `value of type 'DiscoveryViewModel' has no member 'failure'` or similar.
-- [ ] **Step 3: Implement** the view model as in Interfaces; its `catch` sets `failure = LoadFailure(error)` where it set the message (a cancellation still returns early, #20).
-- [ ] **Step 4: Implement** `RecoveryButton`, Discover's panel and init, and `MainTabView`'s selection, as in Interfaces.
-- [ ] **Step 5: Run them to verify they pass.** Expected: the suite passes, with 5 new tests, run as 6 cases. Then check the two tests that pin the store's existing behaviour: a `retry` that calls `forgetStations(keyChanged: true)` fails `discoverRetryJoinsTheDownloadInFlight` and `discoverRetryAfterARejectedKeySendsNothing`. Restore the file.
-- [ ] **Step 6: Typecheck.** Expected: 0 errors, 5 warnings.
-- [ ] **Step 7: Commit** `fix: offer Retry on Discover's load errors, and Open Settings on its key errors (#21)`
+- [x] **Step 2: Run them to verify they fail.** Expected: a build failure, `value of type 'DiscoveryViewModel' has no member 'failure'` or similar.
+- [x] **Step 3: Implement** the view model as in Interfaces; its `catch` sets `failure = LoadFailure(error)` where it set the message (a cancellation still returns early, #20).
+- [x] **Step 4: Implement** `RecoveryButton`, Discover's panel and init, and `MainTabView`'s selection, as in Interfaces.
+- [x] **Step 5: Run them to verify they pass.** Expected: the suite passes, with 5 new tests, run as 6 cases. Then check the two tests that pin the store's existing behaviour: a `retry` that calls `forgetStations(keyChanged: true)` fails `discoverRetryJoinsTheDownloadInFlight` and `discoverRetryAfterARejectedKeySendsNothing`. Restore the file.
+- [x] **Step 6: Typecheck.** Expected: 0 errors, 5 warnings.
+- [x] **Step 7: Commit** `fix: offer Retry on Discover's load errors, and Open Settings on its key errors (#21)`
 
 ### Task 4: The Home Station picker's error row
 
