@@ -82,13 +82,14 @@ nonisolated enum APIKeyStatus: Equatable, Sendable {
         }
     }
     
-    /// Whether the section offers Remove Key: only when NS answered about
-    /// this very key.
+    /// Whether the section offers Remove Key: only when NS rejected this very
+    /// key (401). A key NS refused (403) may only be over its usage limit, so
+    /// it is still a valid key, and the key field already replaces it.
     var offersRemoval: Bool {
         switch self {
-        case .rejected, .refused:
+        case .rejected:
             return true
-        case .working, .noKey, .keychainUnavailable, .cantCheck:
+        case .working, .noKey, .refused, .keychainUnavailable, .cantCheck:
             return false
         }
     }

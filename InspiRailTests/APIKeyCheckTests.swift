@@ -27,7 +27,7 @@ extension StationStoreTests {
             (.working, nil, false, false),
             (.noKey, "Not configured", true, false),
             (.rejected, "NS didn't accept this key.", true, true),
-            (.refused, "NS refused your API key. It may be over its usage limit. Try again later.", true, true),
+            (.refused, "NS refused your API key. It may be over its usage limit. Try again later.", true, false),
             (.keychainUnavailable, "Your NS API key can't be read right now. Try again in a moment.", true, false),
             (.cantCheck("Can't reach NS. Check your internet connection."), "Can't reach NS. Check your internet connection.", false, false),
         ]
@@ -94,8 +94,8 @@ extension StationStoreTests {
         #expect(keyCheck.status == .working)
     }
 
-    @Test("A 401 says NS rejected the key, and a 403 that it refused it; both offer to remove it", arguments: [401, 403])
-    func refusedKeyOffersRemoval(status: Int) async throws {
+    @Test("A 401 says NS rejected the key, and offers to remove it; a 403 says NS refused it, and offers only another key", arguments: [401, 403])
+    func onlyARejectedKeyOffersRemoval(status: Int) async throws {
         StubURLProtocol.reset(replies: [.status(status)])
         let (repository, _) = keyCheckRepository()
         let keyCheck = APIKeyCheck()
@@ -104,7 +104,8 @@ extension StationStoreTests {
 
         let shown = try #require(keyCheck.status)
         #expect(shown == (status == 401 ? .rejected : .refused))
-        #expect(shown.offersRemoval)
+        // A key over its quota is still a valid key.
+        #expect(shown.offersRemoval == (status == 401))
         #expect(shown.offersKeyEntry)
         #expect(StubURLProtocol.requests.count == 1)
     }
