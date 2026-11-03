@@ -33,20 +33,26 @@ nonisolated enum APIKeyStatus: Equatable, Sendable {
     case cantCheck(String)
     
     /// The status a failed check stands for, or nil for a cancellation,
-    /// which leaves the status as it was.
+    /// which leaves the status as it was. It follows what every screen
+    /// offers for the error (`NetworkError.recoveryAction(for:)`, #21): Retry
+    /// becomes "can't check", and key entry the key's own state.
     init?(for error: Error) {
-        guard let message = NetworkError.message(for: error) else { return nil }
-        switch error as? NetworkError {
-        case .noKey:
-            self = .noKey
-        case .keyRejected:
-            self = .rejected
-        case .forbidden:
-            self = .refused
-        case .keychainUnavailable:
-            self = .keychainUnavailable
-        default:
-            self = .cantCheck(message)
+        guard let failure = LoadFailure(error) else { return nil }
+        switch failure.action {
+        case .retry:
+            self = .cantCheck(failure.message)
+        case .keyEntry:
+            switch error as? NetworkError {
+            case .keyRejected:
+                self = .rejected
+            case .forbidden:
+                self = .refused
+            case .keychainUnavailable:
+                self = .keychainUnavailable
+            default:
+                // No key: the one other error only a key can help with
+                self = .noKey
+            }
         }
     }
     
