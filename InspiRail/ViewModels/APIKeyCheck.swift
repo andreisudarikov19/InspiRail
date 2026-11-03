@@ -139,12 +139,13 @@ final class APIKeyCheck {
         !isCheckingNewKey && status?.offersRemoval == true
     }
     
-    /// Counts the keys saved or removed, so that a check started before the
-    /// last change, which may be about the key since replaced, doesn't count.
-    /// Checks started since then all ask about the key stored now and share
-    /// the store's download, so they agree, and a newer one doesn't void an
-    /// older one.
-    @ObservationIgnored private var keyChanges = 0
+    /// Counts the keys saved or removed, in any window, so that a check
+    /// started before the last change, which may be about the key since
+    /// replaced, doesn't count. Checks started since then all ask about the
+    /// key stored now and share the store's download, so they agree, and a
+    /// newer one doesn't void an older one. Onboarding follows it the same
+    /// way, in every window (#42).
+    private(set) var keyChanges = 0
     
     /// Asks the store with the current key, and shows its answer. The store's
     /// download runs on when the check's task is cancelled, for example by

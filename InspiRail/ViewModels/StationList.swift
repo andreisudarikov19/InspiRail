@@ -26,12 +26,20 @@ final class StationList {
     /// Loads the stations. A load whose task was cancelled leaves the list
     /// loading: only the screen going away cancels it (#20).
     func load(from repository: StationsRepository) async {
+        show(await fetch(from: repository))
+    }
+    
+    /// Starts a load as `load(from:)` does, with its loading state, and
+    /// returns the store's answer without showing it. Onboarding shows it
+    /// through `show(_:)` once it knows the answer is about the key stored
+    /// now (#42).
+    func fetch(from repository: StationsRepository) async -> Result<[Station], Error> {
         isLoading = true
         failure = nil
         do {
-            show(.success(try await repository.dutchStations()))
+            return .success(try await repository.dutchStations())
         } catch {
-            show(.failure(error))
+            return .failure(error)
         }
     }
     
@@ -58,9 +66,15 @@ final class StationList {
     /// back, so this never starts a second download or sends a key NS
     /// refused. The list shows its loading state from the start.
     func retry(from repository: StationsRepository) async {
+        show(await fetchAgain(from: repository))
+    }
+    
+    /// Starts a Retry as `retry(from:)` does, and returns the store's answer
+    /// without showing it, as `fetch(from:)` does.
+    func fetchAgain(from repository: StationsRepository) async -> Result<[Station], Error> {
         isLoading = true
         failure = nil
         await repository.forgetStations(keyChanged: false)
-        await load(from: repository)
+        return await fetch(from: repository)
     }
 }

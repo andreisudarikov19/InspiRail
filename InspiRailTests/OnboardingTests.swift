@@ -36,7 +36,7 @@ extension StationStoreTests {
         #expect(!onboarding.offersSearch)
         #expect(onboarding.keyProblem == nil)
 
-        await onboarding.load(from: repository())
+        await onboarding.load(from: repository(), following: APIKeyCheck())
 
         #expect(onboarding.step == .station)
         #expect(onboarding.offersSearch)
@@ -68,7 +68,7 @@ extension StationStoreTests {
         defer { defaults.removePersistentDomain(forName: suite) }
         let onboarding = Onboarding(defaults: defaults)
 
-        await onboarding.load(from: StationsRepository(backend: api(keyProvider: provider(storage))))
+        await onboarding.load(from: StationsRepository(backend: api(keyProvider: provider(storage))), following: APIKeyCheck())
 
         #expect(onboarding.step == .key)
         #expect(onboarding.keyProblem == message)
@@ -89,7 +89,7 @@ extension StationStoreTests {
         defer { defaults.removePersistentDomain(forName: suite) }
         let onboarding = Onboarding(defaults: defaults)
 
-        await onboarding.load(from: repository())
+        await onboarding.load(from: repository(), following: APIKeyCheck())
 
         #expect(onboarding.step == .station)
         #expect(onboarding.stationList.failure == LoadFailure(message: message, action: .retry))
@@ -102,10 +102,10 @@ extension StationStoreTests {
         let (defaults, suite) = scratchDefaults()
         defer { defaults.removePersistentDomain(forName: suite) }
         let keyStep = Onboarding(defaults: defaults)
-        await keyStep.load(from: StationsRepository(backend: api(keyProvider: provider(TestKeyStorage()))))
+        await keyStep.load(from: StationsRepository(backend: api(keyProvider: provider(TestKeyStorage()))), following: APIKeyCheck())
         StubURLProtocol.reset(replies: [.failure(.notConnectedToInternet)])
         let stationStep = Onboarding(defaults: defaults)
-        await stationStep.load(from: repository())
+        await stationStep.load(from: repository(), following: APIKeyCheck())
         let loading = Onboarding(defaults: defaults)
 
         let cancellations: [any Error] = [CancellationError(), URLError(.cancelled)]
@@ -135,7 +135,7 @@ extension StationStoreTests {
         let (defaults, suite) = scratchDefaults()
         defer { defaults.removePersistentDomain(forName: suite) }
         let onboarding = Onboarding(defaults: defaults)
-        await onboarding.load(from: repository)
+        await onboarding.load(from: repository, following: keyCheck)
         #expect(onboarding.step == .key)
         #expect(!onboarding.canSaveKey)
         onboarding.keyInput = "  new-test-key \n"
@@ -177,7 +177,7 @@ extension StationStoreTests {
         let (defaults, suite) = scratchDefaults()
         defer { defaults.removePersistentDomain(forName: suite) }
         let onboarding = Onboarding(defaults: defaults)
-        await onboarding.load(from: repository)
+        await onboarding.load(from: repository, following: keyCheck)
 
         onboarding.keyInput = "first-test-key"
         await onboarding.saveKey(to: storage, checkingWith: keyCheck, in: repository)
@@ -212,7 +212,7 @@ extension StationStoreTests {
         let (defaults, suite) = scratchDefaults()
         defer { defaults.removePersistentDomain(forName: suite) }
         let onboarding = Onboarding(defaults: defaults)
-        await onboarding.load(from: repository)
+        await onboarding.load(from: repository, following: keyCheck)
 
         onboarding.keyInput = "new-test-key"
         await onboarding.saveKey(to: storage, checkingWith: keyCheck, in: repository)
@@ -224,7 +224,7 @@ extension StationStoreTests {
         #expect(await storage.storedKey == "new-test-key")
         #expect(keyCheck.status == .cantCheck("Can't reach NS. Check your internet connection."))
 
-        await onboarding.retry(from: repository)
+        await onboarding.retry(from: repository, following: keyCheck)
 
         #expect(onboarding.offersSearch)
         #expect(onboarding.stationList.stations.map(\.identifiers.code) == dutchCodes)
@@ -240,19 +240,19 @@ extension StationStoreTests {
         let (defaults, suite) = scratchDefaults()
         defer { defaults.removePersistentDomain(forName: suite) }
         let onboarding = Onboarding(defaults: defaults)
-        await onboarding.load(from: repository)
+        await onboarding.load(from: repository, following: keyCheck)
         onboarding.keyInput = "new-test-key"
         await onboarding.saveKey(to: storage, checkingWith: keyCheck, in: repository)
         #expect(onboarding.step == .station)
 
-        await onboarding.retry(from: repository)
+        await onboarding.retry(from: repository, following: keyCheck)
 
         #expect(onboarding.step == .key)
         #expect(onboarding.keyProblem == "NS didn't accept this key.")
         #expect(StubURLProtocol.requests.count == 2)
     }
 
-    @Test("A download still running with the old key, in another window, never counts as the saved key's answer")
+    @Test("A download still running with the old key, in another window, never counts as an answer about the saved key: that window loads again and shows the list, with no request")
     func savingAKeyDoesntCountAnOldKeysDownload() async throws {
         StubURLProtocol.reset(replies: [.status(401), .status(401), .stations])
         let storage = TestKeyStorage(key: "old-test-key")
@@ -262,7 +262,7 @@ extension StationStoreTests {
         defer { defaults.removePersistentDomain(forName: suite) }
         let windowA = Onboarding(defaults: defaults)
         let windowB = Onboarding(defaults: defaults)
-        await windowA.load(from: repository)
+        await windowA.load(from: repository, following: keyCheck)
         #expect(windowA.step == .key)
 
         // Once the refusal's pause is over, a window opened then sends the
@@ -270,27 +270,103 @@ extension StationStoreTests {
         clock.advance(by: AppConfiguration.API.refusedKeyPause)
         StubURLProtocol.hold()
         defer { StubURLProtocol.release() }
-        let windowBLoad = Task { await windowB.load(from: repository) }
+        let windowBLoad = Task { await windowB.load(from: repository, following: keyCheck) }
         await StubURLProtocol.waitForRequests(2)
         StubURLProtocol.stopHolding()
         windowA.keyInput = "new-test-key"
         await windowA.saveKey(to: storage, checkingWith: keyCheck, in: repository)
         #expect(windowA.step == .station)
         #expect(windowA.stationList.stations.map(\.identifiers.code) == dutchCodes)
+        // The key change reaches window B while it loads, as the screen
+        // passes it on: B leaves it to that load.
+        await windowB.keySavedOrRemoved(in: repository, following: keyCheck)
+        #expect(windowB.stationList.isLoading)
         StubURLProtocol.release()
         await windowBLoad.value
 
-        // The window that waited on the old key gets its answer; the saved
-        // key's window and the key check don't.
-        #expect(windowB.step == .key)
-        #expect(windowB.keyProblem == "NS didn't accept this key.")
+        // The old key's rejection counts for no window and not for the key
+        // check: B's load, which started before the key changed, loads again
+        // and gets the list the store kept for the new key.
+        #expect(windowB.step == .station)
+        #expect(windowB.stationList.stations.map(\.identifiers.code) == dutchCodes)
         #expect(windowA.step == .station)
         #expect(keyCheck.status == .working)
         #expect(sentKeys == ["old-test-key", "old-test-key", "new-test-key"])
-        // And it follows the key check on to the list, with no request.
-        await windowB.keyStatusChanged(to: keyCheck.status, in: repository)
-        #expect(windowB.step == .station)
-        #expect(StubURLProtocol.requests.count == 3)
+    }
+
+    @Test("Two windows saving different keys at once both show the later key's answer, never the earlier key's", arguments: [
+        ([StubURLProtocol.Reply.status(401), .stations], Onboarding.Step.station, nil as String?, APIKeyStatus.working),
+        ([.stations, .status(401)], .key, "NS didn't accept this key.", .rejected),
+    ])
+    func twoKeysSavedAtOnceShowTheLaterKeysAnswer(replies: [StubURLProtocol.Reply], step: Onboarding.Step, problem: String?, status: APIKeyStatus) async {
+        StubURLProtocol.reset(replies: replies)
+        let storage = TestKeyStorage()
+        let repository = StationsRepository(backend: api(keyProvider: provider(storage)))
+        let keyCheck = APIKeyCheck()
+        let (defaults, suite) = scratchDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let windowA = Onboarding(defaults: defaults)
+        let windowB = Onboarding(defaults: defaults)
+        await windowA.load(from: repository, following: keyCheck)
+        await windowB.load(from: repository, following: keyCheck)
+        StubURLProtocol.hold()
+        defer { StubURLProtocol.release() }
+
+        windowA.keyInput = "first-test-key"
+        let saveA = Task { await windowA.saveKey(to: storage, checkingWith: keyCheck, in: repository) }
+        await StubURLProtocol.waitForRequests(1)
+        windowB.keyInput = "second-test-key"
+        let saveB = Task { await windowB.saveKey(to: storage, checkingWith: keyCheck, in: repository) }
+        await StubURLProtocol.waitForRequests(2)
+        StubURLProtocol.release()
+        await saveA.value
+        await saveB.value
+
+        // Window A's check answered for the first key, which the second
+        // replaced: A loads again, and gets the second key's answer from
+        // the store, with no request.
+        for window in [windowA, windowB] {
+            #expect(window.step == step)
+            #expect(window.keyProblem == problem)
+            #expect(window.stationList.stations.map(\.identifiers.code) == (step == .station ? dutchCodes : []))
+        }
+        #expect(keyCheck.status == status)
+        #expect(await storage.storedKey == "second-test-key")
+        #expect(sentKeys == ["first-test-key", "second-test-key"])
+    }
+
+    @Test("A window saving a key shows its own check's answer, and doesn't load again for its own key change")
+    func aWindowSavingAKeyDoesntLoadTwice() async throws {
+        StubURLProtocol.reset(replies: [.failure(.notConnectedToInternet), .stations])
+        let storage = TestKeyStorage()
+        let repository = StationsRepository(backend: api(keyProvider: provider(storage)))
+        let keyCheck = APIKeyCheck()
+        let (defaults, suite) = scratchDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let onboarding = Onboarding(defaults: defaults)
+        await onboarding.load(from: repository, following: keyCheck)
+        onboarding.keyInput = "new-test-key"
+        StubURLProtocol.hold()
+        defer { StubURLProtocol.release() }
+
+        let save = Task { await onboarding.saveKey(to: storage, checkingWith: keyCheck, in: repository) }
+        await StubURLProtocol.waitForRequests(1)
+        // Its own key change reaches it while it saves: it stays on the key
+        // step, saving.
+        let follow = Task { await onboarding.keySavedOrRemoved(in: repository, following: keyCheck) }
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(onboarding.step == .key)
+        #expect(!onboarding.stationList.isLoading)
+        StubURLProtocol.release()
+        await save.value
+        await follow.value
+        // And once more after the save has shown its answer, as a screen
+        // that passes the change on late would.
+        await onboarding.keySavedOrRemoved(in: repository, following: keyCheck)
+
+        #expect(onboarding.step == .station)
+        #expect(onboarding.stationList.failure == LoadFailure(message: "Can't reach NS. Check your internet connection.", action: .retry))
+        #expect(StubURLProtocol.requests.count == 1)
     }
 
     @Test("A key that can't be written to the Keychain shows the Keychain's error, and leaves the key step as it was")
@@ -301,7 +377,7 @@ extension StationStoreTests {
         let (defaults, suite) = scratchDefaults()
         defer { defaults.removePersistentDomain(forName: suite) }
         let onboarding = Onboarding(defaults: defaults)
-        await onboarding.load(from: repository)
+        await onboarding.load(from: repository, following: keyCheck)
 
         onboarding.keyInput = "new-test-key"
         await onboarding.saveKey(to: storage, checkingWith: keyCheck, in: repository)
@@ -326,22 +402,22 @@ extension StationStoreTests {
         defer { defaults.removePersistentDomain(forName: suite) }
         let windowA = Onboarding(defaults: defaults)
         let windowB = Onboarding(defaults: defaults)
-        await windowA.load(from: repository)
-        await windowB.load(from: repository)
+        await windowA.load(from: repository, following: keyCheck)
+        await windowB.load(from: repository, following: keyCheck)
         windowA.keyInput = "new-test-key"
         await windowA.saveKey(to: storage, checkingWith: keyCheck, in: repository)
         #expect(windowA.step == .station)
         #expect(windowB.step == .key)
 
-        await windowB.keyStatusChanged(to: keyCheck.status, in: repository)
+        await windowB.keySavedOrRemoved(in: repository, following: keyCheck)
 
         #expect(windowB.step == .station)
         #expect(windowB.stationList.stations.map(\.identifiers.code) == dutchCodes)
         #expect(StubURLProtocol.requests.count == 1)
     }
 
-    @Test("A key NS rejected, saved in another window's onboarding, leaves this one as it was")
-    func aKeyRejectedInAnotherWindowLeavesThisOneAsItWas() async {
+    @Test("A key NS rejected, saved in another window's onboarding, shows the rejection here too, with no request")
+    func aKeyRejectedInAnotherWindowShowsTheRejectionHere() async {
         StubURLProtocol.reset(replies: [.status(401)])
         let storage = TestKeyStorage()
         let repository = StationsRepository(backend: api(keyProvider: provider(storage)))
@@ -350,18 +426,61 @@ extension StationStoreTests {
         defer { defaults.removePersistentDomain(forName: suite) }
         let windowA = Onboarding(defaults: defaults)
         let windowB = Onboarding(defaults: defaults)
-        await windowA.load(from: repository)
-        await windowB.load(from: repository)
+        await windowA.load(from: repository, following: keyCheck)
+        await windowB.load(from: repository, following: keyCheck)
         windowA.keyInput = "new-test-key"
         await windowA.saveKey(to: storage, checkingWith: keyCheck, in: repository)
         #expect(keyCheck.status == .rejected)
 
-        await windowB.keyStatusChanged(to: keyCheck.status, in: repository)
+        await windowB.keySavedOrRemoved(in: repository, following: keyCheck)
 
         #expect(windowB.step == .key)
-        #expect(windowB.keyProblem == nil)
-        #expect(windowB.stationList.failure == LoadFailure(message: "No NS API key is set. Add one in Settings.", action: .keyEntry))
+        #expect(windowB.keyProblem == "NS didn't accept this key.")
         #expect(StubURLProtocol.requests.count == 1)
+    }
+
+    @Test("A key saved in another window while NS can't be reached moves this window to the station step with Retry, and Retry loads the list")
+    func aKeyUncheckedInAnotherWindowShowsRetryHere() async throws {
+        StubURLProtocol.reset(replies: [.failure(.notConnectedToInternet), .stations])
+        let storage = TestKeyStorage()
+        let repository = StationsRepository(backend: api(keyProvider: provider(storage)))
+        let keyCheck = APIKeyCheck()
+        let (defaults, suite) = scratchDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let windowA = Onboarding(defaults: defaults)
+        let windowB = Onboarding(defaults: defaults)
+        await windowA.load(from: repository, following: keyCheck)
+        await windowB.load(from: repository, following: keyCheck)
+        #expect(StubURLProtocol.requests.isEmpty)
+        StubURLProtocol.hold()
+        defer { StubURLProtocol.release() }
+
+        windowA.keyInput = "new-test-key"
+        let save = Task { await windowA.saveKey(to: storage, checkingWith: keyCheck, in: repository) }
+        await StubURLProtocol.waitForRequests(1)
+        // The key change reaches window B, idle on its key step: it loads
+        // again, and joins window A's check.
+        let follow = Task { await windowB.keySavedOrRemoved(in: repository, following: keyCheck) }
+        try await Task.sleep(for: .milliseconds(300))
+        StubURLProtocol.release()
+        await save.value
+        await follow.value
+
+        let offline = LoadFailure(message: "Can't reach NS. Check your internet connection.", action: .retry)
+        #expect(windowA.stationList.failure == offline)
+        #expect(windowB.step == .station)
+        #expect(windowB.stationList.failure == offline)
+        #expect(StubURLProtocol.requests.count == 1)
+
+        // A's Retry loads the list, with no key change, so B keeps its own
+        // Retry, which loads the list too.
+        await windowA.retry(from: repository, following: keyCheck)
+        #expect(windowA.stationList.stations.map(\.identifiers.code) == dutchCodes)
+        #expect(windowB.stationList.failure == offline)
+        #expect(StubURLProtocol.requests.count == 2)
+        await windowB.retry(from: repository, following: keyCheck)
+        #expect(windowB.stationList.stations.map(\.identifiers.code) == dutchCodes)
+        #expect(sentKeys == ["new-test-key", "new-test-key", "new-test-key"])
     }
 
     // MARK: - Choosing the home station (#22)
@@ -376,7 +495,7 @@ extension StationStoreTests {
         let (defaults, suite) = scratchDefaults()
         defer { defaults.removePersistentDomain(forName: suite) }
         let onboarding = Onboarding(defaults: defaults)
-        await onboarding.load(from: repository())
+        await onboarding.load(from: repository(), following: APIKeyCheck())
         let writesNothing = {
             #expect(defaults.object(forKey: "homeStationCode") == nil)
             #expect(defaults.object(forKey: "homeStationName") == nil)
@@ -403,7 +522,7 @@ extension StationStoreTests {
         let (defaults, suite) = scratchDefaults()
         defer { defaults.removePersistentDomain(forName: suite) }
         let onboarding = Onboarding(defaults: defaults)
-        await onboarding.load(from: repository())
+        await onboarding.load(from: repository(), following: APIKeyCheck())
         onboarding.select(try station("UT", in: onboarding))
 
         onboarding.startExploring()

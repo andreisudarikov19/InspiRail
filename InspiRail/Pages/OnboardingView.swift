@@ -44,9 +44,10 @@ struct OnboardingView: View {
             .task {
                 await loadStations()
             }
-            // A key that works, saved in another window, moves this one on
-            .onChange(of: keyCheck?.status) { _, status in
-                keyStatusChanged(to: status)
+            // A key saved in any window: this one shows the answer about
+            // the key stored now too (#42)
+            .onChange(of: keyCheck?.keyChanges) {
+                keySavedOrRemoved()
             }
             .alert("API Key Error", isPresented: Binding(
                 get: { onboarding.keySaveError != nil },
@@ -256,7 +257,11 @@ struct OnboardingView: View {
             reportMissingStationStore(in: "Onboarding")
             return
         }
-        await onboarding.load(from: stationsRepository)
+        guard let keyCheck else {
+            reportMissingKeyCheck(in: "Onboarding")
+            return
+        }
+        await onboarding.load(from: stationsRepository, following: keyCheck)
     }
 
     /// Loads the stations again, in a task of its own (#21).
@@ -265,7 +270,11 @@ struct OnboardingView: View {
             reportMissingStationStore(in: "Onboarding")
             return
         }
-        Task { await onboarding.retry(from: stationsRepository) }
+        guard let keyCheck else {
+            reportMissingKeyCheck(in: "Onboarding")
+            return
+        }
+        Task { await onboarding.retry(from: stationsRepository, following: keyCheck) }
     }
 
     /// Saves the key in the field and loads the stations with it, in a task
@@ -282,12 +291,16 @@ struct OnboardingView: View {
         Task { await onboarding.saveKey(to: KeychainManager.shared, checkingWith: keyCheck, in: stationsRepository) }
     }
 
-    /// Follows the app's key status, which a save in another window changes.
-    private func keyStatusChanged(to status: APIKeyStatus?) {
+    /// Follows the keys saved in any window, in a task of its own (#42).
+    private func keySavedOrRemoved() {
         guard let stationsRepository else {
             reportMissingStationStore(in: "Onboarding")
             return
         }
-        Task { await onboarding.keyStatusChanged(to: status, in: stationsRepository) }
+        guard let keyCheck else {
+            reportMissingKeyCheck(in: "Onboarding")
+            return
+        }
+        Task { await onboarding.keySavedOrRemoved(in: stationsRepository, following: keyCheck) }
     }
 }
