@@ -28,7 +28,11 @@ struct RecoveryButton: View {
                 enterKey()
             }
         } label: {
+            // White, as the prominent style draws its title. In a List row
+            // the icon otherwise takes the button's own blue, and vanishes
+            // into its background.
             label
+                .foregroundStyle(.white)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
         }
