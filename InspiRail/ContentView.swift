@@ -14,14 +14,16 @@ private enum MainTab: Hashable {
 
 struct MainTabView: View {
     @AppStorage("homeStationCode") private var homeStationCode: String = ""
-    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = false
     /// The tab this window shows. Each window has its own, so Discover's
     /// Open Settings switches only the window it was tapped in (#21).
     @State private var selectedTab = MainTab.discover
     
     var body: some View {
-        if homeStationCode.isEmpty {
-                OnboardingView(hasCompletedOnboarding: $hasCompletedOnboarding) // Force selection if empty
+        // Onboarding until a home station is stored, which only its Start
+        // Exploring does (#22). The home station is the only flag, so users
+        // of earlier versions, who have one, go straight to the tabs.
+        if !Onboarding.isDone(homeStationCode: homeStationCode) {
+            OnboardingView()
         } else {
             TabView(selection: $selectedTab) {
                 // Tab 1: Discovery

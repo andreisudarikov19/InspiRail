@@ -21,15 +21,6 @@ struct SettingsView: View {
     /// Whether Settings' Retry is checking the key again (#21).
     @State private var retryInFlight = false
     @Query private var visitedStations: [VisitedStation]
-    /// Closes Settings when it is shown as a sheet. Nil on the Settings tab.
-    private let done: (() -> Void)?
-    
-    /// - Parameter done: Shown as a Done button that calls it, when Settings
-    ///   is shown as a sheet, as onboarding shows it (#21). The Settings tab
-    ///   passes none, and shows no Done button.
-    init(done: (() -> Void)? = nil) {
-        self.done = done
-    }
 
     var body: some View {
         NavigationStack {
@@ -130,13 +121,6 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
-            .toolbar {
-                if let done {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Done", action: done)
-                    }
-                }
-            }
             .task { await refreshKeyStatus() }
             .alert("Reset History?", isPresented: $showingResetAlert) {
                 Button("Cancel", role: .cancel) { }

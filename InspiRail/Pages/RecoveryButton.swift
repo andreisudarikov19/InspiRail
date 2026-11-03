@@ -12,6 +12,8 @@ import SwiftUI
 /// (`NetworkError.recoveryAction(for:)`). Discover, onboarding and the Home
 /// Station picker show it, so the same error offers the same button
 /// everywhere, with the look onboarding's Open Settings button had.
+/// Onboarding shows it for Retry only: its key errors show its key step
+/// (#42).
 struct RecoveryButton: View {
     let action: RecoveryAction
     /// The key-entry button's title: where it leads from this screen.

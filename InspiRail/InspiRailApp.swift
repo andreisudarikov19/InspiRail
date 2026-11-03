@@ -27,9 +27,9 @@ struct InspiRailApp: App {
     @State private var stationsRepository: StationsRepository?
     
     /// What Settings says about the API key, created once for the whole app
-    /// so that every window and onboarding's Settings sheet show one status
-    /// for the one key they share (#19). Nil while hosting the unit tests,
-    /// like the store it checks.
+    /// so that every window shows one status for the one key they share
+    /// (#19), and saves a key, from Settings or onboarding, the same way
+    /// (#42). Nil while hosting the unit tests, like the store it checks.
     @State private var apiKeyCheck: APIKeyCheck?
     
     init() {

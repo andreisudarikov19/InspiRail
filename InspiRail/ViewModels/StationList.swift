@@ -8,10 +8,10 @@
 import Foundation
 import Observation
 
-/// The Dutch stations that onboarding and the Home Station picker list for
-/// choosing the home station, loaded from the app's station store (#18):
-/// loading, loaded, or failed with the message and the one action the
-/// screen offers for it (#21).
+/// The Dutch stations that onboarding (through `Onboarding`, #42) and the
+/// Home Station picker list for choosing the home station, loaded from the
+/// app's station store (#18): loading, loaded, or failed with the message
+/// and the one action the screen offers for it (#21).
 @MainActor
 @Observable
 final class StationList {
