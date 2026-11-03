@@ -112,4 +112,78 @@ extension StationStoreTests {
         #expect(StubURLProtocol.requests.count == 4)
         #expect(failures.values == [.offline(.notConnectedToInternet), .serviceUnavailable(status: 503)])
     }
+
+    // MARK: - The Home Station picker
+
+    @Test("The Home Station picker shows the error and Retry when the stations can't be loaded, not an empty list")
+    func pickerShowsTheErrorAndRetryOnAFailure() async {
+        StubURLProtocol.reset(replies: [.status(503)])
+        let stationList = StationList()
+        #expect(stationList.isLoading)
+
+        await stationList.load(from: repository())
+
+        #expect(!stationList.isLoading)
+        #expect(stationList.stations.isEmpty)
+        #expect(stationList.failure == LoadFailure(message: "NS isn't available right now. Try again later.", action: .retry))
+    }
+
+    @Test("Right after Remove Key, the Home Station picker shows the key message and the way to the key")
+    func pickerShowsTheKeyMessageRightAfterTheKeyIsRemoved() async {
+        let (repository, storage) = keyCheckRepository()
+        let keyCheck = APIKeyCheck()
+        await keyCheck.refresh(using: repository)
+        #expect(keyCheck.status == .working)
+        // What Remove Key does: the store drops its list.
+        await storage.removeKey()
+        await keyCheck.keyChanged(in: repository)
+
+        let stationList = StationList()
+        await stationList.load(from: repository)
+
+        #expect(stationList.failure == LoadFailure(message: "No NS API key is set. Add one in Settings.", action: .keyEntry))
+        #expect(stationList.stations.isEmpty)
+        #expect(StubURLProtocol.requests.count == 1)
+    }
+
+    @Test("After a saved key is rejected, the Home Station picker shows the key message and the way to the key")
+    func pickerShowsTheKeyMessageAfterASavedKeyIsRejected() async {
+        StubURLProtocol.reset(replies: [.stations, .status(401)])
+        let (repository, storage) = keyCheckRepository()
+        let keyCheck = APIKeyCheck()
+        await keyCheck.refresh(using: repository)
+        await storage.setKey("new-test-key")
+        await keyCheck.keyChanged(in: repository)
+        #expect(keyCheck.status == .rejected)
+
+        let stationList = StationList()
+        await stationList.load(from: repository)
+
+        #expect(stationList.failure == LoadFailure(message: "NS didn't accept your API key. Check it in Settings.", action: .keyEntry))
+        #expect(stationList.stations.isEmpty)
+        #expect(StubURLProtocol.requests.count == 2)
+    }
+
+    @Test("The Home Station picker's Retry shows the loading state, then the stations")
+    func pickerShowsTheStationsAfterASuccessfulRetry() async {
+        StubURLProtocol.reset(replies: [.failure(.notConnectedToInternet), .stations])
+        let repository = repository()
+        let stationList = StationList()
+        await stationList.load(from: repository)
+        #expect(stationList.failure?.action == .retry)
+        StubURLProtocol.hold()
+        defer { StubURLProtocol.release() }
+
+        let retry = Task { await stationList.retry(from: repository) }
+        await StubURLProtocol.waitForRequests(2)
+        #expect(stationList.isLoading)
+        #expect(stationList.failure == nil)
+        StubURLProtocol.release()
+        await retry.value
+
+        #expect(stationList.stations.map(\.identifiers.code) == dutchCodes)
+        #expect(stationList.failure == nil)
+        #expect(!stationList.isLoading)
+        #expect(StubURLProtocol.requests.count == 2)
+    }
 }

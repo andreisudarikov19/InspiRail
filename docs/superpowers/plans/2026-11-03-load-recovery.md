@@ -162,17 +162,17 @@ While a Retry runs, each screen shows its usual loading state: Discover "Consult
 - Consumes: Task 1's `LoadFailure`; Task 3's `RecoveryButton`; #19's `APIKeyCheck.refresh(using:)` and `keyChanged(in:)`, and the suite's `keyCheckRepository(key:)` and `TestKeyStorage`.
 - Produces: `@MainActor @Observable final class StationList` with `private(set) var stations: [Station] = []`, `private(set) var isLoading = true`, `private(set) var failure: LoadFailure?`, `func load(from repository: StationsRepository) async` (sets `isLoading` and clears `failure`, then keeps the Dutch stations or `LoadFailure(error)`; a cancellation leaves it loading, #20) and `func retry(from repository: StationsRepository) async` (the loading state first, then `forgetStations(keyChanged: false)` and `load(from:)`).
 
-- [ ] **Step 1: Write the failing tests** in `LoadRecoveryTests.swift`:
+- [x] **Step 1: Write the failing tests** in `LoadRecoveryTests.swift`:
   - `pickerShowsTheErrorAndRetryOnAFailure`: a new list is loading; after `load` against `.status(503)`, it isn't, has no stations, and `failure == LoadFailure(message: "NS isn't available right now. Try again later.", action: .retry)`.
   - `pickerShowsTheKeyMessageRightAfterTheKeyIsRemoved`: over `keyCheckRepository()`, an `APIKeyCheck` refresh stores the list; `storage.removeKey()` and `keyChanged(in:)`, as Remove Key does. A list's `load` gives `LoadFailure(message: "No NS API key is set. Add one in Settings.", action: .keyEntry)` and no stations, with 1 request in all.
   - `pickerShowsTheKeyMessageAfterASavedKeyIsRejected`: replies `[.stations, .status(401)]`; a refresh, then `setKey("new-test-key")` and `keyChanged(in:)` (`.rejected`). A list's `load` gives `LoadFailure(message: "NS didn't accept your API key. Check it in Settings.", action: .keyEntry)`, with 2 requests in all.
   - `pickerShowsTheStationsAfterASuccessfulRetry`: replies `[.failure(.notConnectedToInternet), .stations]`. After the failed `load`, hold, start `retry` in a `Task`, wait for request 2: loading, no failure. Release: the stations are `dutchCodes`, no failure, not loading, 2 requests.
-- [ ] **Step 2: Run them to verify they fail.** Expected: a build failure, `cannot find 'StationList' in scope`.
-- [ ] **Step 3: Implement** `StationList` as in Interfaces, with a doc comment naming both pickers.
-- [ ] **Step 4: Implement the picker.** `@State private var stationList = StationList()` replaces `allStations` and `isLoading`, and `fetchStations()` goes. The `List` shows the spinner while loading; else, with a failure, one row: the failure's message, and a `RecoveryButton` whose key entry is "Back to Settings" and calls `dismiss()`, and whose Retry runs `stationList.retry(from:)` in a `Task`; else the stations as now. The `.task` loads only while the list has no stations, and reports a missing store as now.
-- [ ] **Step 5: Run them to verify they pass.** Expected: the suite passes, with 4 new tests.
-- [ ] **Step 6: Typecheck.** Expected: 0 errors, 5 warnings. `git grep -n "print(" InspiRail/Pages/SettingsView.swift` finds nothing.
-- [ ] **Step 7: Commit** `fix: show the Home Station picker's load error with Retry or the way back to the key, not an empty list (#21)`
+- [x] **Step 2: Run them to verify they fail.** Expected: a build failure, `cannot find 'StationList' in scope`.
+- [x] **Step 3: Implement** `StationList` as in Interfaces, with a doc comment naming both pickers.
+- [x] **Step 4: Implement the picker.** `@State private var stationList = StationList()` replaces `allStations` and `isLoading`, and `fetchStations()` goes. The `List` shows the spinner while loading; else, with a failure, one row: the failure's message, and a `RecoveryButton` whose key entry is "Back to Settings" and calls `dismiss()`, and whose Retry runs `stationList.retry(from:)` in a `Task`; else the stations as now. The `.task` loads only while the list has no stations, and reports a missing store as now.
+- [x] **Step 5: Run them to verify they pass.** Expected: the suite passes, with 4 new tests.
+- [x] **Step 6: Typecheck.** Expected: 0 errors, 5 warnings. `git grep -n "print(" InspiRail/Pages/SettingsView.swift` finds nothing.
+- [x] **Step 7: Commit** `fix: show the Home Station picker's load error with Retry or the way back to the key, not an empty list (#21)`
 
 ### Task 5: Onboarding offers Retry, and its Settings sheet a Done button
 
