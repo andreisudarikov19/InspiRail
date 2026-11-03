@@ -101,7 +101,10 @@ actor BackendAPI {
         // Performance optimizations
         config.timeoutIntervalForRequest = timeout
         config.timeoutIntervalForResource = resourceTimeout
-        config.waitsForConnectivity = true
+        // Every load is one the user started, by opening a screen or
+        // tapping Retry, so none waits for a network: offline, a request
+        // fails at once and the screen says so (#21)
+        config.waitsForConnectivity = false
         config.allowsCellularAccess = true
         config.allowsExpensiveNetworkAccess = true
         config.allowsConstrainedNetworkAccess = true

@@ -34,12 +34,15 @@ The NS API key lives only in the iOS Keychain. Nothing is compiled into the app,
 ```
 InspiRail/
 ├── Models/                    SwiftData & Codable data models, logbook store
-├── NetworkEngine/             Network errors, retry timing, refused-key
-│                              memory
+├── NetworkEngine/             Network errors and what a screen offers
+│                              for each, retry timing, refused-key memory
 ├── Pages/                     SwiftUI screens (Discovery, Onboarding,
-│                              Settings, VisitedList, LogbookUnavailable)
-├── ViewModels/                View-models, and the station store and
-│                              Settings' key check every window shares
+│                              Settings, VisitedList, LogbookUnavailable),
+│                              and the button a failed load offers
+├── ViewModels/                View-models, the station list the
+│                              home-station pickers load, and the station
+│                              store and Settings' key check every window
+│                              shares
 ├── BackendAPI.swift           NS API client (actor) and the app's one
 │                              network session
 ├── KeychainManager.swift      API-key storage

@@ -132,9 +132,35 @@ extension StationStoreTests {
         #expect(NetworkError.message(for: CancellationError()) == nil)
         #expect(NetworkError.message(for: URLError(.cancelled)) == nil)
         #expect(NetworkError.message(for: CocoaError(.fileNoSuchFile)) == "Couldn't load stations. Try again later.")
+    }
 
-        let keyCases: [NetworkError] = [.noKey, .keychainUnavailable, .keyRejected, .forbidden]
-        #expect(messages.map(\.0).filter(\.concernsTheKey) == keyCases)
+    // MARK: - What a screen offers (#21)
+
+    @Test("Each error leads to key entry when only a key can help, to Retry otherwise, and a cancellation to nothing", arguments: [
+        (NetworkError.noKey as any Error, RecoveryAction.keyEntry as RecoveryAction?),
+        (NetworkError.keychainUnavailable, .keyEntry),
+        (NetworkError.keyRejected, .keyEntry),
+        (NetworkError.forbidden, .keyEntry),
+        (NetworkError.tooManyRequests, .retry),
+        (NetworkError.serviceUnavailable(status: 503), .retry),
+        (NetworkError.offline(.notConnectedToInternet), .retry),
+        (NetworkError.offline(.timedOut), .retry),
+        (NetworkError.unreadableData, .retry),
+        (NetworkError.invalidURL, .retry),
+        (CocoaError(.fileNoSuchFile), .retry),
+        (CancellationError(), nil),
+        (URLError(.cancelled), nil),
+    ])
+    func eachErrorHasItsRecoveryAction(error: any Error, action: RecoveryAction?) {
+        #expect(NetworkError.recoveryAction(for: error) == action)
+    }
+
+    @Test("A failed load carries its message and its action to the screen, and a cancellation carries nothing")
+    func loadFailureHasTheMessageAndTheAction() {
+        #expect(LoadFailure(NetworkError.serviceUnavailable(status: 503)) == LoadFailure(message: "NS isn't available right now. Try again later.", action: .retry))
+        #expect(LoadFailure(NetworkError.noKey) == LoadFailure(message: "No NS API key is set. Add one in Settings.", action: .keyEntry))
+        #expect(LoadFailure(CancellationError()) == nil)
+        #expect(LoadFailure(URLError(.cancelled)) == nil)
     }
 
     // MARK: - Retries

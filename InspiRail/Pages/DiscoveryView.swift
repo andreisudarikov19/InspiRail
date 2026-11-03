@@ -19,6 +19,15 @@ struct DiscoveryView: View {
     
     @AppStorage("homeStationCode") private var homeStationCode: String = ""
     
+    /// Switches this window to the Settings tab, where the key section is.
+    private let openSettings: () -> Void
+    
+    /// - Parameter openSettings: Switches this window to the Settings tab,
+    ///   for an error only a key can fix (#21).
+    init(openSettings: @escaping () -> Void) {
+        self.openSettings = openSettings
+    }
+    
     var body: some View {
         NavigationStack {
             ZStack {
@@ -44,8 +53,8 @@ struct DiscoveryView: View {
                         // It will expand to fill available space because the Map inside is flexible
                         stationDetailView(for: station)
                             .transition(.opacity.combined(with: .move(edge: .bottom)))
-                    } else if let error = viewModel.errorMessage {
-                        errorView(message: error)
+                    } else if let failure = viewModel.failure {
+                        errorView(for: failure)
                     } else {
                         emptyStateView
                     }
@@ -327,8 +336,25 @@ struct DiscoveryView: View {
         else { cameraPosition = .camera(newCamera) }
     }
     
-    private func errorView(message: String) -> some View {
-        ContentUnavailableView("Connection Issue", systemImage: "wifi.slash", description: Text(message))
+    /// The error, and Retry or Open Settings (#21).
+    private func errorView(for failure: LoadFailure) -> some View {
+        ContentUnavailableView {
+            Label("Connection Issue", systemImage: "wifi.slash")
+        } description: {
+            Text(failure.message)
+        } actions: {
+            RecoveryButton(action: failure.action, retry: retry, enterKey: openSettings)
+        }
+    }
+    
+    /// Loads the stations again, in a task of its own, so that leaving
+    /// Discover doesn't cut it short (#21).
+    private func retry() {
+        guard let stationsRepository else {
+            reportMissingStationStore(in: "Discover")
+            return
+        }
+        Task { await viewModel.retry(from: stationsRepository) }
     }
 }
 

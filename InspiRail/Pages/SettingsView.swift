@@ -18,7 +18,18 @@ struct SettingsView: View {
     @State private var apiKeyInput: String = ""
     @State private var keyOperationInFlight: Bool = false
     @State private var keyOperationError: String?
+    /// Whether Settings' Retry is checking the key again (#21).
+    @State private var retryInFlight = false
     @Query private var visitedStations: [VisitedStation]
+    /// Closes Settings when it is shown as a sheet. Nil on the Settings tab.
+    private let done: (() -> Void)?
+    
+    /// - Parameter done: Shown as a Done button that calls it, when Settings
+    ///   is shown as a sheet, as onboarding shows it (#21). The Settings tab
+    ///   passes none, and shows no Done button.
+    init(done: (() -> Void)? = nil) {
+        self.done = done
+    }
 
     var body: some View {
         NavigationStack {
@@ -37,6 +48,19 @@ struct SettingsView: View {
                                     .font(.caption)
                                     .foregroundColor(.orange)
                             }
+                        }
+                        // When the key couldn't be checked, for a reason
+                        // another try can fix (#21)
+                        if keyStatus.offersRetry {
+                            Button {
+                                retryKeyCheck()
+                            } label: {
+                                HStack {
+                                    SettingsIcon(icon: "arrow.clockwise", color: .blue)
+                                    Text(retryInFlight ? "Checking…" : "Retry")
+                                }
+                            }
+                            .disabled(retryInFlight)
                         }
                         if keyStatus.offersKeyEntry {
                             SecureField("Paste your NS API key", text: $apiKeyInput)
@@ -106,6 +130,13 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
+            .toolbar {
+                if let done {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done", action: done)
+                    }
+                }
+            }
             .task { await refreshKeyStatus() }
             .alert("Reset History?", isPresented: $showingResetAlert) {
                 Button("Cancel", role: .cancel) { }
@@ -169,6 +200,24 @@ struct SettingsView: View {
         await keyCheck.refresh(using: stationsRepository)
     }
     
+    /// Checks the key again after it couldn't be checked, in a task of its
+    /// own, so that leaving Settings doesn't cut it short (#21).
+    private func retryKeyCheck() {
+        guard let stationsRepository else {
+            reportMissingStationStore(in: "Settings")
+            return
+        }
+        guard let keyCheck else {
+            reportMissingKeyCheck(in: "Settings")
+            return
+        }
+        retryInFlight = true
+        Task {
+            await keyCheck.retry(using: stationsRepository)
+            retryInFlight = false
+        }
+    }
+    
     /// A key was saved or removed: the store forgets what it knew about the
     /// old one, and the key stored now is checked with a request of its own,
     /// even one NS refused before (#19, #20).
@@ -205,18 +254,26 @@ struct StationSelectorView: View {
     @Binding var selectedName: String
     @Environment(\.dismiss) private var dismiss
     @Environment(\.stationsRepository) private var stationsRepository
-    @State private var allStations: [Station] = []
+    @State private var stationList = StationList()
     @State private var searchText = ""
-    @State private var isLoading = true
     
     var filteredStations: [Station] {
-        if searchText.isEmpty { return allStations }
-        else { return allStations.filter { $0.names.long.localizedCaseInsensitiveContains(searchText) || $0.identifiers.code.localizedCaseInsensitiveContains(searchText) } }
+        if searchText.isEmpty { return stationList.stations }
+        else { return stationList.stations.filter { $0.names.long.localizedCaseInsensitiveContains(searchText) || $0.identifiers.code.localizedCaseInsensitiveContains(searchText) } }
     }
     
     var body: some View {
         List {
-            if isLoading { ProgressView("Loading stations...").frame(maxWidth: .infinity).listRowBackground(Color.clear) }
+            if stationList.isLoading { ProgressView("Loading stations...").frame(maxWidth: .infinity).listRowBackground(Color.clear) }
+            else if let failure = stationList.failure {
+                // The error and its one action, not an empty list (#21). The
+                // key section is in Settings, the screen this one came from.
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(failure.message)
+                    RecoveryButton(action: failure.action, keyEntryTitle: "Back to Settings", retry: retry, enterKey: { dismiss() })
+                }
+                .padding(.vertical, 4)
+            }
             else {
                 ForEach(filteredStations) { station in
                     Button {
@@ -241,26 +298,23 @@ struct StationSelectorView: View {
         }
         .navigationTitle("Select Home")
         .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search station")
-        .task { await fetchStations() }
+        .task {
+            guard stationList.stations.isEmpty else { return }
+            guard let stationsRepository else {
+                reportMissingStationStore(in: "The Home Station picker")
+                return
+            }
+            await stationList.load(from: stationsRepository)
+        }
     }
     
-    private func fetchStations() async {
-        guard allStations.isEmpty else { return }
+    /// Loads the stations again, in a task of its own, so that leaving the
+    /// picker doesn't cut it short (#21).
+    private func retry() {
         guard let stationsRepository else {
             reportMissingStationStore(in: "The Home Station picker")
             return
         }
-        do {
-            let sorted = try await stationsRepository.dutchStations()
-            await MainActor.run { 
-                self.allStations = sorted
-                self.isLoading = false
-            }
-        } catch is CancellationError {
-            // A cancelled load leaves the picker as it was (#20).
-        } catch { 
-            print("Error loading stations: \(error)")
-            await MainActor.run { self.isLoading = false }
-        }
+        Task { await stationList.retry(from: stationsRepository) }
     }
 }
