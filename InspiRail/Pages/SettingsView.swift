@@ -21,15 +21,6 @@ struct SettingsView: View {
     /// Whether Settings' Retry is checking the key again (#21).
     @State private var retryInFlight = false
     @Query private var visitedStations: [VisitedStation]
-    /// Closes Settings when it is shown as a sheet. Nil on the Settings tab.
-    private let done: (() -> Void)?
-    
-    /// - Parameter done: Shown as a Done button that calls it, when Settings
-    ///   is shown as a sheet, as onboarding shows it (#21). The Settings tab
-    ///   passes none, and shows no Done button.
-    init(done: (() -> Void)? = nil) {
-        self.done = done
-    }
 
     var body: some View {
         NavigationStack {
@@ -130,13 +121,6 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
-            .toolbar {
-                if let done {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Done", action: done)
-                    }
-                }
-            }
             .task { await refreshKeyStatus() }
             .alert("Reset History?", isPresented: $showingResetAlert) {
                 Button("Cancel", role: .cancel) { }
@@ -151,22 +135,26 @@ struct SettingsView: View {
         }
     }
 
+    /// Saves the key as onboarding does (#42): trimmed, written to the
+    /// Keychain, then checked, so every window shows its status (#19). The
+    /// field clears once the key is written.
     private func saveAPIKey() {
-        let key = apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !key.isEmpty else { return }
+        guard let stationsRepository else {
+            reportMissingStationStore(in: "Settings")
+            return
+        }
+        guard let keyCheck else {
+            reportMissingKeyCheck(in: "Settings")
+            return
+        }
         keyOperationInFlight = true
         Task {
             do {
-                try await KeychainManager.shared.saveAPIKey(key)
-                await MainActor.run { apiKeyInput = "" }
-                await keyChanged()
-                await MainActor.run { keyOperationInFlight = false }
+                try await keyCheck.saveKey(apiKeyInput, to: KeychainManager.shared, in: stationsRepository, written: { apiKeyInput = "" })
             } catch {
-                await MainActor.run {
-                    keyOperationError = error.localizedDescription
-                    keyOperationInFlight = false
-                }
+                keyOperationError = error.localizedDescription
             }
+            keyOperationInFlight = false
         }
     }
 
