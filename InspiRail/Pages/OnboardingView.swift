@@ -71,6 +71,7 @@ struct OnboardingView: View {
                         Text("API key needed")
                             .font(.title3)
                             .fontWeight(.bold)
+                            .accessibilityAddTraits(.isHeader)
 
                         Text("InspiRail loads Dutch stations from the NS API, which needs a free API key. Get one from the NS API portal, then paste it here.")
                             .multilineTextAlignment(.center)
@@ -193,8 +194,11 @@ struct OnboardingView: View {
                                     .cornerRadius(4)
 
                                 if isSelected {
+                                    // VoiceOver reads the row as selected
+                                    // instead
                                     Image(systemName: "checkmark.circle.fill")
                                         .foregroundStyle(.blue)
+                                        .accessibilityHidden(true)
                                 }
                             }
                             .contentShape(Rectangle())
@@ -278,7 +282,9 @@ struct OnboardingView: View {
     }
 
     /// Saves the key in the field and loads the stations with it, in a task
-    /// of its own, so that leaving doesn't cut it short (#42).
+    /// of its own, so that leaving doesn't cut it short (#42). When the save
+    /// ends back on the key step with text above the field, VoiceOver reads
+    /// that text, which otherwise appears out of its focus.
     private func saveKey() {
         guard let stationsRepository else {
             reportMissingStationStore(in: "Onboarding")
@@ -288,7 +294,13 @@ struct OnboardingView: View {
             reportMissingKeyCheck(in: "Onboarding")
             return
         }
-        Task { await onboarding.saveKey(to: KeychainManager.shared, checkingWith: keyCheck, in: stationsRepository) }
+        Task {
+            await onboarding.saveKey(to: KeychainManager.shared, checkingWith: keyCheck, in: stationsRepository)
+            // Not after a key that couldn't be written, whose alert says why
+            if onboarding.keySaveError == nil, let keyProblem = onboarding.keyProblem {
+                AccessibilityNotification.Announcement(keyProblem).post()
+            }
+        }
     }
 
     /// Follows the keys saved in any window, in a task of its own (#42).
