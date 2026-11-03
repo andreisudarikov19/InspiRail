@@ -38,13 +38,12 @@ InspiRail/
 │                              memory
 ├── Pages/                     SwiftUI screens (Discovery, Onboarding,
 │                              Settings, VisitedList, LogbookUnavailable)
-├── ViewModels/                View-models, and the station store every
-│                              screen shares
+├── ViewModels/                View-models, Settings' key check, and the
+│                              station store every screen shares
 ├── BackendAPI.swift           NS API client (actor) and the app's one
 │                              network session
 ├── KeychainManager.swift      API-key storage
 ├── APIKeyProvider.swift       Picks the API key (Keychain, Debug env)
-├── BackendHealthMonitor.swift Connectivity + backend health
 ├── AppConfiguration.swift     Centralised config (URLs, timeouts, flags)
 └── InspiRailApp.swift         App entry point
 ```
