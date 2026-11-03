@@ -41,11 +41,14 @@ enum AppConfiguration {
         /// times the round trips of a slow mobile network, has stalled, and
         /// waiting longer only keeps the loading screen up (#21).
         nonisolated static let timeout: TimeInterval = 15
-        /// The longest one request may take in all. The station list, the
-        /// app's only request, is about 380 KB, or under 40 KB compressed:
-        /// on EDGE, the slowest mobile network still in use, it arrives in
-        /// about 15 s even uncompressed (#21).
-        nonisolated static let resourceTimeout: TimeInterval = 30
+        /// The longest one request may take in all, even while the reply is
+        /// still arriving. A timeout isn't retried, and a Retry starts again
+        /// from zero, so this leaves a slow link room to finish the station
+        /// list, the app's only request. The size of NS's reply hasn't been
+        /// measured; the review stub's list, 600 stations in NS's shape, is
+        /// about 380 KB, about 15 s on EDGE uncompressed. A stalled
+        /// connection is caught sooner, by `timeout` (#21).
+        nonisolated static let resourceTimeout: TimeInterval = 60
         
         // Retries (#20)
         /// The most times one load sends its request.

@@ -82,7 +82,7 @@ final class StationStoreTests {
         #expect(configuration.requestCachePolicy == .reloadIgnoringLocalCacheData)
     }
 
-    @Test("Offline, a request fails at once instead of waiting for a connection, and a slow one gives up after 15 s idle or 30 s in all (#21)")
+    @Test("Offline, a request fails at once instead of waiting for a connection, and a slow one gives up after 15 s idle or 60 s in all (#21)")
     func sessionFailsFastWhenOffline() async {
         // Waiting from the start, so the test can't pass on the default.
         let base = StubURLProtocol.configuration()
@@ -92,7 +92,7 @@ final class StationStoreTests {
 
         #expect(!configuration.waitsForConnectivity)
         #expect(configuration.timeoutIntervalForRequest == 15)
-        #expect(configuration.timeoutIntervalForResource == 30)
+        #expect(configuration.timeoutIntervalForResource == 60)
     }
 
     @Test("A key saved after a request is used by the next request on the same API", .requiresKeychain)
