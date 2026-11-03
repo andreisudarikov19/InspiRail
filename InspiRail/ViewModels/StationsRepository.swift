@@ -15,7 +15,7 @@ import OSLog
 /// running share it. Only a successful download is kept, so after a failure
 /// the next call tries again.
 actor StationsRepository {
-    /// The API the stations come from. Settings' key check uses it too.
+    /// The API the stations come from.
     let backend: BackendAPI
     private let logger = Logger(subsystem: AppConfiguration.subsystem, category: "repository")
     

@@ -87,23 +87,6 @@ extension StationStoreTests {
         #expect(failures.values.isEmpty)
     }
 
-    @Test("Settings' key check, cut short, throws a cancellation instead of counting a failure")
-    func cancelledKeyCheckPassesThroughAsCancellation() async {
-        let api = api()
-        StubURLProtocol.hold()
-        defer { StubURLProtocol.release() }
-
-        let check = Task { _ = try await BackendHealthMonitor.shared.checkHealth(using: api) }
-        await StubURLProtocol.waitForRequests(1)
-        check.cancel()
-
-        await #expect(throws: CancellationError.self) {
-            try await check.value
-        }
-        #expect(StubURLProtocol.requests.count == 1)
-        #expect(failures.values.isEmpty)
-    }
-
     @Test("A request the system cancels, when no task asked, means NS can't be reached")
     func requestCancelledByTheSystemIsOffline() async {
         StubURLProtocol.reset(replies: [.failure(.cancelled)])
@@ -340,7 +323,7 @@ extension StationStoreTests {
 
     // MARK: - A refused key
 
-    @Test("After a 401 the same key isn't sent again, by the store or by Settings' key check")
+    @Test("After a 401 the same key isn't sent again, through the store or the API itself")
     func rejectedKeyIsNotSentAgain() async throws {
         StubURLProtocol.reset(replies: [.status(401), .stations])
         let repository = StationsRepository(backend: api(keyProvider: provider(TestKeyStorage(key: "rejected-test-key"))))
