@@ -58,17 +58,6 @@ nonisolated enum NetworkError: Error, LocalizedError, Equatable {
         }
     }
     
-    /// Whether the error is about the API key. Onboarding offers Open
-    /// Settings for these, as it did for the one key error before #20.
-    var concernsTheKey: Bool {
-        switch self {
-        case .noKey, .keychainUnavailable, .keyRejected, .forbidden:
-            return true
-        default:
-            return false
-        }
-    }
-    
     /// The message a screen shows for `error`, or nil for a cancellation,
     /// which a screen ignores.
     static func message(for error: Error) -> String? {
@@ -82,5 +71,52 @@ nonisolated enum NetworkError: Error, LocalizedError, Equatable {
             return networkError.errorDescription
         }
         return "Couldn't load stations. Try again later."
+    }
+    
+    /// What a screen offers for `error` (#21), or nil for a cancellation,
+    /// which a screen ignores, so every screen offers the same thing for the
+    /// same error.
+    ///
+    /// Only a key can help with no key, a Keychain that can't be read, or a
+    /// key NS rejected (401) or refused (403): the store doesn't send a
+    /// refused key again for 15 minutes unless a key is saved (#20), so a
+    /// Retry would only repeat the message. Everything else, including the
+    /// errors that can't happen, can pass on another try.
+    static func recoveryAction(for error: Error) -> RecoveryAction? {
+        guard message(for: error) != nil else { return nil }
+        switch error as? NetworkError {
+        case .noKey, .keychainUnavailable, .keyRejected, .forbidden:
+            return .keyEntry
+        default:
+            return .retry
+        }
+    }
+}
+
+/// What a screen offers when the stations couldn't be loaded (#21).
+nonisolated enum RecoveryAction: Equatable, Sendable {
+    /// Load again: the store drops its list, joins a download in flight and
+    /// keeps a refused key held back.
+    case retry
+    /// Go to Settings' key section, where a key is entered.
+    case keyEntry
+}
+
+/// A failed load as a screen shows it: its message and the one action it
+/// offers (#21).
+nonisolated struct LoadFailure: Equatable, Sendable {
+    let message: String
+    let action: RecoveryAction
+    
+    init(message: String, action: RecoveryAction) {
+        self.message = message
+        self.action = action
+    }
+    
+    /// The failure `error` stands for, or nil for a cancellation.
+    init?(_ error: Error) {
+        guard let message = NetworkError.message(for: error),
+              let action = NetworkError.recoveryAction(for: error) else { return nil }
+        self.init(message: message, action: action)
     }
 }

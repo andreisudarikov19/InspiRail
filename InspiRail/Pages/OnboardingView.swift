@@ -188,7 +188,7 @@ struct OnboardingView: View {
                 // The same message as Discover's, and Open Settings for the
                 // errors about the key (#20)
                 self.errorMessage = message
-                self.isUnauthorized = (error as? NetworkError)?.concernsTheKey ?? false
+                self.isUnauthorized = NetworkError.recoveryAction(for: error) == .keyEntry
                 self.isLoading = false
             }
         }

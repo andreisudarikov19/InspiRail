@@ -92,16 +92,16 @@ While a Retry runs, each screen shows its usual loading state: Discover "Consult
   - `static func NetworkError.recoveryAction(for error: Error) -> RecoveryAction?`, as Decision 1.
   - `nonisolated struct LoadFailure: Equatable, Sendable` with `let message: String`, `let action: RecoveryAction`, the memberwise `init(message:action:)`, and `init?(_ error: Error)`, nil for a cancellation.
 
-- [ ] **Step 1: Write the failing tests** in `NetworkErrorTests.swift`, after `eachErrorHasItsMessage`:
+- [x] **Step 1: Write the failing tests** in `NetworkErrorTests.swift`, after `eachErrorHasItsMessage`:
   - `eachErrorHasItsRecoveryAction(error: any Error, action: RecoveryAction?)`, with arguments `.noKey`, `.keychainUnavailable`, `.keyRejected`, `.forbidden` → `.keyEntry`; `.tooManyRequests`, `.serviceUnavailable(status: 503)`, `.offline(.notConnectedToInternet)`, `.offline(.timedOut)`, `.unreadableData`, `.invalidURL`, `CocoaError(.fileNoSuchFile)` → `.retry`; `CancellationError()`, `URLError(.cancelled)` → `nil` (13 cases). Expects `NetworkError.recoveryAction(for: error) == action`.
   - `loadFailureHasTheMessageAndTheAction`: `LoadFailure(NetworkError.serviceUnavailable(status: 503)) == LoadFailure(message: "NS isn't available right now. Try again later.", action: .retry)`, `LoadFailure(NetworkError.noKey) == LoadFailure(message: "No NS API key is set. Add one in Settings.", action: .keyEntry)`, and nil for `CancellationError()` and `URLError(.cancelled)`.
 
   And drop `eachErrorHasItsMessage`'s last two lines (`keyCases`, `concernsTheKey`): the new test pins that set.
-- [ ] **Step 2: Run them to verify they fail.** Test command with `-only-testing:InspiRailTests/StationStoreTests`. Expected: a build failure, `cannot find type 'RecoveryAction' in scope` or similar.
-- [ ] **Step 3: Implement** as in Interfaces, with doc comments that say why key errors lead to key entry (#20's refusal pause). Onboarding's `isUnauthorized` becomes `NetworkError.recoveryAction(for: error) == .keyEntry` (Task 5 replaces the line).
-- [ ] **Step 4: Run them to verify they pass.** Expected: the suite passes, with 2 new tests, run as 14 cases. Then check that the test bites on the set onboarding already used: map `.keychainUnavailable` to `.retry`, see `eachErrorHasItsRecoveryAction` fail for that argument only, and restore the file.
-- [ ] **Step 5: Typecheck.** Expected: 0 errors, 7 warnings.
-- [ ] **Step 6: Commit** `fix: give every failed station load one recovery action, Retry or key entry (#21)`
+- [x] **Step 2: Run them to verify they fail.** Test command with `-only-testing:InspiRailTests/StationStoreTests`. Expected: a build failure, `cannot find type 'RecoveryAction' in scope` or similar.
+- [x] **Step 3: Implement** as in Interfaces, with doc comments that say why key errors lead to key entry (#20's refusal pause). Onboarding's `isUnauthorized` becomes `NetworkError.recoveryAction(for: error) == .keyEntry` (Task 5 replaces the line).
+- [x] **Step 4: Run them to verify they pass.** Expected: the suite passes, with 2 new tests, run as 14 cases. Then check that the test bites on the set onboarding already used: map `.keychainUnavailable` to `.retry`, see `eachErrorHasItsRecoveryAction` fail for that argument only, and restore the file.
+- [x] **Step 5: Typecheck.** Expected: 0 errors, 7 warnings.
+- [x] **Step 6: Commit** `fix: give every failed station load one recovery action, Retry or key entry (#21)`
 
 ### Task 2: Fail fast when offline
 
