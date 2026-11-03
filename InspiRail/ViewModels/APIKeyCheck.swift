@@ -126,4 +126,14 @@ final class APIKeyCheck {
         guard let answer, !Task.isCancelled, check == checksStarted else { return }
         status = answer
     }
+    
+    /// A key was saved or removed: checks again with the key stored now,
+    /// which the store sends whatever it knew about the old one. A check
+    /// already running answers for the old key, so it no longer counts, from
+    /// before anything is awaited.
+    func keyChanged(in repository: StationsRepository) async {
+        checksStarted += 1
+        await repository.forgetStations(keyChanged: true)
+        await refresh(using: repository)
+    }
 }

@@ -114,7 +114,7 @@ On `main`, every row from 401 down showed "Configured key isn't working" with th
   - `APIKeyCheck.keyChanged(in repository: StationsRepository) async`: marks any running check as overtaken before it awaits anything, calls `forgetStations(keyChanged: true)`, then checks as `refresh` does.
   - Test target: `TestKeyStorage.removeKey()`.
 
-- [ ] **Step 1: Write the failing tests** in `APIKeyCheckTests.swift`:
+- [x] **Step 1: Write the failing tests** in `APIKeyCheckTests.swift`:
   - `forgettingTheStationsDownloadsThemAgain`: load, `forgetStations(keyChanged: false)`, load: 2 requests, both lists `dutchCodes`.
   - `forgettingTheStationsJoinsTheDownloadInFlight`: hold, start a load, wait for its request, `forgetStations(keyChanged: false)`, start a second load, wait 300 ms: 1 request. Release: both give `dutchCodes`, still 1 request.
   - `keyChangeLetsGoOfTheOldDownload`: replies `[.stations, .status(404)]`, key `"old-test-key"`. Hold, start a load, wait for its request, `setKey("new-test-key")`, `stopHolding()`, `forgetStations(keyChanged: true)`. A second load throws `.unreadableData` (request 2). Release: the first load still gives `dutchCodes`. A third load sends request 3 and throws `.unreadableData`: the old list wasn't stored. `sentKeys == ["old-test-key", "new-test-key", "new-test-key"]`.
@@ -124,11 +124,12 @@ On `main`, every row from 401 down showed "Configured key isn't working" with th
   - `removedKeyIsNotConfigured`: `refresh` gives `.working`. After `removeKey()` and `keyChanged(in:)`, the status is `.noKey`, with 1 request in all.
 
   And change `sameKeySavedAgainIsSentAfterARefusal` to do what Settings does now: `saveAPIKey`, then `repository.forgetStations(keyChanged: true)` instead of `backend.forgetKeyRefusal()`.
-- [ ] **Step 2: Run them to verify they fail.** Expected: a build failure, `value of type 'StationsRepository' has no member 'forgetStations'`.
-- [ ] **Step 3: Implement** as in Interfaces and Decision 4. The doc comment of `forgetStations(keyChanged:)` names both uses: a key saved or removed in Settings (#19), and a refresh that joins a download in flight, for #21. `keyRefusal`'s comment says that tests read it, and that screens go by the error a load throws, which already reflects a refusal of the current key. `forgetKeyRefusal()`'s comment says that the store calls it when a key is saved or removed.
-- [ ] **Step 4: Run them to verify they pass.** Expected: the suite passes, with 7 new tests. Then check that they can fail: a `forgetStations` that keeps `download` fails `keyChangeLetsGoOfTheOldDownload` and `savedKeyIsCheckedWithItWhileAnOldDownloadRuns`; one that keeps the stored list fails `savedKeyIsCheckedWithIt` and `removedKeyIsNotConfigured`; one that stores an old generation's list fails `keyChangeLetsGoOfTheOldDownload`; one that doesn't forget the refusal fails `sameKeySavedAgainIsSentAfterARefusal`. Restore the file.
-- [ ] **Step 5: Typecheck.** Expected: 0 errors, 8 warnings.
-- [ ] **Step 6: Commit** `fix: check a saved or removed key with that key, not an old list, download or refusal (#19)`
+- [x] **Step 2: Run them to verify they fail.** Expected: a build failure, `value of type 'StationsRepository' has no member 'forgetStations'`.
+- [x] **Step 3: Implement** as in Interfaces and Decision 4. The doc comment of `forgetStations(keyChanged:)` names both uses: a key saved or removed in Settings (#19), and a refresh that joins a download in flight, for #21. `keyRefusal`'s comment says that tests read it, and that screens go by the error a load throws, which already reflects a refusal of the current key. `forgetKeyRefusal()`'s comment says that the store calls it when a key is saved or removed.
+- [x] **Step 4: Run them to verify they pass.** Expected: the suite passes, with 7 new tests. Then check that they can fail: a `forgetStations` that keeps `download` fails `keyChangeLetsGoOfTheOldDownload` and `savedKeyIsCheckedWithItWhileAnOldDownloadRuns`; one that keeps the stored list fails `savedKeyIsCheckedWithIt` and `removedKeyIsNotConfigured`; one that stores an old generation's list fails `keyChangeLetsGoOfTheOldDownload`; one that doesn't forget the refusal fails `sameKeySavedAgainIsSentAfterARefusal`. Restore the file.
+- [x] **Step 5: Typecheck.** Expected: 0 errors, 8 warnings.
+  (The suite reports 61 test functions as 106 cases. Each mutant also failed tests beyond those named: keeping `download` failed `lateRefusalOfAnOldKeyDoesntShow` too, keeping the stored list `forgettingTheStationsDownloadsThemAgain`, and storing an old generation's list `savedKeyIsCheckedWithItWhileAnOldDownloadRuns`.)
+- [x] **Step 6: Commit** `fix: check a saved or removed key with that key, not an old list, download or refusal (#19)`
 
 ### Task 3: Settings shows the status, and the health monitor goes
 

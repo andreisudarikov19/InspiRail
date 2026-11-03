@@ -399,9 +399,9 @@ extension StationStoreTests {
         let repository = StationsRepository(backend: api(keyProvider: provider(storage)))
 
         await #expect(throws: refusedKeyError(forStatus: status)) { try await repository.dutchStations() }
-        // What Settings does when a key is saved.
+        // What Settings does when a key is saved (#19).
         await storage.saveAPIKey("refused-test-key")
-        await repository.backend.forgetKeyRefusal()
+        await repository.forgetStations(keyChanged: true)
 
         #expect(try await repository.dutchStations().map(\.identifiers.code) == dutchCodes)
         #expect(sentKeys == ["refused-test-key", "refused-test-key"])
@@ -580,6 +580,10 @@ actor TestKeyStorage: APIKeyStorage {
 
     func setKey(_ key: String) {
         self.key = key
+    }
+
+    func removeKey() {
+        key = nil
     }
 
     func getAPIKey() throws -> String {

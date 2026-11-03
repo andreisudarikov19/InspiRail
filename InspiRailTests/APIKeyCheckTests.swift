@@ -181,4 +181,134 @@ extension StationStoreTests {
         #expect(keyCheck.status == .cantCheck("NS sent data this version of InspiRail can't read. Try again later."))
         await #expect(throws: NetworkError.unreadableData) { try await repository.dutchStations() }
     }
+
+    // MARK: - A saved or removed key
+
+    @Test("Forgetting the stations downloads them again")
+    func forgettingTheStationsDownloadsThemAgain() async throws {
+        let (repository, _) = keyCheckRepository()
+
+        #expect(try await repository.dutchStations().map(\.identifiers.code) == dutchCodes)
+        await repository.forgetStations(keyChanged: false)
+        #expect(try await repository.dutchStations().map(\.identifiers.code) == dutchCodes)
+        #expect(StubURLProtocol.requests.count == 2)
+    }
+
+    @Test("Forgetting the stations, the key unchanged, still joins the download in flight")
+    func forgettingTheStationsJoinsTheDownloadInFlight() async throws {
+        let (repository, _) = keyCheckRepository()
+        StubURLProtocol.hold()
+        defer { StubURLProtocol.release() }
+
+        async let first = repository.dutchStations()
+        await StubURLProtocol.waitForRequests(1)
+        await repository.forgetStations(keyChanged: false)
+        async let second = repository.dutchStations()
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(StubURLProtocol.requests.count == 1)
+        StubURLProtocol.release()
+
+        #expect(try await first.map(\.identifiers.code) == dutchCodes)
+        #expect(try await second.map(\.identifiers.code) == dutchCodes)
+        #expect(StubURLProtocol.requests.count == 1)
+    }
+
+    @Test("After a key change, a download with the old key is neither joined nor kept")
+    func keyChangeLetsGoOfTheOldDownload() async throws {
+        StubURLProtocol.reset(replies: [.stations, .status(404)])
+        let (repository, storage) = keyCheckRepository(key: "old-test-key")
+        StubURLProtocol.hold()
+        defer { StubURLProtocol.release() }
+
+        let oldLoad = Task { try await repository.dutchStations() }
+        await StubURLProtocol.waitForRequests(1)
+        await storage.setKey("new-test-key")
+        StubURLProtocol.stopHolding()
+        await repository.forgetStations(keyChanged: true)
+        await #expect(throws: NetworkError.unreadableData) { try await repository.dutchStations() }
+        StubURLProtocol.release()
+
+        // The old load's caller still gets its list, but the list isn't kept.
+        #expect(try await oldLoad.value.map(\.identifiers.code) == dutchCodes)
+        await #expect(throws: NetworkError.unreadableData) { try await repository.dutchStations() }
+        #expect(sentKeys == ["old-test-key", "new-test-key", "new-test-key"])
+    }
+
+    @Test("A saved key is checked with a request that sends it, though a list is stored")
+    func savedKeyIsCheckedWithIt() async {
+        StubURLProtocol.reset(replies: [.stations, .status(401)])
+        let (repository, storage) = keyCheckRepository()
+        let keyCheck = APIKeyCheck()
+        await keyCheck.refresh(using: repository)
+        #expect(keyCheck.status == .working)
+
+        await storage.setKey("new-test-key")
+        await keyCheck.keyChanged(in: repository)
+
+        #expect(keyCheck.status == .rejected)
+        #expect(sentKeys == ["test-key", "new-test-key"])
+    }
+
+    @Test("A saved key is checked with it while the old key's download runs, and the old answer never shows")
+    func savedKeyIsCheckedWithItWhileAnOldDownloadRuns() async throws {
+        StubURLProtocol.reset(replies: [.stations, .status(401)])
+        let (repository, storage) = keyCheckRepository()
+        let keyCheck = APIKeyCheck()
+        StubURLProtocol.hold()
+        defer { StubURLProtocol.release() }
+
+        // The visit's check waits for the old key's answer while a new key is saved.
+        let visitCheck = Task { await keyCheck.refresh(using: repository) }
+        await StubURLProtocol.waitForRequests(1)
+        await storage.setKey("new-test-key")
+        StubURLProtocol.stopHolding()
+        await keyCheck.keyChanged(in: repository)
+        #expect(keyCheck.status == .rejected)
+        StubURLProtocol.release()
+        await visitCheck.value
+        #expect(keyCheck.status == .rejected)
+
+        await keyCheck.refresh(using: repository)
+        #expect(keyCheck.status == .rejected)
+        #expect(sentKeys == ["test-key", "new-test-key"])
+    }
+
+    @Test("A late refusal of the old key doesn't show for the key saved since")
+    func lateRefusalOfAnOldKeyDoesntShow() async throws {
+        StubURLProtocol.reset(replies: [.status(401), .stations])
+        let (repository, storage) = keyCheckRepository()
+        let keyCheck = APIKeyCheck()
+        StubURLProtocol.hold()
+        defer { StubURLProtocol.release() }
+
+        let visitCheck = Task { await keyCheck.refresh(using: repository) }
+        await StubURLProtocol.waitForRequests(1)
+        await storage.setKey("new-test-key")
+        StubURLProtocol.stopHolding()
+        await keyCheck.keyChanged(in: repository)
+        #expect(keyCheck.status == .working)
+        StubURLProtocol.release()
+        await visitCheck.value
+
+        #expect(keyCheck.status == .working)
+        // The API remembers the old key's refusal, which Settings doesn't read.
+        #expect(await repository.keyRefusal != nil)
+        await keyCheck.refresh(using: repository)
+        #expect(keyCheck.status == .working)
+        #expect(sentKeys == ["test-key", "new-test-key"])
+    }
+
+    @Test("A removed key reads as not configured, not as the stored list's success")
+    func removedKeyIsNotConfigured() async {
+        let (repository, storage) = keyCheckRepository()
+        let keyCheck = APIKeyCheck()
+        await keyCheck.refresh(using: repository)
+        #expect(keyCheck.status == .working)
+
+        await storage.removeKey()
+        await keyCheck.keyChanged(in: repository)
+
+        #expect(keyCheck.status == .noKey)
+        #expect(StubURLProtocol.requests.count == 1)
+    }
 }
