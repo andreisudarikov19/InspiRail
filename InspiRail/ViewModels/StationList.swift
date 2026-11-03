@@ -29,9 +29,24 @@ final class StationList {
         isLoading = true
         failure = nil
         do {
-            stations = try await repository.dutchStations()
-            isLoading = false
+            show(.success(try await repository.dutchStations()))
         } catch {
+            show(.failure(error))
+        }
+    }
+    
+    /// Shows an answer the store gave, as the end of a load shows its own:
+    /// the stations, or why they couldn't be loaded and what the screen
+    /// offers for it. Onboarding shows the check of a key it just saved this
+    /// way, so a save sends one request (#42). A cancellation changes
+    /// nothing.
+    func show(_ answer: Result<[Station], Error>) {
+        switch answer {
+        case .success(let stations):
+            self.stations = stations
+            failure = nil
+            isLoading = false
+        case .failure(let error):
             guard let failure = LoadFailure(error) else { return }
             self.failure = failure
             isLoading = false
