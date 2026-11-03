@@ -215,6 +215,18 @@ extension StationStoreTests {
         #expect(StubURLProtocol.requests.count == 1)
     }
 
+    @Test("Forgetting the stations, the key unchanged, still holds back a key NS rejected")
+    func forgettingTheStationsKeepsARefusal() async throws {
+        StubURLProtocol.reset(replies: [.status(401), .stations])
+        let (repository, _) = keyCheckRepository()
+
+        await #expect(throws: NetworkError.keyRejected) { try await repository.dutchStations() }
+        // A Retry (#21) doesn't send the rejected key again.
+        await repository.forgetStations(keyChanged: false)
+        await #expect(throws: NetworkError.keyRejected) { try await repository.dutchStations() }
+        #expect(StubURLProtocol.requests.count == 1)
+    }
+
     @Test("After a key change, a download with the old key is neither joined nor kept")
     func keyChangeLetsGoOfTheOldDownload() async throws {
         StubURLProtocol.reset(replies: [.stations, .status(404)])
