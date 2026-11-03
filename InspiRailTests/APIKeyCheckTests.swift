@@ -163,6 +163,29 @@ extension StationStoreTests {
         #expect(StubURLProtocol.requests.count == 2)
     }
 
+    @Test("Settings' Retry joins a download already in flight, such as another window's (#21)")
+    func keyCheckRetryJoinsTheDownloadInFlight() async throws {
+        StubURLProtocol.reset(replies: [.failure(.notConnectedToInternet), .stations])
+        let (repository, _) = keyCheckRepository()
+        let keyCheck = APIKeyCheck()
+        await keyCheck.refresh(using: repository)
+        #expect(keyCheck.status?.offersRetry == true)
+        StubURLProtocol.hold()
+        defer { StubURLProtocol.release() }
+
+        let otherWindow = Task { try await repository.dutchStations() }
+        await StubURLProtocol.waitForRequests(2)
+        let retry = Task { await keyCheck.retry(using: repository) }
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(StubURLProtocol.requests.count == 2)
+        StubURLProtocol.release()
+        await retry.value
+
+        #expect(try await otherWindow.value.map(\.identifiers.code) == dutchCodes)
+        #expect(keyCheck.status == .working)
+        #expect(StubURLProtocol.requests.count == 2)
+    }
+
     @Test("A second check within the hour sends nothing")
     func secondCheckWithinTheHourSendsNothing() async {
         let (repository, _) = keyCheckRepository()

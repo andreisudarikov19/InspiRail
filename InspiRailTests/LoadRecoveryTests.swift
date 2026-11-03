@@ -58,6 +58,35 @@ extension StationStoreTests {
         #expect(failures.values == [.serviceUnavailable(status: 503)])
     }
 
+    @Test("Discover's Retry shows the loading state from its start, before it asks the store, and while its download is held")
+    func discoverRetryShowsTheLoadingStateFromItsStart() async throws {
+        StubURLProtocol.reset(replies: [.failure(.notConnectedToInternet), .stations])
+        let repository = repository()
+        let viewModel = DiscoveryViewModel()
+        await viewModel.loadStations(from: repository)
+        #expect(viewModel.failure?.action == .retry)
+        #expect(!viewModel.isLoading)
+        StubURLProtocol.hold()
+        defer { StubURLProtocol.release() }
+
+        let retry = Task { await viewModel.retry(from: repository) }
+        // The yield lets the retry run up to its first await, on the store.
+        // It resumes on the main actor only after these checks.
+        await Task.yield()
+        #expect(viewModel.isLoading)
+        #expect(viewModel.failure == nil)
+        await StubURLProtocol.waitForRequests(2)
+        #expect(viewModel.isLoading)
+        #expect(viewModel.failure == nil)
+        StubURLProtocol.release()
+        await retry.value
+
+        #expect(!viewModel.isLoading)
+        #expect(viewModel.failure == nil)
+        #expect(viewModel.station != nil)
+        #expect(StubURLProtocol.requests.count == 2)
+    }
+
     @Test("Discover's Retry joins a download already in flight, such as another window's")
     func discoverRetryJoinsTheDownloadInFlight() async throws {
         StubURLProtocol.reset(replies: [.failure(.notConnectedToInternet), .stations])
@@ -184,6 +213,30 @@ extension StationStoreTests {
         #expect(stationList.stations.map(\.identifiers.code) == dutchCodes)
         #expect(stationList.failure == nil)
         #expect(!stationList.isLoading)
+        #expect(StubURLProtocol.requests.count == 2)
+    }
+
+    @Test("The Home Station picker's Retry joins a download already in flight, such as another window's")
+    func pickerRetryJoinsTheDownloadInFlight() async throws {
+        StubURLProtocol.reset(replies: [.failure(.notConnectedToInternet), .stations])
+        let repository = repository()
+        let stationList = StationList()
+        await stationList.load(from: repository)
+        #expect(stationList.failure?.action == .retry)
+        StubURLProtocol.hold()
+        defer { StubURLProtocol.release() }
+
+        let otherWindow = Task { try await repository.dutchStations() }
+        await StubURLProtocol.waitForRequests(2)
+        let retry = Task { await stationList.retry(from: repository) }
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(StubURLProtocol.requests.count == 2)
+        StubURLProtocol.release()
+        await retry.value
+
+        #expect(try await otherWindow.value.map(\.identifiers.code) == dutchCodes)
+        #expect(stationList.stations.map(\.identifiers.code) == dutchCodes)
+        #expect(stationList.failure == nil)
         #expect(StubURLProtocol.requests.count == 2)
     }
 }
