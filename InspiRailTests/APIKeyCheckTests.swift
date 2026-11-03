@@ -1,0 +1,184 @@
+//
+//  APIKeyCheckTests.swift
+//  InspiRailTests
+//
+
+import Foundation
+import Security
+import Testing
+@testable import InspiRail
+
+/// What Settings says about the API key, from asking the shared station store
+/// (#19). These tests extend the serialized "Station store" suite, since they
+/// share its stub, and never reach the network.
+extension StationStoreTests {
+    /// A store whose API reads the key from a store in memory, holding `key`.
+    func keyCheckRepository(key: String = "test-key") -> (StationsRepository, TestKeyStorage) {
+        let storage = TestKeyStorage(key: key)
+        return (StationsRepository(backend: api(keyProvider: provider(storage))), storage)
+    }
+
+    // MARK: - What each status shows
+
+    @Test("Each key status has its text and controls, and each error its status")
+    func eachStatusSaysWhatItShows() {
+        let shown: [(APIKeyStatus, String?, entry: Bool, removal: Bool)] = [
+            (.working, nil, false, false),
+            (.noKey, "Not configured", true, false),
+            (.rejected, "NS didn't accept this key.", true, true),
+            (.refused, "NS refused your API key. It may be over its usage limit. Try again later.", true, true),
+            (.keychainUnavailable, "Your NS API key can't be read right now. Try again in a moment.", true, false),
+            (.cantCheck("Can't reach NS. Check your internet connection."), "Can't reach NS. Check your internet connection.", false, false),
+        ]
+        for (status, message, entry, removal) in shown {
+            #expect(status.message == message, "\(status)")
+            #expect(status.offersKeyEntry == entry, "\(status)")
+            #expect(status.offersRemoval == removal, "\(status)")
+        }
+
+        let statuses: [(Error, APIKeyStatus?)] = [
+            (NetworkError.noKey, .noKey),
+            (NetworkError.keyRejected, .rejected),
+            (NetworkError.forbidden, .refused),
+            (NetworkError.keychainUnavailable, .keychainUnavailable),
+            (NetworkError.offline(.notConnectedToInternet), .cantCheck("Can't reach NS. Check your internet connection.")),
+            (NetworkError.tooManyRequests, .cantCheck("NS is getting too many requests. Try again in a minute.")),
+            (NetworkError.serviceUnavailable(status: 503), .cantCheck("NS isn't available right now. Try again later.")),
+            (NetworkError.unreadableData, .cantCheck("NS sent data this version of InspiRail can't read. Try again later.")),
+            (CocoaError(.fileNoSuchFile), .cantCheck("Couldn't load stations. Try again later.")),
+            (CancellationError(), nil),
+            (URLError(.cancelled), nil),
+        ]
+        for (error, status) in statuses {
+            #expect(APIKeyStatus(for: error) == status, "\(error)")
+        }
+    }
+
+    // MARK: - Checking the key
+
+    @Test("No connection, a 429, a 5xx or unreadable data doesn't say the key is rejected, or offer to remove it", arguments: [
+        (StubURLProtocol.Reply.failure(.notConnectedToInternet), "Can't reach NS. Check your internet connection."),
+        (.status(429), "NS is getting too many requests. Try again in a minute."),
+        (.status(503), "NS isn't available right now. Try again later."),
+        (.body("{}"), "NS sent data this version of InspiRail can't read. Try again later."),
+    ])
+    func problemsAKeyCantFixDontOfferRemoval(reply: StubURLProtocol.Reply, message: String) async throws {
+        StubURLProtocol.reset(replies: [reply])
+        let (repository, _) = keyCheckRepository()
+        let keyCheck = APIKeyCheck()
+
+        await keyCheck.refresh(using: repository)
+
+        let status = try #require(keyCheck.status)
+        #expect(status == .cantCheck(message))
+        #expect(status != .rejected)
+        #expect(!status.offersRemoval)
+        #expect(!status.offersKeyEntry)
+    }
+
+    @Test("An answer that takes longer than two seconds is still an answer")
+    func slowAnswerIsAnAnswer() async throws {
+        let (repository, _) = keyCheckRepository()
+        let keyCheck = APIKeyCheck()
+        StubURLProtocol.hold()
+        defer { StubURLProtocol.release() }
+
+        let check = Task { await keyCheck.refresh(using: repository) }
+        await StubURLProtocol.waitForRequests(1)
+        // Longer than the 2 s after which the old check called the key broken.
+        try await Task.sleep(for: .milliseconds(2100))
+        StubURLProtocol.release()
+        await check.value
+
+        #expect(keyCheck.status == .working)
+    }
+
+    @Test("A 401 says NS rejected the key, and a 403 that it refused it; both offer to remove it", arguments: [401, 403])
+    func refusedKeyOffersRemoval(status: Int) async throws {
+        StubURLProtocol.reset(replies: [.status(status)])
+        let (repository, _) = keyCheckRepository()
+        let keyCheck = APIKeyCheck()
+
+        await keyCheck.refresh(using: repository)
+
+        let shown = try #require(keyCheck.status)
+        #expect(shown == (status == 401 ? .rejected : .refused))
+        #expect(shown.offersRemoval)
+        #expect(shown.offersKeyEntry)
+        #expect(StubURLProtocol.requests.count == 1)
+    }
+
+    @Test("With no key, or a Keychain that can't be read, nothing is sent and the key can't be removed")
+    func missingOrUnreadableKeySendsNothing() async throws {
+        let noKey = APIKeyCheck()
+        await noKey.refresh(using: StationsRepository(backend: api(keyProvider: provider(TestKeyStorage()))))
+        #expect(noKey.status == .noKey)
+
+        let unreadable = APIKeyCheck()
+        let storage = TestKeyStorage(failure: .retrievalFailed(errSecInteractionNotAllowed))
+        await unreadable.refresh(using: StationsRepository(backend: api(keyProvider: provider(storage))))
+        let status = try #require(unreadable.status)
+        #expect(status == .keychainUnavailable)
+        #expect(status.offersKeyEntry)
+        #expect(!status.offersRemoval)
+
+        #expect(StubURLProtocol.requests.isEmpty)
+    }
+
+    @Test("A second check within the hour sends nothing")
+    func secondCheckWithinTheHourSendsNothing() async {
+        let (repository, _) = keyCheckRepository()
+        let keyCheck = APIKeyCheck()
+
+        await keyCheck.refresh(using: repository)
+        #expect(keyCheck.status == .working)
+        await keyCheck.refresh(using: repository)
+        #expect(keyCheck.status == .working)
+        #expect(StubURLProtocol.requests.count == 1)
+    }
+
+    @Test("A check cut short, for example by leaving Settings, leaves the status as it was, and reports nothing")
+    func cancelledCheckLeavesTheStatusUnchanged() async throws {
+        StubURLProtocol.reset(replies: [.failure(.notConnectedToInternet)])
+        let (repository, _) = keyCheckRepository()
+        let keyCheck = APIKeyCheck()
+        let offline = APIKeyStatus.cantCheck("Can't reach NS. Check your internet connection.")
+        await keyCheck.refresh(using: repository)
+        #expect(keyCheck.status == offline)
+
+        StubURLProtocol.reset(replies: [.stations])
+        StubURLProtocol.hold()
+        defer { StubURLProtocol.release() }
+        let check = Task { await keyCheck.refresh(using: repository) }
+        await StubURLProtocol.waitForRequests(1)
+        check.cancel()
+        StubURLProtocol.release()
+        await check.value
+
+        #expect(keyCheck.status == offline)
+        #expect(failures.values == [.offline(.notConnectedToInternet)])
+        // The download the cancelled check waited on stored the list.
+        await keyCheck.refresh(using: repository)
+        #expect(keyCheck.status == .working)
+        #expect(StubURLProtocol.requests.count == 1)
+    }
+
+    @Test("Settings and the store agree that a list with no readable Dutch station is unreadable")
+    func settingsAndTheStoreAgreeOnAListWithNoReadableDutchStation() async throws {
+        // Utrecht has no location and Amsterdam's is in text. Berlin is whole.
+        StubURLProtocol.reset(replies: [.body("""
+        {"payload":[
+        {"id":{"code":"UT"},"stationType":"MEGA_STATION","names":{"long":"Utrecht Centraal","short":"Utrecht C"},"country":"NL"},
+        {"id":{"code":"ASD"},"stationType":"MEGA_STATION","names":{"long":"Amsterdam Centraal","short":"Amsterdm C"},"location":{"lat":"52.37888","lng":"4.900277"},"country":"NL"},
+        {"id":{"code":"BHF"},"stationType":"MEGA_STATION","names":{"long":"Berlin Hbf","short":"Berlin Hbf"},"location":{"lat":52.52508,"lng":13.369402},"country":"D"}
+        ]}
+        """)])
+        let (repository, _) = keyCheckRepository()
+        let keyCheck = APIKeyCheck()
+
+        await keyCheck.refresh(using: repository)
+
+        #expect(keyCheck.status == .cantCheck("NS sent data this version of InspiRail can't read. Try again later."))
+        await #expect(throws: NetworkError.unreadableData) { try await repository.dutchStations() }
+    }
+}
