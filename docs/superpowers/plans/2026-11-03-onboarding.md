@@ -183,15 +183,15 @@ On `main`: every load error showed the station step's search field above a panel
 - Consumes: Task 2's `Onboarding` and its stored defaults.
 - Produces, on `Onboarding` (Decision 6): `private(set) var selection: Station?`, `func select(_ station: Station)`, `var canStartExploring: Bool` (a station is selected), `func startExploring()` (does nothing with no selection; otherwise writes `homeStationName`, then `homeStationCode`, to the defaults) and `static func isDone(homeStationCode: String) -> Bool` (the code isn't empty).
 
-- [ ] **Step 1: Write the failing tests** in `OnboardingTests.swift`, over the scratch suite, with the stations loaded:
+- [x] **Step 1: Write the failing tests** in `OnboardingTests.swift`, over the scratch suite, with the stations loaded:
   - `tappingAStationSelectsItAndWritesNothing`: `!canStartExploring`; `startExploring()` with no selection writes nothing. `select` the station "ASD": `selection?.identifiers.code == "ASD"`, `canStartExploring`; `select` "UT": `"UT"`. Throughout, the suite has no `homeStationCode`, `homeStationName` or `hasCompletedOnboarding`, and `isDone(homeStationCode: defaults.string(forKey: "homeStationCode") ?? "")` is false.
   - `startExploringStoresTheHomeStation`: `select` "UT", `startExploring()`: the suite's `homeStationCode == "UT"`, `homeStationName == "Utrecht Centraal"`, `isDone` of the stored code is true, and no `hasCompletedOnboarding` is written.
   - `aHomeStationEndsOnboarding`: `isDone(homeStationCode: "")` is false and `isDone(homeStationCode: "ASD")` is true: a user with a home station and no flag sees the tabs.
-- [ ] **Step 2: Run them to verify they fail.** Expected: a build failure, `value of type 'Onboarding' has no member 'select'`.
-- [ ] **Step 3: Implement** as in Interfaces.
-- [ ] **Step 4: Run them to verify they pass.** Expected: the suite passes, with 3 new tests.
-- [ ] **Step 5: Typecheck.** Expected: 0 errors, 5 warnings.
-- [ ] **Step 6: Commit** `fix: keep onboarding's station choice until Start Exploring, which stores the home station (#22)`
+- [x] **Step 2: Run them to verify they fail.** Expected: a build failure, `value of type 'Onboarding' has no member 'select'`.
+- [x] **Step 3: Implement** as in Interfaces.
+- [x] **Step 4: Run them to verify they pass.** Expected: the suite passes, with 3 new tests.
+- [x] **Step 5: Typecheck.** Expected: 0 errors, 5 warnings.
+- [x] **Step 6: Commit** `fix: keep onboarding's station choice until Start Exploring, which stores the home station (#22)`
 
 ### Task 5: The screen: the key step, the station step, and the gate
 

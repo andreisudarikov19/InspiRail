@@ -363,4 +363,60 @@ extension StationStoreTests {
         #expect(windowB.stationList.failure == LoadFailure(message: "No NS API key is set. Add one in Settings.", action: .keyEntry))
         #expect(StubURLProtocol.requests.count == 1)
     }
+
+    // MARK: - Choosing the home station (#22)
+
+    /// The loaded station with that code.
+    func station(_ code: String, in onboarding: Onboarding) throws -> Station {
+        try #require(onboarding.stationList.stations.first { $0.identifiers.code == code })
+    }
+
+    @Test("Tapping a station selects it and writes nothing; tapping another moves the selection")
+    func tappingAStationSelectsItAndWritesNothing() async throws {
+        let (defaults, suite) = scratchDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let onboarding = Onboarding(defaults: defaults)
+        await onboarding.load(from: repository())
+        let writesNothing = {
+            #expect(defaults.object(forKey: "homeStationCode") == nil)
+            #expect(defaults.object(forKey: "homeStationName") == nil)
+            #expect(defaults.object(forKey: "hasCompletedOnboarding") == nil)
+            #expect(!Onboarding.isDone(homeStationCode: defaults.string(forKey: "homeStationCode") ?? ""))
+        }
+        #expect(!onboarding.canStartExploring)
+        onboarding.startExploring()
+        writesNothing()
+
+        onboarding.select(try station("ASD", in: onboarding))
+        #expect(onboarding.selection?.identifiers.code == "ASD")
+        #expect(onboarding.canStartExploring)
+        writesNothing()
+
+        onboarding.select(try station("UT", in: onboarding))
+        #expect(onboarding.selection?.identifiers.code == "UT")
+        #expect(onboarding.canStartExploring)
+        writesNothing()
+    }
+
+    @Test("Start Exploring stores the selected station as the home station, which ends onboarding, and no other flag")
+    func startExploringStoresTheHomeStation() async throws {
+        let (defaults, suite) = scratchDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let onboarding = Onboarding(defaults: defaults)
+        await onboarding.load(from: repository())
+        onboarding.select(try station("UT", in: onboarding))
+
+        onboarding.startExploring()
+
+        #expect(defaults.string(forKey: "homeStationCode") == "UT")
+        #expect(defaults.string(forKey: "homeStationName") == "Utrecht Centraal")
+        #expect(Onboarding.isDone(homeStationCode: defaults.string(forKey: "homeStationCode") ?? ""))
+        #expect(defaults.object(forKey: "hasCompletedOnboarding") == nil)
+    }
+
+    @Test("A home station ends onboarding, so a user who already has one and no other flag sees the tabs")
+    func aHomeStationEndsOnboarding() {
+        #expect(!Onboarding.isDone(homeStationCode: ""))
+        #expect(Onboarding.isDone(homeStationCode: "ASD"))
+    }
 }

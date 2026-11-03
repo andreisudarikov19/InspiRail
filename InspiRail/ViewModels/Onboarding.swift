@@ -44,6 +44,11 @@ final class Onboarding {
     /// stations with it. The key step shows its loading state meanwhile.
     private(set) var isSavingKey = false
     
+    /// The station the user tapped, which shows the checkmark. Only "Start
+    /// Exploring" stores it, so a tap, even an accidental one while
+    /// scrolling, doesn't end onboarding (#22).
+    private(set) var selection: Station?
+    
     /// Where "Start Exploring" stores the home station: the app's defaults.
     /// Tests pass a suite of their own.
     private let defaults: UserDefaults
@@ -74,6 +79,11 @@ final class Onboarding {
     /// stations have loaded, so it never filters a list that isn't there.
     var offersSearch: Bool {
         !stationList.isLoading && stationList.failure == nil
+    }
+    
+    /// Whether "Start Exploring" is enabled: once a station is selected.
+    var canStartExploring: Bool {
+        selection != nil
     }
     
     /// Whether Save Key is enabled: the field holds a key, and no key is
@@ -123,5 +133,30 @@ final class Onboarding {
     func keyStatusChanged(to status: APIKeyStatus?, in repository: StationsRepository) async {
         guard status == .working, step == .key, !isSavingKey else { return }
         await stationList.load(from: repository)
+    }
+    
+    /// Selects the station the user tapped. Nothing is stored yet.
+    func select(_ station: Station) {
+        selection = station
+    }
+    
+    /// "Start Exploring": stores the selected station as the home station,
+    /// which ends onboarding in every window. The name comes first, so it
+    /// is there when the tabs appear. Does nothing until a station is
+    /// selected.
+    func startExploring() {
+        guard let selection else { return }
+        defaults.set(selection.names.long, forKey: "homeStationName")
+        defaults.set(selection.identifiers.code, forKey: "homeStationCode")
+    }
+    
+    /// Whether onboarding is done: once a home station is stored (#22). Only
+    /// "Start Exploring" stores one during onboarding, so the home station
+    /// already means onboarding is done, with no flag of its own: users of
+    /// earlier versions, who have a home station, need no migration, and a
+    /// launch with `-homeStationCode`, which sets it only for that launch,
+    /// leaves nothing behind.
+    static func isDone(homeStationCode: String) -> Bool {
+        !homeStationCode.isEmpty
     }
 }
