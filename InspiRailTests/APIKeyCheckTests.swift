@@ -236,6 +236,48 @@ extension StationStoreTests {
         #expect(sentKeys == ["old-test-key", "new-test-key", "new-test-key"])
     }
 
+    @Test("An old key's download that ends late leaves the new key's download in flight for later callers to join")
+    func oldDownloadEndingLeavesTheNewKeysDownload() async throws {
+        // The old key's list, then a 503 for the new key, whose wait before
+        // the next attempt lasts until the gate opens, then the list.
+        StubURLProtocol.reset(replies: [.stations, .status(503), .stations])
+        let storage = TestKeyStorage(key: "old-test-key")
+        let (gate, openGate) = AsyncStream<Void>.makeStream()
+        defer { openGate.finish() }
+        let sleeps = sleeps
+        let repository = StationsRepository(backend: api(keyProvider: provider(storage), sleep: { wait in
+            sleeps.append(wait)
+            for await _ in gate {}
+        }))
+        StubURLProtocol.hold()
+        defer { StubURLProtocol.release() }
+
+        let oldLoad = Task { try await repository.dutchStations() }
+        await StubURLProtocol.waitForRequests(1)
+        await storage.setKey("new-test-key")
+        StubURLProtocol.stopHolding()
+        await repository.forgetStations(keyChanged: true)
+        let newLoad = Task { try await repository.dutchStations() }
+        for _ in 0..<500 where sleeps.values.isEmpty {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(StubURLProtocol.requests.count == 2)
+
+        // The old download ends while the new one waits to try again: a
+        // third load joins the new one.
+        StubURLProtocol.release()
+        #expect(try await oldLoad.value.map(\.identifiers.code) == dutchCodes)
+        let thirdLoad = Task { try await repository.dutchStations() }
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(StubURLProtocol.requests.count == 2)
+        openGate.finish()
+
+        #expect(try await newLoad.value.map(\.identifiers.code) == dutchCodes)
+        #expect(try await thirdLoad.value.map(\.identifiers.code) == dutchCodes)
+        #expect(StubURLProtocol.requests.count == 3)
+        #expect(sentKeys == ["old-test-key", "new-test-key", "new-test-key"])
+    }
+
     @Test("A saved key is checked with a request that sends it, though a list is stored")
     func savedKeyIsCheckedWithIt() async {
         StubURLProtocol.reset(replies: [.stations, .status(401)])
