@@ -44,10 +44,10 @@ extension StationStoreTests {
         #expect(StubURLProtocol.requests.count == 1)
     }
 
-    @Test("Each error only a key can fix shows the key step, with its message above the field; with no key, the title says it", arguments: [
+    @Test("Each error only a key can fix shows the key step, with what Settings' key section says above the field; with no key, the title says it", arguments: [
         (KeyEntryCause.noKey, nil as String?, 0),
         (.unreadable, "Your NS API key can't be read right now. Try again in a moment.", 0),
-        (.rejected, "NS didn't accept your API key. Check it in Settings.", 1),
+        (.rejected, "NS didn't accept this key.", 1),
         (.refused, "NS refused your API key. It may be over its usage limit. Try again later.", 1),
     ])
     func keyErrorsShowTheKeyStep(_ cause: KeyEntryCause, message: String?, requests: Int) async {
@@ -183,7 +183,7 @@ extension StationStoreTests {
         await onboarding.saveKey(to: storage, checkingWith: keyCheck, in: repository)
 
         #expect(onboarding.step == .key)
-        #expect(onboarding.keyProblem == "NS didn't accept your API key. Check it in Settings.")
+        #expect(onboarding.keyProblem == "NS didn't accept this key.")
         #expect(onboarding.keyInput == "")
         #expect(keyCheck.status == .rejected)
         #expect(StubURLProtocol.requests.count == 1)
@@ -248,7 +248,7 @@ extension StationStoreTests {
         await onboarding.retry(from: repository)
 
         #expect(onboarding.step == .key)
-        #expect(onboarding.keyProblem == "NS didn't accept your API key. Check it in Settings.")
+        #expect(onboarding.keyProblem == "NS didn't accept this key.")
         #expect(StubURLProtocol.requests.count == 2)
     }
 
@@ -283,7 +283,7 @@ extension StationStoreTests {
         // The window that waited on the old key gets its answer; the saved
         // key's window and the key check don't.
         #expect(windowB.step == .key)
-        #expect(windowB.keyProblem == "NS didn't accept your API key. Check it in Settings.")
+        #expect(windowB.keyProblem == "NS didn't accept this key.")
         #expect(windowA.step == .station)
         #expect(keyCheck.status == .working)
         #expect(sentKeys == ["old-test-key", "old-test-key", "new-test-key"])

@@ -63,16 +63,21 @@ final class Onboarding {
     }
     
     /// The key step's text above the field: why the stored key can't be
-    /// used, as every screen says it (`NetworkError.message(for:)`). Nil with
-    /// no key stored, which the step's title already says, on the station
+    /// used, as Settings' key section says it (`APIKeyStatus.message`), since
+    /// both ask for a key right there. So a rejected key reads "NS didn't
+    /// accept this key.", not Discover's "Check it in Settings". Nil with no
+    /// key stored, which the step's title already says, on the station
     /// step, and while a key is saved, so that the old key's message doesn't
     /// read as the new key's.
     var keyProblem: String? {
         guard !isSavingKey,
               step == .key,
-              let failure = stationList.failure,
-              failure != LoadFailure(NetworkError.noKey) else { return nil }
-        return failure.message
+              let failure = stationList.failure else { return nil }
+        // The key error the failure stands for, among those with text of
+        // their own: no key has none
+        let keyErrors: [NetworkError] = [.keychainUnavailable, .keyRejected, .forbidden]
+        return keyErrors.first { LoadFailure($0) == failure }
+            .flatMap { APIKeyStatus(for: $0) }?.message
     }
     
     /// Whether the station step shows its search field: only once the

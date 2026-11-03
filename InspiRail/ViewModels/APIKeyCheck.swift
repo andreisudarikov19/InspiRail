@@ -59,7 +59,8 @@ nonisolated enum APIKeyStatus: Equatable, Sendable {
     /// The key section's caption, or nil when there's nothing to say and the
     /// section stays hidden. Every text but two is the one Discover shows
     /// (`NetworkError.message(for:)`); "Check it in Settings" and "Add one in
-    /// Settings" don't fit inside Settings.
+    /// Settings" don't fit inside Settings. Onboarding's key step shows the
+    /// same text above its field, but none for no key (#42).
     var message: String? {
         switch self {
         case .working:
