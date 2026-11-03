@@ -522,6 +522,68 @@ extension StationStoreTests {
         #expect(StubURLProtocol.requests.count == 1)
     }
 
+    // MARK: - Saving a key, as Settings and onboarding do (#42)
+
+    @Test("Saving a key trims it, writes it, and checks it with a request that sends it")
+    func savingAKeyTrimsItWritesItAndChecksIt() async throws {
+        let storage = TestKeyStorage()
+        let repository = StationsRepository(backend: api(keyProvider: provider(storage)))
+        let keyCheck = APIKeyCheck()
+        let written = Recorder<Bool>()
+        StubURLProtocol.hold()
+        defer { StubURLProtocol.release() }
+
+        let save = Task {
+            try await keyCheck.saveKey("  new-test-key \n", to: storage, in: repository, written: { written.append(true) })
+        }
+        await StubURLProtocol.waitForRequests(1)
+        #expect(await storage.storedKey == "new-test-key")
+        // Written, and the screen told so, before the check answers.
+        #expect(written.values == [true])
+        #expect(keyCheck.isCheckingNewKey)
+        StubURLProtocol.release()
+        let answer = try #require(try await save.value)
+
+        #expect(try answer.get().map(\.identifiers.code) == dutchCodes)
+        #expect(keyCheck.status == .working)
+        #expect(!keyCheck.isCheckingNewKey)
+        #expect(sentKeys == ["new-test-key"])
+    }
+
+    @Test("Saving a key of only spaces and line breaks saves and checks nothing")
+    func savingABlankKeySavesNothing() async throws {
+        let storage = TestKeyStorage()
+        let repository = StationsRepository(backend: api(keyProvider: provider(storage)))
+        let keyCheck = APIKeyCheck()
+        let written = Recorder<Bool>()
+
+        let answer = try await keyCheck.saveKey(" \n\t", to: storage, in: repository, written: { written.append(true) })
+
+        #expect(answer == nil)
+        #expect(await storage.storedKey == nil)
+        #expect(written.values.isEmpty)
+        #expect(StubURLProtocol.requests.isEmpty)
+        #expect(keyCheck.status == nil)
+    }
+
+    @Test("A key that can't be written to the Keychain fails with the Keychain's error, and isn't checked")
+    func aKeyThatCantBeWrittenIsNotChecked() async throws {
+        let storage = TestKeyStorage(saveFailure: .saveFailed(errSecInteractionNotAllowed))
+        let repository = StationsRepository(backend: api(keyProvider: provider(storage)))
+        let keyCheck = APIKeyCheck()
+        let written = Recorder<Bool>()
+
+        let error = await #expect(throws: KeychainError.self) {
+            try await keyCheck.saveKey("new-test-key", to: storage, in: repository, written: { written.append(true) })
+        }
+
+        #expect(error?.localizedDescription == "Failed to save to Keychain (status: -25308)")
+        #expect(written.values.isEmpty)
+        #expect(StubURLProtocol.requests.isEmpty)
+        #expect(keyCheck.status == nil)
+        #expect(!keyCheck.isCheckingNewKey)
+    }
+
     // MARK: - The app's one key check
 
     @Test("Reading the environment without the App's key check builds none")

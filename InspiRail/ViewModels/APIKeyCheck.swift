@@ -116,7 +116,8 @@ nonisolated enum APIKeyStatus: Equatable, Sendable {
 /// Settings' check of the API key (#19). It asks the app's station store for
 /// the Dutch stations, as every screen does, so a visit within the store's
 /// hour sends nothing, a download in flight is shared, and Settings and
-/// Discover agree on the same list.
+/// Discover agree on the same list. Settings and onboarding both save a key
+/// through it (#42), so every window learns of the new key.
 @MainActor
 @Observable
 final class APIKeyCheck {
@@ -151,17 +152,29 @@ final class APIKeyCheck {
     /// before a key was saved or removed. A check cut short doesn't stop
     /// another check of the same key from counting, such as the one that
     /// follows a save.
-    func refresh(using repository: StationsRepository) async {
+    ///
+    /// - Returns: The store's answer, whether or not it counted for the
+    ///   status: the stations, or why they couldn't be loaded.
+    @discardableResult
+    func refresh(using repository: StationsRepository) async -> Result<[Station], Error> {
         let keyChangesAtStart = keyChanges
-        let answer: APIKeyStatus?
+        let result: Result<[Station], Error>
         do {
-            _ = try await repository.dutchStations()
-            answer = .working
+            result = .success(try await repository.dutchStations())
         } catch {
+            result = .failure(error)
+        }
+        let answer: APIKeyStatus?
+        switch result {
+        case .success:
+            answer = .working
+        case .failure(let error):
             answer = APIKeyStatus(for: error)
         }
-        guard let answer, !Task.isCancelled, keyChangesAtStart == keyChanges else { return }
-        status = answer
+        if let answer, !Task.isCancelled, keyChangesAtStart == keyChanges {
+            status = answer
+        }
+        return result
     }
     
     /// Settings' Retry, when the key couldn't be checked (#21): the store
@@ -179,14 +192,47 @@ final class APIKeyCheck {
     /// before anything is awaited. The new key counts as being checked until
     /// this check ends, or, when another key was saved or removed meanwhile,
     /// until that key's check ends.
-    func keyChanged(in repository: StationsRepository) async {
+    ///
+    /// - Returns: The store's answer for the key stored now, as `refresh`
+    ///   returns it.
+    @discardableResult
+    func keyChanged(in repository: StationsRepository) async -> Result<[Station], Error> {
         keyChanges += 1
         let change = keyChanges
         isCheckingNewKey = true
         await repository.forgetStations(keyChanged: true)
-        await refresh(using: repository)
+        let result = await refresh(using: repository)
         if change == keyChanges {
             isCheckingNewKey = false
         }
+        return result
+    }
+    
+    /// Saves a key the user entered, the one way Settings and onboarding
+    /// both save one (#42): `input`, without the spaces and line breaks
+    /// around it, is written to `storage`, then checked as `keyChanged(in:)`
+    /// checks it, so every window shows the new key's status.
+    ///
+    /// - Parameters:
+    ///   - storage: Where the key is written: the Keychain in the app.
+    ///   - written: Runs once the key is written, before it is checked: the
+    ///     screen clears its field then.
+    /// - Returns: The store's answer for the saved key: the stations, or why
+    ///   they couldn't be loaded. Nil when `input` holds only spaces and
+    ///   line breaks, and nothing is saved.
+    /// - Throws: The storage's error when the key can't be written. Nothing
+    ///   is checked then.
+    @discardableResult
+    func saveKey(
+        _ input: String,
+        to storage: any APIKeyStorage,
+        in repository: StationsRepository,
+        written: () -> Void = {}
+    ) async throws -> Result<[Station], Error>? {
+        let key = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !key.isEmpty else { return nil }
+        try await storage.saveAPIKey(key)
+        written()
+        return await keyChanged(in: repository)
     }
 }

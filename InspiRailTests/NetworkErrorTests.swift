@@ -409,7 +409,7 @@ extension StationStoreTests {
 
         await #expect(throws: refusedKeyError(forStatus: status)) { try await repository.dutchStations() }
         // What Settings does when a key is saved (#19).
-        await storage.saveAPIKey("refused-test-key")
+        try await storage.saveAPIKey("refused-test-key")
         await repository.forgetStations(keyChanged: true)
 
         #expect(try await repository.dutchStations().map(\.identifiers.code) == dutchCodes)
@@ -577,14 +577,21 @@ extension StationStoreTests {
 }
 
 /// An API key store in memory: empty, holding a key, or failing as the
-/// Keychain can. Needs no Keychain.
+/// Keychain can, to read or to write. Needs no Keychain.
 actor TestKeyStorage: APIKeyStorage {
     private var key: String?
     private let failure: KeychainError?
+    private let saveFailure: KeychainError?
 
-    init(key: String? = nil, failure: KeychainError? = nil) {
+    init(key: String? = nil, failure: KeychainError? = nil, saveFailure: KeychainError? = nil) {
         self.key = key
         self.failure = failure
+        self.saveFailure = saveFailure
+    }
+
+    /// The key held, whatever reading it would throw.
+    var storedKey: String? {
+        key
     }
 
     func setKey(_ key: String) {
@@ -601,7 +608,8 @@ actor TestKeyStorage: APIKeyStorage {
         return key
     }
 
-    func saveAPIKey(_ key: String) {
+    func saveAPIKey(_ key: String) throws {
+        if let saveFailure { throw saveFailure }
         self.key = key
     }
 }

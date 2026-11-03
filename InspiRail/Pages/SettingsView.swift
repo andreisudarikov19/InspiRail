@@ -151,22 +151,26 @@ struct SettingsView: View {
         }
     }
 
+    /// Saves the key as onboarding does (#42): trimmed, written to the
+    /// Keychain, then checked, so every window shows its status (#19). The
+    /// field clears once the key is written.
     private func saveAPIKey() {
-        let key = apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !key.isEmpty else { return }
+        guard let stationsRepository else {
+            reportMissingStationStore(in: "Settings")
+            return
+        }
+        guard let keyCheck else {
+            reportMissingKeyCheck(in: "Settings")
+            return
+        }
         keyOperationInFlight = true
         Task {
             do {
-                try await KeychainManager.shared.saveAPIKey(key)
-                await MainActor.run { apiKeyInput = "" }
-                await keyChanged()
-                await MainActor.run { keyOperationInFlight = false }
+                try await keyCheck.saveKey(apiKeyInput, to: KeychainManager.shared, in: stationsRepository, written: { apiKeyInput = "" })
             } catch {
-                await MainActor.run {
-                    keyOperationError = error.localizedDescription
-                    keyOperationInFlight = false
-                }
+                keyOperationError = error.localizedDescription
             }
+            keyOperationInFlight = false
         }
     }
 
