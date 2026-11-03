@@ -15,11 +15,11 @@ import Foundation
 struct OnboardingView: View {
     @Environment(\.stationsRepository) private var stationsRepository
     @Environment(\.apiKeyCheck) private var keyCheck
-
+    
     /// The step, the key field and the selected station (#22, #42).
     @State private var onboarding = Onboarding()
     @State private var searchText = ""
-
+    
     private var filteredStations: [Station] {
         if searchText.isEmpty {
             return onboarding.stationList.stations
@@ -29,7 +29,7 @@ struct OnboardingView: View {
             $0.identifiers.code.localizedCaseInsensitiveContains(searchText)
         }
     }
-
+    
     var body: some View {
         NavigationStack {
             Group {
@@ -57,9 +57,9 @@ struct OnboardingView: View {
             } message: { Text(onboarding.keySaveError ?? "") }
         }
     }
-
+    
     // MARK: - Steps
-
+    
     /// Asks for the key, with what it is for and where to get one. A scroll
     /// view, with the explanation right above the field, so that the
     /// explanation stays in view above the keyboard.
@@ -72,14 +72,14 @@ struct OnboardingView: View {
                             .font(.title3)
                             .fontWeight(.bold)
                             .accessibilityAddTraits(.isHeader)
-
+                        
                         Text("InspiRail loads Dutch stations from the NS API, which needs a free API key. Get one from the NS API portal, then paste it here.")
                             .multilineTextAlignment(.center)
                             .foregroundStyle(.secondary)
                     }
                     .padding(.horizontal)
                 }
-
+                
                 Link(destination: URL(string: "https://apiportal.ns.nl")!) {
                     HStack(spacing: 4) {
                         Text("Get a free key at apiportal.ns.nl")
@@ -87,7 +87,7 @@ struct OnboardingView: View {
                             .font(.caption)
                     }
                 }
-
+                
                 // Why the stored key can't be used, after any key error but
                 // a missing key, which the title already says
                 if let keyProblem = onboarding.keyProblem {
@@ -97,7 +97,7 @@ struct OnboardingView: View {
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
                 }
-
+                
                 SecureField("Paste your NS API key", text: $onboarding.keyInput)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
@@ -112,7 +112,7 @@ struct OnboardingView: View {
                     .background(Color(.systemGray6))
                     .cornerRadius(10)
                     .padding(.horizontal)
-
+                
                 Button(action: saveKey) {
                     primaryLabel(enabled: onboarding.canSaveKey) {
                         HStack(spacing: 8) {
@@ -133,7 +133,7 @@ struct OnboardingView: View {
         }
         .scrollDismissesKeyboard(.interactively)
     }
-
+    
     /// Lists the stations to choose the home station from, or says why they
     /// couldn't be loaded, with Retry.
     private var stationStep: some View {
@@ -144,7 +144,7 @@ struct OnboardingView: View {
                     .foregroundStyle(.secondary)
             }
             .padding(.bottom, 20)
-
+            
             // Search Field, once there are stations to search (#42)
             if onboarding.offersSearch {
                 TextField("Search (e.g. Amsterdam)", text: $searchText)
@@ -153,7 +153,7 @@ struct OnboardingView: View {
                     .cornerRadius(10)
                     .padding(.horizontal)
             }
-
+            
             // List of Stations
             ZStack {
                 if onboarding.stationList.isLoading {
@@ -179,20 +179,20 @@ struct OnboardingView: View {
                                     Text(station.names.long)
                                         .font(.headline)
                                         .foregroundStyle(.primary)
-
+                                    
                                     Text(station.readableType)
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
                                 Spacer()
-
+                                
                                 // UPDATED: Using `identifiers.code` instead of `idInfo.code`
                                 Text(station.identifiers.code)
                                     .font(.caption.monospaced())
                                     .padding(6)
                                     .background(Color.yellow.opacity(0.3))
                                     .cornerRadius(4)
-
+                                
                                 if isSelected {
                                     // VoiceOver reads the row as selected
                                     // instead
@@ -209,7 +209,7 @@ struct OnboardingView: View {
                     .listStyle(.plain)
                 }
             }
-
+            
             // Continue Button: stores the home station, which ends onboarding
             Button {
                 onboarding.startExploring()
@@ -223,9 +223,9 @@ struct OnboardingView: View {
             .padding(.bottom, 20)
         }
     }
-
+    
     // MARK: - Parts
-
+    
     /// The icon and the welcome, on both steps, above the step's own text.
     private func header<StepText: View>(@ViewBuilder text: () -> StepText) -> some View {
         VStack(spacing: 12) {
@@ -233,15 +233,15 @@ struct OnboardingView: View {
                 .font(.system(size: 60))
                 .foregroundStyle(.blue)
                 .padding(.top, 40)
-
+            
             Text("Welcome to InspiRail")
                 .font(.largeTitle)
                 .fontWeight(.bold)
-
+            
             text()
         }
     }
-
+    
     /// The look of the step's main button: full width, blue once it can be
     /// pressed.
     private func primaryLabel<Content: View>(enabled: Bool, @ViewBuilder _ content: () -> Content) -> some View {
@@ -253,9 +253,9 @@ struct OnboardingView: View {
             .foregroundColor(.white)
             .cornerRadius(16)
     }
-
+    
     // MARK: - Logic
-
+    
     private func loadStations() async {
         guard let stationsRepository else {
             reportMissingStationStore(in: "Onboarding")
@@ -267,7 +267,7 @@ struct OnboardingView: View {
         }
         await onboarding.load(from: stationsRepository, following: keyCheck)
     }
-
+    
     /// Loads the stations again, in a task of its own (#21).
     private func retry() {
         guard let stationsRepository else {
@@ -280,7 +280,7 @@ struct OnboardingView: View {
         }
         Task { await onboarding.retry(from: stationsRepository, following: keyCheck) }
     }
-
+    
     /// Saves the key in the field and loads the stations with it, in a task
     /// of its own, so that leaving doesn't cut it short (#42). When the save
     /// ends back on the key step with text above the field, VoiceOver reads
@@ -302,7 +302,7 @@ struct OnboardingView: View {
             }
         }
     }
-
+    
     /// Follows the keys saved in any window, in a task of its own (#42).
     private func keySavedOrRemoved() {
         guard let stationsRepository else {
