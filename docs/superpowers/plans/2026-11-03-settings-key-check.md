@@ -1,0 +1,180 @@
+# An honest Settings key check (#19) Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Settings offers to remove the API key only when NS rejected or refused it. A slow answer, no connection, a busy or failing NS, or data the app can't read shows the same message Discover shows, without Remove Key. Settings stops downloading the station list on every visit, and a key saved or removed there is checked with that key.
+
+**Architecture:** Settings' key status comes from asking the shared station store for the Dutch stations with the current key (`StationsRepository.dutchStations()`), through a small `@Observable` type, `APIKeyCheck`, that maps the answer to an `APIKeyStatus` and ignores a check that was cancelled or overtaken by a newer one. The store gets one method, `forgetStations(keyChanged:)`, which drops its stored list and, when the key changed, also lets go of a download that sent the old key and forgets a refused key. `BackendHealthMonitor` and its `NWPathMonitor` are deleted.
+
+**Tech Stack:** Swift 5 language mode with `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`, SwiftUI with Observation (`@Observable`), Swift concurrency (actors, `Task`, cancellation), `URLSession` and `URLProtocol`, Swift Testing, `xcodebuild`, `xcrun simctl`, XCUITest (a throwaway driver for the runtime checks, never committed).
+
+**Spec:** issue #19, https://github.com/andreisudarikov19/InspiRail/issues/19, with its "From #16", "From #18" and "From #20" sections (its line numbers refer to 8c02931), and the owner's direction for its open choices, recorded under Decisions below. Every item was checked against `main` at 8e7551a (after #18 and #20). The code is now at `InspiRail/Pages/SettingsView.swift:25-73` (the key section; the issue's `:27-66`), `:110` (the `.task`; the issue's `:109`), `:124-160` (save and remove), `:162-186` (the check; the issue's `:160-172`) and `:188-192` (`appVersion`), and `InspiRail/BackendHealthMonitor.swift:23-61` (the path monitor; the issue's `:15-62`) and `:97-149` (`checkHealth`; the issue's `:100-160`). The store and the API are as the #18 and #20 plans leave them: `docs/superpowers/plans/2026-11-01-shared-station-store.md` and `docs/superpowers/plans/2026-11-02-network-errors.md`.
+
+## Global Constraints
+
+- What changes for a user: when the key section and Remove Key appear, what the section says, and Settings no longer downloading the list on each visit. Nothing else a user can do changes. A fix that would change more is stopped and reported, not built.
+- Out of scope, and left as they are: Retry buttons, the key sheet's Done button, key entry on other screens, the Home Station picker's error row and the 60-second offline wait, `waitsForConnectivity` (#21). Onboarding (#22, #42). Settings' layout and design (#31). Keychain storage (#35). Also #23, #24, #25, #29, #36 and #37. A state that needs one of them to make full sense is noted for that issue under Notes for other issues.
+- `InspiRailApp.init` stays the only place that creates a `StationsRepository` or a `BackendAPI`. #15's test-host gate stays: while hosting the unit tests the app creates no store, no API and no session.
+- Tests never reach the network: every request goes through `StubURLProtocol`. The API's clock, sleep and failure report are the suite's (`StationStoreTests.api(keyProvider:sleep:)`). The one real wait is Task 1's 2.1-second hold, because the rule it pins measured the wall clock.
+- No key, and no part of a key, is ever logged, kept or shown. The public repo, the PR and the docs never say that a key was leaked, exposed or rotated.
+- Typecheck after every task: `xcrun --sdk iphonesimulator swiftc -typecheck -target arm64-apple-ios26.2-simulator -swift-version 5 -default-isolation MainActor $(find InspiRail -name '*.swift')`. On `main` it prints 0 errors and 8 warnings (16 `warning:` lines, each echoed under its source line). No task may add a warning. Task 3 removes one (`setupNetworkMonitoring()`, in the deleted monitor).
+- Test command, one `xcodebuild` at a time: `xcodebuild test -project InspiRail.xcodeproj -scheme InspiRail -destination 'platform=iOS Simulator,id=<udid>' -derivedDataPath <scratch>`, on a throwaway iPhone 15 simulator (iOS 26.3) created for this branch. On `main`: `** TEST SUCCEEDED **`, 79 test functions, run as 120 cases (each argument of a parameterized test counted), 0 skipped.
+- Commit subjects use a conventional prefix and end with `(#19)`. Blank lines inside the app's code are indented to the enclosing level. Test files keep their empty blank lines.
+
+## What Settings shows
+
+The layout stays: the key section shows only when there is something to say, under the header "API Configuration", with the key icon, the title "NS API Key" and one orange caption. Before the first check of a visit ends, Settings shows what the last check said, or no section on the first visit.
+
+| Result of asking the store | `APIKeyStatus` | Caption | Key field and Save Key | Remove Key | Footer ("Get a free key at apiportal.ns.nl, then paste it above.") |
+|---|---|---|---|---|---|
+| Not checked yet | `nil` | No section | | | |
+| The stations (the stored list, a download joined, or a new one) | `.working` | No section, as on `main` | | | |
+| No key stored (`.noKey`) | `.noKey` | "Not configured", as on `main` | Yes | No | Yes |
+| 401, or a 401 for this key held back (`.keyRejected`) | `.rejected` | "NS didn't accept this key." | Yes | Yes | Yes |
+| 403, or a 403 for this key held back (`.forbidden`) | `.refused` | "NS refused your API key. It may be over its usage limit. Try again later." | Yes | Yes | Yes |
+| The Keychain can't be read (`.keychainUnavailable`) | `.keychainUnavailable` | "Your NS API key can't be read right now. Try again in a moment." | Yes | No | Yes |
+| No connection, a timeout, a failed lookup or connection, a TLS failure, a captive portal's 511 (`.offline`) | `.cantCheck(_:)` | "Can't reach NS. Check your internet connection." | No | No | No |
+| 429 (`.tooManyRequests`) | `.cantCheck(_:)` | "NS is getting too many requests. Try again in a minute." | No | No | No |
+| 5xx (`.serviceUnavailable`) | `.cantCheck(_:)` | "NS isn't available right now. Try again later." | No | No | No |
+| Unreadable data, including a list with no readable Dutch station and an unexpected status such as 404 (`.unreadableData`) | `.cantCheck(_:)` | "NS sent data this version of InspiRail can't read. Try again later." | No | No | No |
+| Any other error, which the store doesn't throw (`.invalidURL`, or not a `NetworkError`) | `.cantCheck(_:)` | Its `NetworkError.message(for:)`: "Invalid URL", or "Couldn't load stations. Try again later." | No | No | No |
+| Cancelled (leaving Settings), or overtaken by a newer check (a key saved meanwhile) | unchanged | What the last applied check said | | | |
+
+On `main`, every row from 401 down showed "Configured key isn't working" with the key field, Save Key, Remove Key and the footer, and so did a success that took 2 s or more, and any visit while the path monitor thought the device was offline. A Keychain that can't be read showed "Not configured" when the read failed, and "Configured key isn't working" when the stored data wasn't a string.
+
+## Decisions
+
+1. **Settings asks the shared store, and runs no check of its own.** Its key status comes from `StationsRepository.dutchStations()`, which reads the current key for any request it sends. A visit within the store's hour sends nothing, a download in flight is shared, and Settings and Discover always agree on the same list, so a list with no readable Dutch station is unreadable data on both (the issue's last "From #20" item). A successful check fills the store, which saves the download after onboarding's Settings sheet that the issue's "From #18" section mentions. Reason: the store already knows the key's answer from the app's real requests, and a second download per visit only adds load and a second, disagreeing verdict. The 2-second "slow" rule goes: a slow answer is just an answer. The "From #18" item about the limiter's wait is moot: #20 removed the client-side limiter.
+2. **The error the store throws is the key's state; Settings doesn't read `keyRefusal`.** `BackendAPI` checks its refusal against the key it reads for each load, and throws `.keyRejected` or `.forbidden` only for that key, so the error already describes the current key. A refusal of an old key, such as a late 401 after a new key was saved, can't show: Settings never reads the refusal, the store doesn't let a new key's caller join or keep a download that sent the old key (Decision 4), and `APIKeyCheck` ignores a check a newer one overtook. `StationsRepository.keyRefusal` stays for the tests that read it, with its comment corrected.
+3. **What Settings shows, by result:** the table above. Remove Key appears only for a 401 or a 403, where NS answered about this very key. A 403 gets its own text, with the key field and Remove Key, since another key can fix a quota or subscription problem. Every message comes from `NetworkError.message(for:)`, so Settings, Discover and onboarding say the same thing, except two that don't fit there: "No NS API key is set. Add one in Settings." in Settings stays "Not configured", as on `main`, and "NS didn't accept your API key. Check it in Settings." becomes "NS didn't accept this key." The key field, Save Key and the footer are left out where no key can help (no connection, 429, 5xx, unreadable data): a field there suggests that the key is at fault, which is exactly the misreading this issue is about. They stay when the Keychain can't be read: a stored item that isn't a string (`KeychainError.invalidData`) fails every read, and saving a key, which replaces the item, is the only way out in the app. On `main` that state offered the field too, so leaving it out would take something away.
+4. **A saved or removed key is checked with that key.** `StationsRepository.forgetStations(keyChanged: true)` drops the stored list, bumps a key generation, lets go of the download in flight and forgets the API's refused key. A download already running with the old key still answers the callers waiting on it, but later callers don't join it, its list isn't stored, and it doesn't clear the newer download's slot when it ends. Settings calls it, through `APIKeyCheck.keyChanged(in:)`, after the Keychain save or delete succeeds, and then checks again, so the next check sends a request with the key stored now. Reason: the key changed, so the old list, the old download and the old refusal say nothing about the new key. With `keyChanged: false` it only drops the stored list, and a download in flight is still joined, since it is fresh: that is what #21's Retry and pull to refresh should reuse (#21's "From #18" item asks for "an explicit refresh that joins a download already in flight"), followed by `dutchStations()`. It keeps a refusal, so a Retry can't resend a refused key (#21's "From #20" item).
+5. **What the other screens show after a key change.** Discover, onboarding, the Logbook and the Home Station picker load with the new key on their next visit: Settings' check after saving stores the new key's list, and they read it. Right after a key is removed, Discover still shows the station it showed and Randomize still works: its view model keeps the list it loaded (`DiscoveryViewModel.swift:37`), and its next load, which fails with "No NS API key is set. Add one in Settings.", sets a message that the view shows only when no station is shown (`DiscoveryView.swift:40-51`). A new iPad window, or a relaunch, shows that message. The Logbook keeps its count, and the Home Station picker shows an empty list. Those are #21's.
+6. **A cancelled or overtaken check leaves the status as it was.** The store's download runs in its own task, so leaving Settings doesn't cancel it, and the check's `await` still gets the download's answer. `APIKeyCheck` drops that answer when its task was cancelled, or when a newer check started since, and drops a `CancellationError` (`APIKeyStatus(for:)` is `nil` for it). Reason: the issue's "Ignore the results of cancelled checks", and a check started before a key was saved must never answer for the new key. #20 already kept the status for a check that ended in `CancellationError`; the store-backed check needs the extra guard because its answer arrives anyway.
+7. **`BackendHealthMonitor` and its `NWPathMonitor` are deleted.** Only `SettingsView` and one test used them. The test's point, that a key check cut short reports nothing, moves to Task 1's `cancelledCheckLeavesTheStatusUnchanged`. The monitor's "offline" verdict, which a quick flap could leave stuck, goes with it: an offline device now gets the request's own failure.
+8. **`SettingsView.appVersion` goes** (the "From #16" item): the Version row shows `"\(AppConfiguration.appVersion) (\(AppConfiguration.buildNumber))"`, which reads the same keys with the same defaults.
+9. **In Debug builds, Settings reports on the key the app sends.** With `NS_API_KEY` in the launch environment, that key wins over the Keychain (`APIKeyProvider`), so Settings now reports that key's state, where `main` looked only at whether the Keychain held a key. Removing the key in such a build checks the variable's key, which `APIKeyProvider` saves to the empty Keychain again. Release builds never read the variable. This is what the app does with the key, so it isn't changed here.
+
+## Review Focus
+
+1. **A working key must never be offered for removal because NS is slow, unreachable, busy, failing or sends data the app can't read.** Pinned by Task 1's `problemsAKeyCantFixDontOfferRemoval` and `slowAnswerIsAnAnswer`, and checked on the simulator in Task 4 with a 3-second delay, no connection and a 503.
+2. **A key saved in Settings must be checked by a request that sends it, even when a list is stored or an old download is in flight, and the old download's answer must never show for it.** Pinned by Task 2's `savedKeyIsCheckedWithIt`, `savedKeyIsCheckedWithItWhileAnOldDownloadRuns`, `lateRefusalOfAnOldKeyDoesntShow` and `keyChangeLetsGoOfTheOldDownload`, and checked on the simulator in Task 4 after a 401.
+3. **Settings must not download the list on each visit.** Pinned by Task 1's `secondCheckWithinTheHourSendsNothing`, and counted on the simulator in Task 4 over 20 rounds of Logbook → Settings → Discover, on `main` and on the branch.
+4. **Leaving Settings mid-check must leave the status as it was: no warning appears, and no stale answer is applied.** Pinned by Task 1's `cancelledCheckLeavesTheStatusUnchanged`, and checked on the simulator in Task 4 by leaving Settings during a delayed check.
+5. **Removing a key must show "Not configured", not the old list's success.** Pinned by Task 2's `removedKeyIsNotConfigured`.
+
+## Notes for other issues
+
+- **#21:** In Settings' "can't check" states the messages say "try again", and the only way is to leave Settings and come back; while offline, the check can wait up to 60 s for connectivity before "Can't reach NS" appears, showing the last status meanwhile. After a key is removed, Discover keeps its station and Randomize, a new window or relaunch shows "No NS API key is set" with no way to key entry except the Settings tab, and the Home Station picker shows an empty list. For Retry and pull to refresh, reuse `StationsRepository.forgetStations(keyChanged: false)` followed by `dutchStations()`: it joins a download in flight and keeps a refusal.
+- **#31:** every caption is orange, "Not configured" included, and the longer messages wrap in the caption under "NS API Key". The section keeps the header "API Configuration" when it shows only a network message.
+- **#35:** a Keychain item that can't be read shows "Your NS API key can't be read right now. Try again in a moment." on every visit when the failure lasts (`KeychainError.invalidData`); saving a key is the way out, and Remove Key is no longer offered there.
+- **#22, #42:** onboarding's Settings sheet shows the same states. A successful check in the sheet fills the store, so onboarding's reload after the sheet sends nothing.
+
+---
+
+### Task 1: Settings' key status, from the shared store
+
+**Files:**
+- Create: `InspiRail/ViewModels/APIKeyCheck.swift`
+- Create: `InspiRailTests/APIKeyCheckTests.swift`
+
+**Interfaces:**
+- Consumes: #18's `StationsRepository.dutchStations()`; #20's `NetworkError`, `NetworkError.message(for:)`, `StubURLProtocol.Reply`, `TestKeyStorage`, and the suite's `api(keyProvider:sleep:)`, `provider(_:)`, `sentKeys`, `failures` and `dutchCodes`.
+- Produces:
+  - `nonisolated enum APIKeyStatus: Equatable, Sendable` with cases `working`, `noKey`, `rejected`, `refused`, `keychainUnavailable` and `cantCheck(String)` (the message). `init?(for error: Error)`: `nil` when `NetworkError.message(for:)` is `nil` (a cancellation); `.noKey`, `.rejected`, `.refused` and `.keychainUnavailable` for `.noKey`, `.keyRejected`, `.forbidden` and `.keychainUnavailable`; otherwise `.cantCheck(NetworkError.message(for: error)!)`. `var message: String?` (`nil` for `.working`, so the section shows exactly when there is a message), `var offersKeyEntry: Bool` (`.noKey`, `.rejected`, `.refused`, `.keychainUnavailable`) and `var offersRemoval: Bool` (`.rejected`, `.refused`), with the table's texts.
+  - `@MainActor @Observable final class APIKeyCheck` with `private(set) var status: APIKeyStatus?` (`nil` until the first check ends) and `func refresh(using repository: StationsRepository) async`. A check asks `dutchStations()`: `.working` on success, `APIKeyStatus(for:)` on failure. It applies the result only when its task isn't cancelled and no newer check has started since (a counter, `@ObservationIgnored`).
+
+- [ ] **Step 1: Write the failing tests** in `APIKeyCheckTests.swift`, as `extension StationStoreTests`, so they share the serialized suite and its stub. A helper `keyCheckRepository(key: String = "test-key") -> (StationsRepository, TestKeyStorage)` builds a store over `api(keyProvider: provider(storage))`.
+  - `eachStatusSaysWhatItShows`: each case's `message`, `offersKeyEntry` and `offersRemoval` are the table's. `APIKeyStatus(for:)` gives `.noKey`, `.rejected`, `.refused` and `.keychainUnavailable` for the four key errors, `.cantCheck` with the `NetworkError` text for `.offline(.notConnectedToInternet)`, `.tooManyRequests`, `.serviceUnavailable(status: 503)` and `.unreadableData`, `.cantCheck("Couldn't load stations. Try again later.")` for `CocoaError(.fileNoSuchFile)`, and `nil` for `CancellationError()` and `URLError(.cancelled)`.
+  - `problemsAKeyCantFixDontOfferRemoval`, with arguments `.failure(.notConnectedToInternet)`, `.status(429)`, `.status(503)` and `.body("{}")`, each paired with its message: after `refresh`, the status is `.cantCheck(message)`, never `.rejected`, and offers neither removal nor key entry.
+  - `slowAnswerIsAnAnswer`: hold the stub, start `refresh` in a `Task`, wait for the request, wait 2.1 s (longer than `main`'s 2-second rule), release. The status is `.working`.
+  - `refusedKeyOffersRemoval`, with arguments 401 and 403: the status is `.rejected` or `.refused`, and offers removal and key entry. 1 request.
+  - `missingOrUnreadableKeySendsNothing`: over `TestKeyStorage()` the status is `.noKey`; over `TestKeyStorage(failure: .retrievalFailed(errSecInteractionNotAllowed))` it is `.keychainUnavailable`, which offers key entry but not removal. No request.
+  - `secondCheckWithinTheHourSendsNothing`: two `refresh` calls in a row give `.working` both times, with 1 request.
+  - `cancelledCheckLeavesTheStatusUnchanged`: a first `refresh` against `.failure(.notConnectedToInternet)` gives the offline `.cantCheck`. Then `reset(replies: [.stations])`, hold, start `refresh` in a `Task`, wait for the request, cancel the task, release, and await it. The status is still the offline `.cantCheck`, and `failures.values` holds only the first check's `.offline(.notConnectedToInternet)`: the cancelled check reports nothing. A next `refresh` gives `.working` with no new request (1 since the reset), since the download the cancelled check was waiting on stored the list.
+  - `settingsAndTheStoreAgreeOnAListWithNoReadableDutchStation`: replies with the body of `listWithNoReadableDutchStationIsUnreadable` (Utrecht without location, Amsterdam's location in text, Berlin whole). The status is `.cantCheck("NS sent data this version of InspiRail can't read. Try again later.")`, and `dutchStations()` on the same store throws `.unreadableData`. On `main` the key check passed on this list.
+- [ ] **Step 2: Run them to verify they fail.** Test command with `-only-testing:InspiRailTests/StationStoreTests`. Expected: a build failure, `cannot find 'APIKeyCheck' in scope` or similar.
+- [ ] **Step 3: Implement** `APIKeyStatus` and `APIKeyCheck` as in Interfaces, with doc comments that say where the status comes from (#19) and why a cancelled or overtaken check is ignored.
+- [ ] **Step 4: Run them to verify they pass.** Expected: the suite passes, with 8 new tests. Then check that the tests can fail: an `APIKeyStatus(for:)` that maps every `NetworkError` to `.rejected` fails `problemsAKeyCantFixDontOfferRemoval`, and a `refresh` that applies a cancelled check's answer fails `cancelledCheckLeavesTheStatusUnchanged`. Restore the file.
+- [ ] **Step 5: Typecheck.** Expected: 0 errors, 8 warnings.
+- [ ] **Step 6: Commit** `fix: work out Settings' key status from the shared station store (#19)`
+
+### Task 2: A saved or removed key is checked with that key
+
+**Files:**
+- Modify: `InspiRail/ViewModels/StationsRepository.swift:40-98` (`forgetStations(keyChanged:)`, the key generation, the `keyRefusal` comment)
+- Modify: `InspiRail/ViewModels/APIKeyCheck.swift` (`keyChanged(in:)`)
+- Modify: `InspiRail/BackendAPI.swift:89-94` (the `forgetKeyRefusal()` comment: the store calls it now)
+- Modify: `InspiRailTests/APIKeyCheckTests.swift`, `InspiRailTests/NetworkErrorTests.swift:395-409` (`sameKeySavedAgainIsSentAfterARefusal` saves through the store) and `:570-594` (`TestKeyStorage.removeKey()`)
+
+**Interfaces:**
+- Consumes: Task 1's `APIKeyCheck`, `APIKeyStatus`; #20's `BackendAPI.forgetKeyRefusal()`.
+- Produces:
+  - `StationsRepository.forgetStations(keyChanged: Bool) async`. Always drops the stored list. With `keyChanged`, it also bumps a private key generation, clears `download`, and then awaits `backend.forgetKeyRefusal()`; the state changes come before that `await`, so no caller can reach the old list or download once it has started. A download records the generation it started in. When it ends under a newer generation it stores nothing and leaves `download` alone, but still returns its list or error to the callers waiting on it.
+  - `APIKeyCheck.keyChanged(in repository: StationsRepository) async`: marks any running check as overtaken before it awaits anything, calls `forgetStations(keyChanged: true)`, then checks as `refresh` does.
+  - Test target: `TestKeyStorage.removeKey()`.
+
+- [ ] **Step 1: Write the failing tests** in `APIKeyCheckTests.swift`:
+  - `forgettingTheStationsDownloadsThemAgain`: load, `forgetStations(keyChanged: false)`, load: 2 requests, both lists `dutchCodes`.
+  - `forgettingTheStationsJoinsTheDownloadInFlight`: hold, start a load, wait for its request, `forgetStations(keyChanged: false)`, start a second load, wait 300 ms: 1 request. Release: both give `dutchCodes`, still 1 request.
+  - `keyChangeLetsGoOfTheOldDownload`: replies `[.stations, .status(404)]`, key `"old-test-key"`. Hold, start a load, wait for its request, `setKey("new-test-key")`, `stopHolding()`, `forgetStations(keyChanged: true)`. A second load throws `.unreadableData` (request 2). Release: the first load still gives `dutchCodes`. A third load sends request 3 and throws `.unreadableData`: the old list wasn't stored. `sentKeys == ["old-test-key", "new-test-key", "new-test-key"]`.
+  - `savedKeyIsCheckedWithIt`: replies `[.stations, .status(401)]`. `refresh` gives `.working`. After `setKey("new-test-key")` and `keyChanged(in:)`, the status is `.rejected`, and `sentKeys == ["test-key", "new-test-key"]`.
+  - `savedKeyIsCheckedWithItWhileAnOldDownloadRuns`: replies `[.stations, .status(401)]`. Hold, start `refresh` in a `Task` (the visit's check), wait for its request, `setKey("new-test-key")`, `stopHolding()`, `keyChanged(in:)`: `.rejected`. Release and await the first check: still `.rejected`. Another `refresh`: still `.rejected`, with no new request (the refusal holds for the new key). `sentKeys == ["test-key", "new-test-key"]`.
+  - `lateRefusalOfAnOldKeyDoesntShow`: replies `[.status(401), .stations]`. The same steps: `keyChanged(in:)` gives `.working`. Release and await the first check: still `.working`, though the late 401 left `repository.keyRefusal` describing the old key (not `nil`). Another `refresh`: `.working`, no new request.
+  - `removedKeyIsNotConfigured`: `refresh` gives `.working`. After `removeKey()` and `keyChanged(in:)`, the status is `.noKey`, with 1 request in all.
+
+  And change `sameKeySavedAgainIsSentAfterARefusal` to do what Settings does now: `saveAPIKey`, then `repository.forgetStations(keyChanged: true)` instead of `backend.forgetKeyRefusal()`.
+- [ ] **Step 2: Run them to verify they fail.** Expected: a build failure, `value of type 'StationsRepository' has no member 'forgetStations'`.
+- [ ] **Step 3: Implement** as in Interfaces and Decision 4. The doc comment of `forgetStations(keyChanged:)` names both uses: a key saved or removed in Settings (#19), and a refresh that joins a download in flight, for #21. `keyRefusal`'s comment says that tests read it, and that screens go by the error a load throws, which already reflects a refusal of the current key. `forgetKeyRefusal()`'s comment says that the store calls it when a key is saved or removed.
+- [ ] **Step 4: Run them to verify they pass.** Expected: the suite passes, with 7 new tests. Then check that they can fail: a `forgetStations` that keeps `download` fails `keyChangeLetsGoOfTheOldDownload` and `savedKeyIsCheckedWithItWhileAnOldDownloadRuns`; one that keeps the stored list fails `savedKeyIsCheckedWithIt` and `removedKeyIsNotConfigured`; one that stores an old generation's list fails `keyChangeLetsGoOfTheOldDownload`; one that doesn't forget the refusal fails `sameKeySavedAgainIsSentAfterARefusal`. Restore the file.
+- [ ] **Step 5: Typecheck.** Expected: 0 errors, 8 warnings.
+- [ ] **Step 6: Commit** `fix: check a saved or removed key with that key, not an old list, download or refusal (#19)`
+
+### Task 3: Settings shows the status, and the health monitor goes
+
+**Files:**
+- Modify: `InspiRail/Pages/SettingsView.swift:11-192`
+- Delete: `InspiRail/BackendHealthMonitor.swift`
+- Modify: `InspiRailTests/NetworkErrorTests.swift:90-105` (delete `cancelledKeyCheckPassesThroughAsCancellation`; its point is Task 1's `cancelledCheckLeavesTheStatusUnchanged`)
+
+**Interfaces:**
+- Consumes: Task 1's `APIKeyCheck.status` and `refresh(using:)`, `APIKeyStatus.message`, `offersKeyEntry` and `offersRemoval`; Task 2's `keyChanged(in:)`; `AppConfiguration.appVersion` and `buildNumber`.
+- Produces: nothing new. `BackendHealthMonitor`, `HealthReport` and `HealthStatus` are gone.
+
+- [ ] **Step 1: The view.** `@State private var keyCheck = APIKeyCheck()` replaces `hasAPIKey`, `apiHealthy` and `keyStatusLoaded`. The section shows when `keyCheck.status?.message` is non-nil, with that message as the caption; the key field and Save Key, and the footer, only when `offersKeyEntry`; Remove Key only when `offersRemoval`. The rest of the section's code is unchanged (the icon's `hasAPIKey ? .orange : .orange` becomes `.orange`). The `.task` and the save and remove paths call a `refreshKeyStatus()` and a `keyChanged()` that take the store from the environment, call `reportMissingStationStore(in: "Settings")` without one, and call `keyCheck.refresh(using:)` or `keyCheck.keyChanged(in:)`. Saving no longer calls `backend.forgetKeyRefusal()` itself. The Version row uses `AppConfiguration.appVersion` and `buildNumber`, and `appVersion` goes (Decision 8).
+- [ ] **Step 2: Delete `BackendHealthMonitor.swift` and the old test.** `git grep -n -E "BackendHealthMonitor|NWPathMonitor|checkHealth|HealthReport"` finds nothing in `InspiRail/` or `InspiRailTests/`.
+- [ ] **Step 3: Typecheck.** Expected: 0 errors, 7 warnings (`setupNetworkMonitoring()` is gone).
+- [ ] **Step 4: Run the default test plan.** Expected: `** TEST SUCCEEDED **`, 93 test functions (79 − 1 + 8 + 7), run as 138 cases (120 − 1 + 12 + 7: `problemsAKeyCantFixDontOfferRemoval` has 4 arguments and `refusedKeyOffersRemoval` 2), 0 skipped.
+- [ ] **Step 5: Commit** `fix: show Settings' key status from the shared store, offer Remove Key only for a refused key, and drop the health monitor (#19)`
+
+### Task 4: Record the fix, and check each state on a simulator
+
+**Files:**
+- Modify: `CHANGELOG.md`, `[Unreleased]`
+- Modify: `README.md:38-47` (the layout)
+- Modify: this plan (Measurements)
+
+- [ ] **Step 1: `CHANGELOG.md`.** Under `### Fixed`, drop the sentence "Settings' API key check still downloads the list each time Settings opens (#19)." from the shared-store entry, and append:
+  - Settings no longer calls a working API key broken when NS answers slowly, can't be reached, is busy (429) or failing (5xx), or sends data the app can't read, or after the connection dropped and came back. It shows the same message Discover shows, and offers Remove Key only when NS rejected (401) or refused (403) the key. A rejected key reads "NS didn't accept this key."
+  - Settings checks the key against the station list the app shares instead of downloading the list on every visit, so within the hour after a successful load a visit sends nothing, and Settings and Discover agree on the same list.
+  - A key saved or removed in Settings is checked with that key: a list stored, a download still running or a refusal for the previous key no longer answers for it. Leaving Settings while it checks leaves its status as it was.
+
+  Under `### Removed`, append:
+  - The backend health monitor (`BackendHealthMonitor`) and its network path monitor, which kept running once Settings had opened.
+
+  And drop `BackendHealthMonitor` from the "Unused members of …" entry, since the whole type goes.
+- [ ] **Step 2: `README.md`.** Delete the `BackendHealthMonitor.swift` line of the layout. The `ViewModels/` line reads "View-models, Settings' key check, and the station store every screen shares".
+- [ ] **Step 3: Builds and stub.** Make a scratch copy of the offline review stub (`.superpowers/scratch/review/runtime/stub/`) outside the repo. It still answers only `gateway.apiportal.ns.nl` and never forwards a request. It reads `REVIEW_STUB_PAYLOAD`, `REVIEW_STUB_STATUS`, `REVIEW_STUB_STATUS_COUNT` (that status for the first n requests, then 200), `REVIEW_STUB_FAIL` (a `URLError` code), `REVIEW_STUB_REJECT_KEY` (401 for that key), and two new ones, `REVIEW_STUB_DELAY` (seconds before each answer) and `REVIEW_STUB_DELAY_FROM` (the first request to delay). It logs each request as `REVIEWSTUB request #n <path> -> <status or error>`, marking a request that carries the key to reject, never the key itself. Build it for x86_64 with `xcrun --sdk iphonesimulator clang`. In scratch worktrees of `main` (8e7551a) and of this branch, add a throwaway XCUITest driver to `InspiRailUITests/`, add that target to the worktree's test plan, and build each with `build-for-testing` and its own `-derivedDataPath` outside the repo. The driver launches with the stub, a dummy key (`NS_API_KEY=dummy-key`, except in (d)) and `-homeStationCode ASD`, logs `UIDRIVER phase=…` markers, and attaches screenshots. Each run uses `test-without-building -parallel-testing-enabled NO` on the throwaway iPhone 15, with nothing else booted, streaming `log stream --predicate 'subsystem == "annisu.inspirail" OR subsystem == "review.stub" OR subsystem == "review.uidriver"'`. Never use a real key. Shut the simulator down between runs.
+- [ ] **Step 4: The cases.** Screenshots go to the session's scratch directory as `19-<case>.png`. Requests are the stub's `REVIEWSTUB request` lines between the driver's markers.
+  - (a) 20 rounds of Logbook → Settings → Discover, 2 s on each tab, after Discover has loaded. Expected: on `main`, 20 requests in the rounds (one key check per Settings visit); on the branch, none.
+  - (b) Every answer delayed 3 s; the Settings tab is opened right after launch, while Discover's download runs. Expected: no key section once the answer arrives, and 1 request. On `main`, for comparison, "Configured key isn't working".
+  - (c) No connection (`REVIEW_STUB_FAIL=-1009`), and separately a 503. Expected: "Can't reach NS. Check your internet connection." or "NS isn't available right now. Try again later.", with no key field and no Remove Key.
+  - (d) An erased simulator with no key, and the stub rejecting `dummy-key-a`. Settings shows "Not configured". Saving `dummy-key-a` sends 1 request, rejected: "NS didn't accept this key." with the key field, Save Key and Remove Key. Saving `dummy-key-b` sends 1 request, without the rejected key, and the section goes away. Back on Discover, a station shows with no further request.
+  - (e) A 403. Expected: "NS refused your API key. It may be over its usage limit. Try again later." with the key field, Save Key and Remove Key.
+  - (f) A 503 for the first 6 requests, then 200 delayed 8 s from request 7. Discover's load fails (3 requests), and Settings' first check fails too (3 more): "NS isn't available right now. Try again later." Then the Logbook starts the delayed download, Settings is opened (its check joins it), left for the Logbook after 1 s, and opened again: still "NS isn't available right now. Try again later." Once the download ends, the section goes away.
+  - No log line holds a dummy key.
+- [ ] **Step 5: Clean up.** Delete the worktrees, the derived data, the stub copy's build, any test clones (`xcrun simctl --set ~/Library/Developer/XCTestDevices list devices`), the simulator once the last test run is done, and any crash reports the runs left in `~/Library/Logs/DiagnosticReports/`.
+- [ ] **Step 6: Commit** `docs: record the honest Settings key check in the changelog, README and plan (#19)`
+
+## Measurements
+
+To be filled in by Task 4.
