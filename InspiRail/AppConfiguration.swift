@@ -36,8 +36,16 @@ enum AppConfiguration {
     
     enum API {
         static let baseURL = "https://gateway.apiportal.ns.nl"
-        static let timeout: TimeInterval = 30
-        static let resourceTimeout: TimeInterval = 60
+        /// The longest a request waits for the first or the next bytes of
+        /// the reply. A connection that sends nothing for this long, several
+        /// times the round trips of a slow mobile network, has stalled, and
+        /// waiting longer only keeps the loading screen up (#21).
+        nonisolated static let timeout: TimeInterval = 15
+        /// The longest one request may take in all. The station list, the
+        /// app's only request, is about 380 KB, or under 40 KB compressed:
+        /// on EDGE, the slowest mobile network still in use, it arrives in
+        /// about 15 s even uncompressed (#21).
+        nonisolated static let resourceTimeout: TimeInterval = 30
         
         // Retries (#20)
         /// The most times one load sends its request.

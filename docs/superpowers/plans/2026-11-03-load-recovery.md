@@ -114,12 +114,12 @@ While a Retry runs, each screen shows its usual loading state: Discover "Consult
 - Consumes: nothing new.
 - Produces: `nonisolated static let timeout: TimeInterval = 15` and `nonisolated static let resourceTimeout: TimeInterval = 30` in `AppConfiguration.API`, each with a doc comment saying what it bounds and why (Decision 6). The session's `waitsForConnectivity` is false.
 
-- [ ] **Step 1: Write the failing test** `sessionFailsFastWhenOffline`: start from `StubURLProtocol.configuration()` with `waitsForConnectivity = true`, so the test can't pass on the ephemeral default; build `BackendAPI(keyProvider: environmentKeyProvider(), sessionConfiguration: base)`; expect its `session.configuration` to have `waitsForConnectivity == false`, `timeoutIntervalForRequest == 15` and `timeoutIntervalForResource == 30`.
-- [ ] **Step 2: Run it to verify it fails.** Expected: 3 failed expectations (`true`, `30.0`, `60.0`).
-- [ ] **Step 3: Implement.** `config.waitsForConnectivity = false`, with a comment: loads are user-started and fail at once offline, and Retry tries again (#21). The two values as in Interfaces.
-- [ ] **Step 4: Run it to verify it passes.** Expected: the suite passes.
-- [ ] **Step 5: Typecheck.** Expected: 0 errors, 5 warnings (the two on `timeout` and `resourceTimeout` are gone).
-- [ ] **Step 6: Commit** `fix: fail at once when offline instead of waiting up to a minute for a connection (#21)`
+- [x] **Step 1: Write the failing test** `sessionFailsFastWhenOffline`: start from `StubURLProtocol.configuration()` with `waitsForConnectivity = true`, so the test can't pass on the ephemeral default; build `BackendAPI(keyProvider: environmentKeyProvider(), sessionConfiguration: base)`; expect its `session.configuration` to have `waitsForConnectivity == false`, `timeoutIntervalForRequest == 15` and `timeoutIntervalForResource == 30`.
+- [x] **Step 2: Run it to verify it fails.** Expected: 3 failed expectations (`true`, `30.0`, `60.0`).
+- [x] **Step 3: Implement.** `config.waitsForConnectivity = false`, with a comment: loads are user-started and fail at once offline, and Retry tries again (#21). The two values as in Interfaces.
+- [x] **Step 4: Run it to verify it passes.** Expected: the suite passes.
+- [x] **Step 5: Typecheck.** Expected: 0 errors, 5 warnings (the two on `timeout` and `resourceTimeout` are gone).
+- [x] **Step 6: Commit** `fix: fail at once when offline instead of waiting up to a minute for a connection (#21)`
 
 ### Task 3: Discover offers Retry, or Open Settings for a key error
 
