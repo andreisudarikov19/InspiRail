@@ -158,7 +158,7 @@ On `main`: every load error showed the station step's search field above a panel
   - `func keyStatusChanged(to status: APIKeyStatus?, in repository: StationsRepository) async` (Decision 8): loads the stations only when `status == .working`, `step == .key` and no save runs.
   - `keyProblem` is nil while `isSavingKey`.
 
-- [ ] **Step 1: Write the failing tests** in `OnboardingTests.swift`, over a `TestKeyStorage()` with no key, `StationsRepository(backend: api(keyProvider: provider(storage)))` and one `APIKeyCheck`, the onboarding loaded first onto the key step:
+- [x] **Step 1: Write the failing tests** in `OnboardingTests.swift`, over a `TestKeyStorage()` with no key, `StationsRepository(backend: api(keyProvider: provider(storage)))` and one `APIKeyCheck`, the onboarding loaded first onto the key step:
   - `savingAKeyLoadsTheStationsWithIt`: `keyInput = "  new-test-key \n"`, `canSaveKey`. Hold; start `saveKey` in a `Task`; wait for request 1: `isSavingKey`, `!canSaveKey`, `step == .key`, no `keyProblem`, `keyInput == ""`, `keyCheck.isCheckingNewKey`. Release: `.station`, `offersSearch`, the stations are `dutchCodes`, `keyCheck.status == .working`, `storage.storedKey == "new-test-key"`, `sentKeys == ["new-test-key"]`, `!isSavingKey`.
   - `savingAKeyNSRejectsStaysOnTheKeyStep`: replies `[.status(401), .stations]`. Saving "first-test-key": `.key`, `keyProblem == "NS didn't accept your API key. Check it in Settings."`, `keyCheck.status == .rejected`, 1 request. Saving "second-test-key": `.station` with the stations, `sentKeys == ["first-test-key", "second-test-key"]`.
   - `savingAKeyWhileOfflineShowsTheStationStepWithRetry`: replies `[.failure(.notConnectedToInternet), .stations]`. After the save: `.station`, `failure == LoadFailure(message: "Can't reach NS. Check your internet connection.", action: .retry)`, 1 request, `storedKey == "new-test-key"`, `keyCheck.status == .cantCheck("Can't reach NS. Check your internet connection.")`. After `retry`: the stations, 2 requests, `sentKeys == ["new-test-key", "new-test-key"]`.
@@ -167,11 +167,11 @@ On `main`: every load error showed the station step's search field above a panel
   - `aKeyThatCantBeWrittenShowsItsError`: `TestKeyStorage(saveFailure: .saveFailed(errSecInteractionNotAllowed))`. After saving "new-test-key": `keySaveError == "Failed to save to Keychain (status: -25308)"`, `keyInput == "new-test-key"`, `.key`, no `keyProblem`, `!isSavingKey`, no request, `keyCheck.status` nil.
   - `aKeyThatWorksInAnotherWindowMovesThisOneOn`: windows A and B on the key step; A saves "new-test-key" (1 request). `B.keyStatusChanged(to: keyCheck.status, in:)`: B is on `.station` with the stations, still 1 request.
   - `aKeyRejectedInAnotherWindowLeavesThisOneAsItWas`: replies `[.status(401)]`. After A's save, `B.keyStatusChanged(to: .rejected, in:)` leaves B on `.key` with no `keyProblem`; 1 request.
-- [ ] **Step 2: Run them to verify they fail.** Expected: a build failure, `value of type 'Onboarding' has no member 'keyInput'` or similar.
-- [ ] **Step 3: Implement** as in Interfaces.
-- [ ] **Step 4: Run them to verify they pass.** Expected: the suite passes, with 8 new tests. Then the mutant of the store's handling of a key change (#19) that the old-download test relies on: `keyChanged(in:)` calling `forgetStations(keyChanged: false)` fails `savingAKeyDoesntCountAnOldKeysDownload`. Restore the file.
-- [ ] **Step 5: Typecheck.** Expected: 0 errors, 5 warnings.
-- [ ] **Step 6: Commit** `fix: save a key in onboarding and load the stations with it at once, with one request (#42)`
+- [x] **Step 2: Run them to verify they fail.** Expected: a build failure, `value of type 'Onboarding' has no member 'keyInput'` or similar.
+- [x] **Step 3: Implement** as in Interfaces.
+- [x] **Step 4: Run them to verify they pass.** Expected: the suite passes, with 8 new tests. Then the mutant of the store's handling of a key change (#19) that the old-download test relies on: `keyChanged(in:)` calling `forgetStations(keyChanged: false)` fails `savingAKeyDoesntCountAnOldKeysDownload`. Restore the file.
+- [x] **Step 5: Typecheck.** Expected: 0 errors, 5 warnings.
+- [x] **Step 6: Commit** `fix: save a key in onboarding and load the stations with it at once, with one request (#42)`
 
 ### Task 4: Selecting the home station, and Start Exploring
 
