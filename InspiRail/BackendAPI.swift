@@ -87,8 +87,8 @@ actor BackendAPI {
     private(set) var keyRefusal: KeyRefusal?
     
     /// Forgets the refused key, so the next load sends the key, whatever it
-    /// is. Settings calls it when a key is saved, even the one NS refused,
-    /// since a refusal can pass (#20).
+    /// is. The station store calls it when a key is saved or removed in
+    /// Settings, even the one NS refused, since a refusal can pass (#19, #20).
     func forgetKeyRefusal() {
         keyRefusal = nil
     }

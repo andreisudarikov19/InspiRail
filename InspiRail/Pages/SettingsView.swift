@@ -11,53 +11,50 @@ import SwiftData
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.stationsRepository) private var stationsRepository
+    @Environment(\.apiKeyCheck) private var keyCheck
     @AppStorage("homeStationCode") private var homeStationCode: String = ""
     @AppStorage("homeStationName") private var homeStationName: String = ""
     @State private var showingResetAlert = false
     @State private var apiKeyInput: String = ""
-    @State private var hasAPIKey: Bool = false
-    @State private var apiHealthy: Bool = true
-    @State private var keyStatusLoaded: Bool = false
     @State private var keyOperationInFlight: Bool = false
     @State private var keyOperationError: String?
     @Query private var visitedStations: [VisitedStation]
 
-    /// Show the API-key section only when we know there's something to fix:
-    /// missing key, or key present but failing health checks. Hidden while we
-    /// haven't checked yet, to avoid a flicker.
-    private var showAPIKeySection: Bool {
-        keyStatusLoaded && (!hasAPIKey || !apiHealthy)
-    }
-
     var body: some View {
         NavigationStack {
             Form {
-                if showAPIKeySection {
+                // The API-key section shows only when there's something to
+                // say, and offers the key field and Remove Key only where a
+                // key can help (#19). Hidden until the first check ends. The
+                // status is the app's, so every window shows the same one.
+                if let keyStatus = keyCheck?.status, let keyMessage = keyStatus.message {
                     Section {
                         HStack {
-                            SettingsIcon(icon: "key.fill", color: hasAPIKey ? .orange : .orange)
+                            SettingsIcon(icon: "key.fill", color: .orange)
                             VStack(alignment: .leading) {
                                 Text("NS API Key").foregroundColor(.primary)
-                                Text(hasAPIKey
-                                     ? "Configured key isn't working"
-                                     : "Not configured")
+                                Text(keyMessage)
                                     .font(.caption)
                                     .foregroundColor(.orange)
                             }
                         }
-                        SecureField("Paste your NS API key", text: $apiKeyInput)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                        Button {
-                            saveAPIKey()
-                        } label: {
-                            HStack {
-                                SettingsIcon(icon: "checkmark.circle.fill", color: .blue)
-                                Text(keyOperationInFlight ? "Saving…" : "Save Key")
+                        if keyStatus.offersKeyEntry {
+                            SecureField("Paste your NS API key", text: $apiKeyInput)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                            Button {
+                                saveAPIKey()
+                            } label: {
+                                HStack {
+                                    SettingsIcon(icon: "checkmark.circle.fill", color: .blue)
+                                    Text(keyOperationInFlight ? "Saving…" : "Save Key")
+                                }
                             }
+                            .disabled(apiKeyInput.trimmingCharacters(in: .whitespaces).isEmpty || keyOperationInFlight)
                         }
-                        .disabled(apiKeyInput.trimmingCharacters(in: .whitespaces).isEmpty || keyOperationInFlight)
-                        if hasAPIKey {
+                        // Not while a key just saved, here or in another
+                        // window, is being checked.
+                        if keyCheck?.offersRemoval == true {
                             Button(role: .destructive) {
                                 removeAPIKey()
                             } label: {
@@ -68,7 +65,9 @@ struct SettingsView: View {
                     } header: {
                         Text("API Configuration")
                     } footer: {
-                        Text("Get a free key at apiportal.ns.nl, then paste it above.")
+                        if keyStatus.offersKeyEntry {
+                            Text("Get a free key at apiportal.ns.nl, then paste it above.")
+                        }
                     }
                 }
                 Section {
@@ -98,7 +97,7 @@ struct SettingsView: View {
                     Text("This will remove all \(visitedStations.count) stations from your history.")
                 }
                 Section {
-                    HStack { SettingsIcon(icon: "info.circle.fill", color: .gray); Text("Version"); Spacer(); Text(appVersion).foregroundStyle(.secondary) }
+                    HStack { SettingsIcon(icon: "info.circle.fill", color: .gray); Text("Version"); Spacer(); Text("\(AppConfiguration.appVersion) (\(AppConfiguration.buildNumber))").foregroundStyle(.secondary) }
                     Link(destination: URL(string: "https://apiportal.ns.nl")!) {
                         HStack { SettingsIcon(icon: "server.rack", color: .indigo); Text("Powered by NS API"); Spacer(); Image(systemName: "arrow.up.right").font(.caption).foregroundStyle(.secondary) }
                     }
@@ -128,11 +127,8 @@ struct SettingsView: View {
         Task {
             do {
                 try await KeychainManager.shared.saveAPIKey(key)
-                // The next load and key check send the saved key, even one
-                // NS refused before (#20)
-                await stationsRepository?.backend.forgetKeyRefusal()
                 await MainActor.run { apiKeyInput = "" }
-                await refreshKeyStatus()
+                await keyChanged()
                 await MainActor.run { keyOperationInFlight = false }
             } catch {
                 await MainActor.run {
@@ -148,7 +144,7 @@ struct SettingsView: View {
         Task {
             do {
                 try await KeychainManager.shared.deleteAPIKey()
-                await refreshKeyStatus()
+                await keyChanged()
                 await MainActor.run { keyOperationInFlight = false }
             } catch {
                 await MainActor.run {
@@ -159,36 +155,33 @@ struct SettingsView: View {
         }
     }
 
-    /// Check whether we have a key in the Keychain and whether the backend
-    /// will accept it. Used to decide whether to surface the key-entry UI.
+    /// Checks the key by asking the app's station store with it, so a visit
+    /// within the store's hour sends nothing (#19).
     private func refreshKeyStatus() async {
-        let keyPresent = await KeychainManager.shared.hasAPIKey()
-        var healthy = true
-        if keyPresent {
-            if let stationsRepository {
-                do {
-                    let report = try await BackendHealthMonitor.shared.checkHealth(using: stationsRepository.backend)
-                    healthy = report.isHealthy
-                } catch {
-                    // The check was cut short, for example by leaving
-                    // Settings: keep the status as it was (#20).
-                    return
-                }
-            } else {
-                reportMissingStationStore(in: "Settings")
-            }
+        guard let stationsRepository else {
+            reportMissingStationStore(in: "Settings")
+            return
         }
-        await MainActor.run {
-            hasAPIKey = keyPresent
-            apiHealthy = healthy
-            keyStatusLoaded = true
+        guard let keyCheck else {
+            reportMissingKeyCheck(in: "Settings")
+            return
         }
+        await keyCheck.refresh(using: stationsRepository)
     }
     
-    private var appVersion: String {
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
-        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
-        return "\(version) (\(build))"
+    /// A key was saved or removed: the store forgets what it knew about the
+    /// old one, and the key stored now is checked with a request of its own,
+    /// even one NS refused before (#19, #20).
+    private func keyChanged() async {
+        guard let stationsRepository else {
+            reportMissingStationStore(in: "Settings")
+            return
+        }
+        guard let keyCheck else {
+            reportMissingKeyCheck(in: "Settings")
+            return
+        }
+        await keyCheck.keyChanged(in: stationsRepository)
     }
     
     private func resetHistory() {
