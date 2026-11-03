@@ -8,6 +8,14 @@
 import Foundation
 import OSLog
 
+/// Where the API key is stored: the Keychain in the app. Tests use one in
+/// memory, which can also fail as the Keychain can.
+nonisolated protocol APIKeyStorage: Sendable {
+    /// The stored key. Throws `KeychainError.notFound` when there is none.
+    func getAPIKey() async throws -> String
+    func saveAPIKey(_ key: String) async throws
+}
+
 /// Finds the NS API key to send with a request.
 ///
 /// The key lives in the Keychain. In Debug builds a non-empty `NS_API_KEY`
@@ -15,11 +23,11 @@ import OSLog
 /// holds no key yet, the variable is saved there, so a single launch with it
 /// also primes later launches.
 nonisolated struct APIKeyProvider: Sendable {
-    private let keychain: KeychainManager
+    private let keychain: any APIKeyStorage
     private let environmentKey: String?
     private let logger = Logger(subsystem: AppConfiguration.subsystem, category: "apikey")
 
-    init(keychain: KeychainManager, environment: [String: String], allowsEnvironmentOverride: Bool) {
+    init(keychain: any APIKeyStorage, environment: [String: String], allowsEnvironmentOverride: Bool) {
         self.keychain = keychain
         let value = environment["NS_API_KEY"]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         self.environmentKey = allowsEnvironmentOverride && !value.isEmpty ? value : nil
@@ -29,7 +37,9 @@ nonisolated struct APIKeyProvider: Sendable {
     /// saved or removed in Settings is overridden by it.
     var usesEnvironmentKey: Bool { environmentKey != nil }
 
-    /// The key to send with a request. Throws `NetworkError.unauthorized` when there is none or the stored one can't be read.
+    /// The key to send with a request. Throws `NetworkError.noKey` when none
+    /// is stored, and `NetworkError.keychainUnavailable` when the stored one
+    /// can't be read.
     func currentKey() async throws -> String {
         let storedKey: String?
         let keychainIsEmpty: Bool
@@ -64,9 +74,10 @@ nonisolated struct APIKeyProvider: Sendable {
 
         if keychainIsEmpty {
             logger.error("No API key: enter one in Settings")
+            throw NetworkError.noKey
         } else {
             logger.error("No usable API key: the stored key couldn't be read from the Keychain")
+            throw NetworkError.keychainUnavailable
         }
-        throw NetworkError.unauthorized
     }
 }

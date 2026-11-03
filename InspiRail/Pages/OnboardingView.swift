@@ -176,31 +176,19 @@ struct OnboardingView: View {
                 self.isLoading = false
             }
         } catch {
+            // A cancelled load shows no message. Only leaving onboarding
+            // cancels it, so nobody sees it still loading (#20).
+            guard let message = NetworkError.message(for: error) else { return }
+            
             // Log the actual error for debugging
             print("❌ OnboardingView - Failed to load stations: \(error)")
             print("   Error type: \(type(of: error))")
             
-            if let networkError = error as? NetworkError {
-                print("   Network error: \(networkError)")
-            }
-            
             await MainActor.run {
-                // Provide more specific error messages
-                if let networkError = error as? NetworkError {
-                    switch networkError {
-                    case .unauthorized:
-                        self.errorMessage = "No valid NS API key. Tap below to enter one (get a free key at apiportal.ns.nl)."
-                        self.isUnauthorized = true
-                    case .noConnection:
-                        self.errorMessage = "No internet connection. Please check your network."
-                    case .timeout:
-                        self.errorMessage = "Connection timeout. Please try again."
-                    default:
-                        self.errorMessage = "Could not load stations: \(networkError.localizedDescription)"
-                    }
-                } else {
-                    self.errorMessage = "Could not load stations. Please check your internet connection."
-                }
+                // The same message as Discover's, and Open Settings for the
+                // errors about the key (#20)
+                self.errorMessage = message
+                self.isUnauthorized = (error as? NetworkError)?.concernsTheKey ?? false
                 self.isLoading = false
             }
         }

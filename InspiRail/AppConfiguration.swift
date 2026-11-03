@@ -39,9 +39,17 @@ enum AppConfiguration {
         static let timeout: TimeInterval = 30
         static let resourceTimeout: TimeInterval = 60
         
-        // Rate limiting
-        static let maxRequestsPerMinute = 30
-        static let maxRetries = 3
+        // Retries (#20)
+        /// The most times one load sends its request.
+        nonisolated static let maxAttempts = 3
+        /// The longest wait between attempts. When NS asks for longer, the
+        /// load fails at once instead of keeping the screen loading.
+        nonisolated static let longestRetryWait: TimeInterval = 10
+        /// How long a key NS refused (401 or 403) is held back before it is
+        /// sent again: a 401 can pass, for example while a new subscription
+        /// becomes active, and a 403 can mean a quota that resets. Another
+        /// key, or any key saved in Settings, is sent at once.
+        nonisolated static let refusedKeyPause: TimeInterval = 15 * 60
         
         // Cache settings
         static let cacheLifetime: TimeInterval = 3600 // 1 hour

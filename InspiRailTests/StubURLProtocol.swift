@@ -12,16 +12,30 @@ import Foundation
 /// Its state is shared by every session that uses it, so only the serialized
 /// "Station store" suite uses it.
 final class StubURLProtocol: URLProtocol {
-    struct Reply {
+    struct Reply: Sendable {
         let status: Int
         let body: Data
+        /// Sent with the reply, after `Content-Type`.
+        var headers: [String: String] = [:]
+        /// When set, the request fails with this transport error instead.
+        var failure: URLError.Code? = nil
 
         /// HTTP 200 with the six stations of `stationFixture`.
         static let stations = Reply(status: 200, body: Data(stationFixture.utf8))
 
-        /// That status, with an empty JSON object as the body.
-        static func status(_ code: Int) -> Reply {
-            Reply(status: code, body: Data("{}".utf8))
+        /// That status and headers, with an empty JSON object as the body.
+        static func status(_ code: Int, headers: [String: String] = [:]) -> Reply {
+            Reply(status: code, body: Data("{}".utf8), headers: headers)
+        }
+
+        /// HTTP 200 with that body.
+        static func body(_ json: String) -> Reply {
+            Reply(status: 200, body: Data(json.utf8))
+        }
+
+        /// No response: the request fails with that transport error.
+        static func failure(_ code: URLError.Code) -> Reply {
+            Reply(status: 0, body: Data(), failure: code)
         }
     }
 
@@ -56,6 +70,12 @@ final class StubURLProtocol: URLProtocol {
     /// Keeps every answer until `release()`.
     static func hold() {
         lock.withLock { state.isHolding = true }
+    }
+
+    /// Answers the next requests at once, and keeps the answers held so far
+    /// until `release()`.
+    static func stopHolding() {
+        lock.withLock { state.isHolding = false }
     }
 
     /// Sends the answers held so far, and stops holding.
@@ -101,14 +121,26 @@ final class StubURLProtocol: URLProtocol {
         }
     }
 
-    override func stopLoading() {}
+    /// Set when the session stops the load, for example because its task
+    /// was cancelled. Read and set on the loading thread only.
+    private var isStopped = false
+
+    override func stopLoading() {
+        isStopped = true
+    }
 
     private func respond(with reply: Reply) {
+        // A held answer to a load the session has stopped isn't sent.
+        guard !isStopped else { return }
+        if let failure = reply.failure {
+            client?.urlProtocol(self, didFailWithError: URLError(failure))
+            return
+        }
         let response = HTTPURLResponse(
             url: request.url!,
             statusCode: reply.status,
             httpVersion: "HTTP/1.1",
-            headerFields: ["Content-Type": "application/json"]
+            headerFields: ["Content-Type": "application/json"].merging(reply.headers) { _, new in new }
         )!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: reply.body)
@@ -118,13 +150,21 @@ final class StubURLProtocol: URLProtocol {
 
 /// Six stations in the NS stations (v3) shape: four Dutch ones, not in name
 /// order, one with an apostrophe, and two from other countries.
+///
+/// Built from the documented shape, not taken from a real response, since the
+/// repo holds none (#20). Each station has every field
+/// `docs/reference/ns-api.md` lists, plus extra keys of the kind the review
+/// stub's generator models on the public API (`evaCode`, `names.festive`,
+/// `isBorderStop`, `radius`), which the app ignores. The codes, UIC codes,
+/// names and countries are the real stations'; coordinates are approximate
+/// and the other values illustrative. Station data only: no headers, no keys.
 let stationFixture = """
 {"payload":[
-{"id":{"code":"UT","uicCode":"8400621"},"stationType":"MEGA_STATION","names":{"long":"Utrecht Centraal","medium":"Utrecht C.","short":"Utrecht C"},"location":{"lat":52.08901,"lng":5.110268},"country":"NL"},
-{"id":{"code":"ASD","uicCode":"8400058"},"stationType":"MEGA_STATION","names":{"long":"Amsterdam Centraal","medium":"Amsterdam C.","short":"Amsterdm C"},"location":{"lat":52.37888,"lng":4.900277},"country":"NL"},
-{"id":{"code":"HT","uicCode":"8400319"},"stationType":"KNOOPPUNT_INTERCITY_STATION","names":{"long":"'s-Hertogenbosch","medium":"'s-Hertogenb.","short":"Den Bosch"},"location":{"lat":51.69048,"lng":5.29362},"country":"NL"},
-{"id":{"code":"ZL","uicCode":"8400747"},"stationType":"KNOOPPUNT_INTERCITY_STATION","names":{"long":"Zwolle","medium":"Zwolle","short":"Zwolle"},"location":{"lat":52.50474,"lng":6.091102},"country":"NL"},
-{"id":{"code":"BHF","uicCode":"8011160"},"stationType":"MEGA_STATION","names":{"long":"Berlin Hbf","medium":"Berlin Hbf","short":"Berlin Hbf"},"location":{"lat":52.52508,"lng":13.369402},"country":"D"},
-{"id":{"code":"BRUZ","uicCode":"8814001"},"stationType":"MEGA_STATION","names":{"long":"Brussel-Zuid","medium":"Brussel-Zuid","short":"Brussel Z"},"location":{"lat":50.83588,"lng":4.33645},"country":"B"}
+{"id":{"code":"UT","uicCode":"8400621","evaCode":"8400621"},"stationType":"MEGA_STATION","names":{"long":"Utrecht Centraal","medium":"Utrecht C.","short":"Utrecht C","synonyms":["Utrecht"],"festive":null},"location":{"lat":52.08901,"lng":5.110268},"tracks":["5","7","11","12","14","15"],"hasKnownFacilities":true,"hasTravelAssistance":true,"isBorderStop":false,"radius":525,"country":"NL"},
+{"id":{"code":"ASD","uicCode":"8400058","evaCode":"8400058"},"stationType":"MEGA_STATION","names":{"long":"Amsterdam Centraal","medium":"Amsterdam C.","short":"Amsterdm C","synonyms":[],"festive":null},"location":{"lat":52.37888,"lng":4.900277},"tracks":["2","4","5","7","8","10"],"hasKnownFacilities":true,"hasTravelAssistance":true,"isBorderStop":false,"radius":525,"country":"NL"},
+{"id":{"code":"HT","uicCode":"8400319","evaCode":"8400319"},"stationType":"KNOOPPUNT_INTERCITY_STATION","names":{"long":"'s-Hertogenbosch","medium":"'s-Hertogenb.","short":"Den Bosch","synonyms":["Den Bosch"],"festive":null},"location":{"lat":51.69048,"lng":5.29362},"tracks":["1","3","4","6","7"],"hasKnownFacilities":true,"hasTravelAssistance":true,"isBorderStop":false,"radius":400,"country":"NL"},
+{"id":{"code":"ZL","uicCode":"8400747","evaCode":"8400747"},"stationType":"KNOOPPUNT_INTERCITY_STATION","names":{"long":"Zwolle","medium":"Zwolle","short":"Zwolle","synonyms":[],"festive":null},"location":{"lat":52.50474,"lng":6.091102},"tracks":["1","3","4","5","7"],"hasKnownFacilities":true,"hasTravelAssistance":false,"isBorderStop":false,"radius":400,"country":"NL"},
+{"id":{"code":"BHF","uicCode":"8011160","evaCode":"8011160"},"stationType":"MEGA_STATION","names":{"long":"Berlin Hbf","medium":"Berlin Hbf","short":"Berlin Hbf","synonyms":[],"festive":null},"location":{"lat":52.52508,"lng":13.369402},"tracks":[],"hasKnownFacilities":false,"hasTravelAssistance":false,"isBorderStop":false,"radius":500,"country":"D"},
+{"id":{"code":"BRUZ","uicCode":"8814001","evaCode":"8814001"},"stationType":"MEGA_STATION","names":{"long":"Brussel-Zuid","medium":"Brussel-Zuid","short":"Brussel Z","synonyms":["Bruxelles-Midi"],"festive":null},"location":{"lat":50.83588,"lng":4.33645},"tracks":[],"hasKnownFacilities":false,"hasTravelAssistance":false,"isBorderStop":false,"radius":500,"country":"B"}
 ]}
 """

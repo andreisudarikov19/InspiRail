@@ -8,11 +8,86 @@
 import Foundation
 import CoreLocation
 
-struct StationResponse: Codable {
+/// The stations (v3) response. Stations are decoded one at a time, so one
+/// that can't be read is skipped instead of failing the whole list (#20).
+/// The types are nonisolated, so the API actor can decode them.
+nonisolated struct StationResponse: Decodable {
     let payload: [Station]
+    /// The entries that couldn't be read as stations, in list order.
+    let skipped: [SkippedStation]
+    
+    private enum CodingKeys: String, CodingKey {
+        case payload
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        var list = try container.nestedUnkeyedContainer(forKey: .payload)
+        var stations: [Station] = []
+        var skipped: [SkippedStation] = []
+        while !list.isAtEnd {
+            if try list.decodeNil() {
+                skipped.append(SkippedStation(code: nil, field: ""))
+                continue
+            }
+            do {
+                stations.append(try list.decode(Station.self))
+            } catch {
+                // A failed decode leaves the list where it was: read the
+                // entry again for its code, which also moves past it.
+                let code = try list.decode(StationCode.self).code
+                let field = SkippedStation.field(of: error, below: list.codingPath.count + 1)
+                skipped.append(SkippedStation(code: code, field: field))
+            }
+        }
+        self.payload = stations
+        self.skipped = skipped
+    }
 }
 
-struct Station: Codable, Identifiable {
+/// An entry in the station list that couldn't be read as a station (#20).
+nonisolated struct SkippedStation: Sendable, Equatable {
+    /// Its `id.code`, when it has a readable one.
+    let code: String?
+    /// The field that couldn't be read, such as `location` or `names.short`.
+    /// Empty when the entry isn't a station at all, such as `null`.
+    let field: String
+    
+    /// The field `error` names, below the first `depth` keys of its path,
+    /// which lead to the entry.
+    static func field(of error: Error, below depth: Int) -> String {
+        guard let error = error as? DecodingError else {
+            return ""
+        }
+        let path: [CodingKey]
+        switch error {
+        case .keyNotFound(let key, let context):
+            path = context.codingPath + [key]
+        case .typeMismatch(_, let context), .valueNotFound(_, let context), .dataCorrupted(let context):
+            path = context.codingPath
+        @unknown default:
+            path = []
+        }
+        return path.dropFirst(depth).map(\.stringValue).joined(separator: ".")
+    }
+}
+
+/// The code of an entry that couldn't be read, if it has a readable one.
+/// Never fails, so it can always move the list past the entry.
+nonisolated private struct StationCode: Decodable {
+    let code: String?
+    
+    private enum CodingKeys: String, CodingKey {
+        case id, code
+    }
+    
+    init(from decoder: Decoder) {
+        let id = try? decoder.container(keyedBy: CodingKeys.self).nestedContainer(keyedBy: CodingKeys.self, forKey: .id)
+        code = try? id?.decode(String.self, forKey: .code)
+    }
+}
+
+nonisolated struct Station: Codable, Identifiable {
     // The "id" object in JSON maps to "identifiers" here
     var id: String { identifiers.code }
     
@@ -23,6 +98,7 @@ struct Station: Codable, Identifiable {
     let country: String
     
     // --- Rich Data Fields (Matched to English API v3) ---
+    /// Not shown anywhere, so it is read leniently (#20).
     let tracks: [String]?
     let hasKnownFacilities: Bool?
     let hasTravelAssistance: Bool?
@@ -37,24 +113,56 @@ struct Station: Codable, Identifiable {
         case hasKnownFacilities
         case hasTravelAssistance
     }
+    
+    /// The fields a screen uses must be there, with their type. A field no
+    /// screen uses is read leniently: missing, or of another type, it is nil,
+    /// so a change in it doesn't skip the station (#20).
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        identifiers = try container.decode(StationIdentifiers.self, forKey: .identifiers)
+        stationType = try container.decode(String.self, forKey: .stationType)
+        names = try container.decode(StationNames.self, forKey: .names)
+        location = try container.decode(StationLocation.self, forKey: .location)
+        country = try container.decode(String.self, forKey: .country)
+        tracks = try? container.decodeIfPresent([String].self, forKey: .tracks)
+        hasKnownFacilities = try container.decodeIfPresent(Bool.self, forKey: .hasKnownFacilities)
+        hasTravelAssistance = try container.decodeIfPresent(Bool.self, forKey: .hasTravelAssistance)
+    }
 }
 
 // 1. Identifiers
-struct StationIdentifiers: Codable {
+nonisolated struct StationIdentifiers: Codable {
     let code: String
+    /// Not shown anywhere, so it is read leniently (#20).
     let uicCode: String?
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        code = try container.decode(String.self, forKey: .code)
+        uicCode = try? container.decodeIfPresent(String.self, forKey: .uicCode)
+    }
 }
 
 // 2. Names (Synonyms are nested here now)
-struct StationNames: Codable {
+nonisolated struct StationNames: Codable {
     let long: String
-    let medium: String
+    /// Not shown anywhere, so it is read leniently: a station without it,
+    /// or with another type, still loads (#20).
+    let medium: String?
     let short: String
     let synonyms: [String]?
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        long = try container.decode(String.self, forKey: .long)
+        medium = try? container.decodeIfPresent(String.self, forKey: .medium)
+        short = try container.decode(String.self, forKey: .short)
+        synonyms = try container.decodeIfPresent([String].self, forKey: .synonyms)
+    }
 }
 
 // 3. Location
-struct StationLocation: Codable {
+nonisolated struct StationLocation: Codable {
     let lat: Double
     let lng: Double
 }

@@ -190,6 +190,8 @@ actor KeychainManager {
     }
 }
 
+extension KeychainManager: APIKeyStorage {}
+
 // MARK: - Keychain Error
 
 enum KeychainError: Error, LocalizedError {

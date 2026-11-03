@@ -33,6 +33,7 @@ Both live in `InspiRail.xcodeproj/project.pbxproj` on the app target and flow th
 - Six files listed in the Xcode workspace that don't exist.
 - The unused SwiftData migration plan (`VisitedStationMigration`), which described schemas the store never had.
 - The network session's response cache (10 MB in memory, 50 MB on disk), which was written and never read.
+- The client-side limit of 30 requests a minute, which delayed loads during an outage and counted requests that were never sent.
 
 ### Fixed
 - The unit and UI test targets now compile their test folders. Before, neither target contained any code, and the unit-test stub imported a module that doesn't exist.
@@ -44,6 +45,12 @@ Both live in `InspiRail.xcodeproj/project.pbxproj` on the app target and flow th
 - The app no longer erases the logbook when it can't open it, and no longer carries on with a temporary logbook whose visits are lost when the app quits. It says the logbook couldn't be opened, offers Try Again and Start a New Logbook, and tries again by itself each time the app comes to the foreground. Starting a new logbook asks first, then moves the old one into a backup folder on the device instead of deleting it.
 - On iPad, all windows share one logbook, so a visit marked in one window shows in the others.
 - The station list is downloaded once and shared by every screen and window for an hour. Opening the Logbook or the Home Station picker no longer downloads it again, Discover no longer downloads it again right after onboarding, and screens that load at the same time share one download. Settings' API key check still downloads the list each time Settings opens (#19). All requests go through one network session, so they reuse its connections.
+- When the station list can't be loaded, the message says why: no key stored, a stored key that can't be read right now, a key NS rejected, a key over its usage limit, too many requests, NS unavailable, no connection, or data this version can't read. Before, a Keychain problem and a usage limit both read as a missing key, and a failed name lookup read as an NS server error.
+- A load or key check that is cut short, for example by leaving Settings while it checks the key, no longer counts as a failure.
+- Retries follow NS's `Retry-After`, in seconds or as a date in any of the forms HTTP allows, up to three attempts. Without it, the waits are as before: 0.5 and then 1 second after a server error, 1 and then 2 seconds after too many requests. A wait longer than 10 seconds, or too long to read, fails at once instead of keeping the screen loading. Key, permission and data errors, and server errors another attempt can't fix (501, 505), aren't retried, and a failure is logged once instead of once per attempt.
+- A network that wants you to sign in before it lets you online (511), such as a captive portal, reads as no connection instead of NS being unavailable, and isn't retried.
+- After NS rejects or refuses an API key (401 or 403), the app doesn't send that key again for 15 minutes, or until a key is saved in Settings, even the same one.
+- A station the app can't read is skipped and logged instead of failing the whole list. The fields no screen shows (the medium name, the UIC code and the tracks) may be missing or of another type. A list with no Dutch station the app can read fails as data it can't read, instead of leaving Discover with nothing to pick.
 
 ---
 
