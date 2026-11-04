@@ -33,7 +33,8 @@ The NS API key lives only in the iOS Keychain. Nothing is compiled into the app,
 
 ```
 InspiRail/
-├── Models/                    SwiftData & Codable data models, logbook store
+├── Models/                    SwiftData & Codable data models, logbook store,
+│                              and the stations that count
 ├── NetworkEngine/             Network errors and what a screen offers
 │                              for each, retry timing, refused-key memory
 ├── Pages/                     SwiftUI screens (Discovery, Onboarding,

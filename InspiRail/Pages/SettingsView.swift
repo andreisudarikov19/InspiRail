@@ -21,7 +21,12 @@ struct SettingsView: View {
     /// Whether Settings' Retry is checking the key again (#21).
     @State private var retryInFlight = false
     @Query private var visitedStations: [VisitedStation]
-
+    
+    /// The visits the Logbook counts: every one but the home station's (#23).
+    private var countedVisitCount: Int {
+        StationCollection(homeStationCode: homeStationCode).countedVisits(visitedStations).count
+    }
+    
     var body: some View {
         NavigationStack {
             Form {
@@ -101,15 +106,19 @@ struct SettingsView: View {
                 } header: {
                     Text("Travel Preferences")
                 }
+                // The footer and the button count the visits the Logbook
+                // shows, the home station's left out (#23). Reset still
+                // deletes every record, that one included, so a later
+                // home-station change doesn't bring a reset visit back.
                 Section {
                     Button(role: .destructive) { showingResetAlert = true } label: {
                         HStack { SettingsIcon(icon: "trash.fill", color: .red); Text("Reset Logbook") }
                     }
-                    .disabled(visitedStations.isEmpty)
+                    .disabled(countedVisitCount == 0)
                 } header: {
                     Text("Data Management")
                 } footer: {
-                    Text("This will remove all \(visitedStations.count) stations from your history.")
+                    Text("This will remove all \(countedVisitCount) stations from your history.")
                 }
                 Section {
                     HStack { SettingsIcon(icon: "info.circle.fill", color: .gray); Text("Version"); Spacer(); Text("\(AppConfiguration.appVersion) (\(AppConfiguration.buildNumber))").foregroundStyle(.secondary) }
@@ -134,7 +143,7 @@ struct SettingsView: View {
             } message: { Text(keyOperationError ?? "") }
         }
     }
-
+    
     /// Saves the key as onboarding does (#42): trimmed, written to the
     /// Keychain, then checked, so every window shows its status (#19). The
     /// field clears once the key is written.
@@ -157,7 +166,7 @@ struct SettingsView: View {
             keyOperationInFlight = false
         }
     }
-
+    
     private func removeAPIKey() {
         keyOperationInFlight = true
         Task {
@@ -173,7 +182,7 @@ struct SettingsView: View {
             }
         }
     }
-
+    
     /// Checks the key by asking the app's station store with it, so a visit
     /// within the store's hour sends nothing (#19).
     private func refreshKeyStatus() async {

@@ -117,13 +117,13 @@ final class StationStoreTests {
 
         async let first = repository.dutchStations()
         await StubURLProtocol.waitForRequests(1)
-        async let count = repository.dutchStationCount()
+        async let second = repository.dutchStations()
         try await Task.sleep(for: .milliseconds(300))
         #expect(StubURLProtocol.requests.count == 1)
         StubURLProtocol.release()
 
         #expect(try await first.map(\.identifiers.code) == dutchCodes)
-        #expect(try await count == 4)
+        #expect(try await second.count == 4)
         #expect(StubURLProtocol.requests.count == 1)
     }
 
@@ -132,7 +132,7 @@ final class StationStoreTests {
         let repository = repository()
 
         let first = try await repository.dutchStations()
-        let count = try await repository.dutchStationCount()
+        let count = try await repository.dutchStations().count
         let again = try await repository.dutchStations()
 
         #expect(first.map(\.identifiers.code) == dutchCodes)
@@ -214,7 +214,7 @@ final class StationStoreTests {
         // The plain comparison the pickers use puts the apostrophe name
         // first. #25 changes the sort.
         #expect(try await repository.dutchStations().map(\.identifiers.code) == ["HT", "ASD", "UT", "ZL"])
-        #expect(try await repository.dutchStationCount() == 4)
+        #expect(try await repository.dutchStations().count == 4)
     }
 
     // MARK: - The app's one store
