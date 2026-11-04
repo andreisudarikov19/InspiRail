@@ -129,19 +129,20 @@ The old empty state ("Where to next?") stays as the last branch. No path reaches
   - `randomize(excludeHomeStation:)` is gone.
 - Produces, in the tests: `pickRecorder() -> (choose: ([Station]) -> Station?, pools: Recorder<[String]>)`, which records each pool's codes and returns its first station.
 
-- [ ] **Step 1: Write the failing tests** in `DiscoverPickTests.swift`, as `extension StationStoreTests`, each view model over a scratch suite with `homeStationCode` set, an in-memory logbook and `pickRecorder()`:
+- [x] **Step 1: Write the failing tests** in `DiscoverPickTests.swift`, as `extension StationStoreTests`, each view model over a scratch suite with `homeStationCode` set, an in-memory logbook and `pickRecorder()`:
   - `theFirstPickSkipsTheHomeStationAndVisitedStations`: home "UT", visits ASD. After `loadStations`: `pools.values == [["HT", "ZL"]]`, the station is HT.
   - `thePickAfterRetrySkipsThemToo`: replies `[.status(503), .status(503), .status(503), .stations]`; the load fails with no pool; after `retry`: `[["HT", "ZL"]]`, HT.
   - `randomizeSkipsThem`: home "UT", visits ASD, after the load: `randomize` chooses from `["ZL"]` (HT was just shown).
   - `aHomeStationChangedBetweenPicksCountsAtTheNextPick`: home "UT", no visits: the load's pool `["HT", "ASD", "ZL"]`; the suite's home set to "ZL": `randomize`'s pool `["ASD", "UT"]`.
   - `aVisitBetweenPicksCountsAtTheNextPick`: home "UT", no visits, after the load (HT): a visit to ASD inserted and not saved, as the card's toggle leaves it: `randomize`'s pool `["ZL"]`; with that visit deleted and saved, as Reset Logbook does: the next pool `["ASD"]` (HT and ZL recent).
   - `recentlyShownStationsComeBackOnlyWhenTheyAreAllThatIsLeft`: home "UT", visits ASD: the load and two Randomizes choose from `[["HT", "ZL"], ["ZL"], ["HT", "ZL"]]` and show HT, ZL, HT.
-- [ ] **Step 2: Run them to verify they fail.** Test command with `-only-testing:InspiRailTests/StationStoreTests`. Expected: a build failure, `extra arguments` or `argument passed to call that takes no arguments` for `DiscoveryViewModel(defaults:choose:)`.
-- [ ] **Step 3: Implement** as in Interfaces, with doc comments naming #23 and #29. `LoadRecoveryTests`' six Discover tests build their view model over a scratch suite and pass an empty in-memory logbook; their expectations don't change.
-- [ ] **Step 4: Discover.** `.task` calls `loadStations(from: stationsRepository, logbook: modelContext)`; Retry, `retry(from:logbook:)`; Randomize, `randomize(logbook: modelContext)`.
-- [ ] **Step 5: Run them to verify they pass.** Expected: the suite passes, with 6 new tests, and the six Discover tests in `LoadRecoveryTests` pass unchanged. Then the mutant of the history kept from `main`: without its filter, `recentlyShownStationsComeBackOnlyWhenTheyAreAllThatIsLeft` fails. Restore the file.
-- [ ] **Step 6: Typecheck.** Expected: 0 errors, 5 warnings.
-- [ ] **Step 7: Commit** `fix: never pick the home station or a visited station on Discover, on any pick (#23, #29)`
+- [x] **Step 2: Run them to verify they fail.** Test command with `-only-testing:InspiRailTests/StationStoreTests`. Expected: a build failure, `extra arguments` or `argument passed to call that takes no arguments` for `DiscoveryViewModel(defaults:choose:)`.
+- [x] **Step 3: Implement** as in Interfaces, with doc comments naming #23 and #29. `LoadRecoveryTests`' six Discover tests build their view model over a scratch suite and pass an empty in-memory logbook; their expectations don't change.
+- [x] **Step 4: Discover.** `.task` calls `loadStations(from: stationsRepository, logbook: modelContext)`; Retry, `retry(from:logbook:)`; Randomize, `randomize(logbook: modelContext)`.
+- [x] **Step 5: Run them to verify they pass.** Expected: the suite passes, with 6 new tests, and the six Discover tests in `LoadRecoveryTests` pass unchanged. Then the mutant of the history kept from `main`: without its filter, `recentlyShownStationsComeBackOnlyWhenTheyAreAllThatIsLeft` fails. Restore the file.
+  (Changed during execution: the tests build their view model and logbook through a helper, `discover(home:visits:in:)`, which `LoadRecoveryTests` uses too, with no home station; that file now imports SwiftData. Without the history's filter, `recentlyShownStationsComeBackOnlyWhenTheyAreAllThatIsLeft` fails, and so do `randomizeSkipsThem`, `aHomeStationChangedBetweenPicksCountsAtTheNextPick` and `aVisitBetweenPicksCountsAtTheNextPick`, whose exact pools leave out the station just shown. The store suite: 112 test functions, 177 cases, all passing. `DiscoveryView.swift`'s 4 empty blank lines inside code are indented, and the Randomize button's two lines lose their trailing spaces.)
+- [x] **Step 6: Typecheck.** Expected: 0 errors, 5 warnings.
+- [x] **Step 7: Commit** `fix: never pick the home station or a visited station on Discover, on any pick (#23, #29)`
 
 ### Task 3: The "all visited" state
 

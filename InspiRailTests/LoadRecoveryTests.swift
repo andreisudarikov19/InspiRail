@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import SwiftData
 import Testing
 @testable import InspiRail
 
@@ -19,9 +20,11 @@ extension StationStoreTests {
     ])
     func discoverOffersRetryOrKeyEntry(status: Int, action: RecoveryAction) async throws {
         StubURLProtocol.reset(replies: [.status(status)])
-        let viewModel = DiscoveryViewModel()
+        let (defaults, suite) = scratchDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let (viewModel, logbook, _) = try discover(home: "", visits: [], in: defaults)
 
-        await viewModel.loadStations(from: repository())
+        await viewModel.loadStations(from: repository(), logbook: logbook.mainContext)
 
         let failure = try #require(viewModel.failure)
         #expect(failure.action == action)
@@ -36,14 +39,16 @@ extension StationStoreTests {
     func discoverRetryShowsTheLoadingStateThenTheStation() async throws {
         StubURLProtocol.reset(replies: [.status(503), .status(503), .status(503), .stations])
         let repository = repository()
-        let viewModel = DiscoveryViewModel()
-        await viewModel.loadStations(from: repository)
+        let (defaults, suite) = scratchDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let (viewModel, logbook, _) = try discover(home: "", visits: [], in: defaults)
+        await viewModel.loadStations(from: repository, logbook: logbook.mainContext)
         #expect(viewModel.failure?.action == .retry)
         #expect(StubURLProtocol.requests.count == 3)
         StubURLProtocol.hold()
         defer { StubURLProtocol.release() }
 
-        let retry = Task { await viewModel.retry(from: repository) }
+        let retry = Task { await viewModel.retry(from: repository, logbook: logbook.mainContext) }
         await StubURLProtocol.waitForRequests(4)
         #expect(viewModel.isLoading)
         #expect(viewModel.failure == nil)
@@ -62,14 +67,16 @@ extension StationStoreTests {
     func discoverRetryShowsTheLoadingStateFromItsStart() async throws {
         StubURLProtocol.reset(replies: [.failure(.notConnectedToInternet), .stations])
         let repository = repository()
-        let viewModel = DiscoveryViewModel()
-        await viewModel.loadStations(from: repository)
+        let (defaults, suite) = scratchDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let (viewModel, logbook, _) = try discover(home: "", visits: [], in: defaults)
+        await viewModel.loadStations(from: repository, logbook: logbook.mainContext)
         #expect(viewModel.failure?.action == .retry)
         #expect(!viewModel.isLoading)
         StubURLProtocol.hold()
         defer { StubURLProtocol.release() }
 
-        let retry = Task { await viewModel.retry(from: repository) }
+        let retry = Task { await viewModel.retry(from: repository, logbook: logbook.mainContext) }
         // The yield lets the retry run up to its first await, on the store.
         // It resumes on the main actor only after these checks.
         await Task.yield()
@@ -91,15 +98,17 @@ extension StationStoreTests {
     func discoverRetryJoinsTheDownloadInFlight() async throws {
         StubURLProtocol.reset(replies: [.failure(.notConnectedToInternet), .stations])
         let repository = repository()
-        let viewModel = DiscoveryViewModel()
-        await viewModel.loadStations(from: repository)
+        let (defaults, suite) = scratchDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let (viewModel, logbook, _) = try discover(home: "", visits: [], in: defaults)
+        await viewModel.loadStations(from: repository, logbook: logbook.mainContext)
         #expect(viewModel.failure?.action == .retry)
         StubURLProtocol.hold()
         defer { StubURLProtocol.release() }
 
         let otherWindow = Task { try await repository.dutchStations() }
         await StubURLProtocol.waitForRequests(2)
-        let retry = Task { await viewModel.retry(from: repository) }
+        let retry = Task { await viewModel.retry(from: repository, logbook: logbook.mainContext) }
         try await Task.sleep(for: .milliseconds(300))
         #expect(StubURLProtocol.requests.count == 2)
         StubURLProtocol.release()
@@ -112,13 +121,15 @@ extension StationStoreTests {
     }
 
     @Test("Discover's Retry after a rejected key doesn't send the key again, and still leads to key entry")
-    func discoverRetryAfterARejectedKeySendsNothing() async {
+    func discoverRetryAfterARejectedKeySendsNothing() async throws {
         StubURLProtocol.reset(replies: [.status(401), .stations])
         let repository = repository()
-        let viewModel = DiscoveryViewModel()
-        await viewModel.loadStations(from: repository)
+        let (defaults, suite) = scratchDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let (viewModel, logbook, _) = try discover(home: "", visits: [], in: defaults)
+        await viewModel.loadStations(from: repository, logbook: logbook.mainContext)
 
-        await viewModel.retry(from: repository)
+        await viewModel.retry(from: repository, logbook: logbook.mainContext)
 
         #expect(viewModel.failure == LoadFailure(message: "NS didn't accept your API key. Check it in Settings.", action: .keyEntry))
         #expect(StubURLProtocol.requests.count == 1)
@@ -127,14 +138,16 @@ extension StationStoreTests {
     }
 
     @Test("A failed Retry on Discover shows its own error, reported once")
-    func discoverFailedRetryShowsTheNewError() async {
+    func discoverFailedRetryShowsTheNewError() async throws {
         StubURLProtocol.reset(replies: [.failure(.notConnectedToInternet), .status(503)])
         let repository = repository()
-        let viewModel = DiscoveryViewModel()
-        await viewModel.loadStations(from: repository)
+        let (defaults, suite) = scratchDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let (viewModel, logbook, _) = try discover(home: "", visits: [], in: defaults)
+        await viewModel.loadStations(from: repository, logbook: logbook.mainContext)
         #expect(viewModel.failure == LoadFailure(message: "Can't reach NS. Check your internet connection.", action: .retry))
 
-        await viewModel.retry(from: repository)
+        await viewModel.retry(from: repository, logbook: logbook.mainContext)
 
         #expect(viewModel.failure == LoadFailure(message: "NS isn't available right now. Try again later.", action: .retry))
         #expect(!viewModel.isLoading)

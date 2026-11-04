@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 import Combine
 import OSLog
 
@@ -27,10 +28,27 @@ class DiscoveryViewModel: ObservableObject {
     private var recentlyShown: [String] = []
     private let maxRecentHistory = 10
     
+    /// Where the home station is read from at each pick: the app's
+    /// defaults, which Settings and onboarding write. Tests pass a suite
+    /// of their own.
+    private let defaults: UserDefaults
+    /// Chooses the station shown from those a pick may show.
+    private let choose: ([Station]) -> Station?
+    
+    /// - Parameters:
+    ///   - defaults: Where the home station is read from at each pick.
+    ///   - choose: Chooses from the stations a pick may show; at random
+    ///     by default. Tests pass one they can follow.
+    init(defaults: UserDefaults = .standard, choose: @escaping ([Station]) -> Station? = { $0.randomElement() }) {
+        self.defaults = defaults
+        self.choose = choose
+    }
+    
     // MARK: - Public Methods
     
-    /// Loads the Dutch stations from the app's station store (#18).
-    func loadStations(from repository: StationsRepository) async {
+    /// Loads the Dutch stations from the app's station store (#18), and
+    /// picks a station if none is shown yet, from `logbook`'s visits.
+    func loadStations(from repository: StationsRepository, logbook: ModelContext) async {
         isLoading = true
         failure = nil
         
@@ -42,7 +60,7 @@ class DiscoveryViewModel: ObservableObject {
             
             // Pick a random initial station if we haven't already
             if station == nil {
-                randomize()
+                pick(logbook: logbook)
             }
             
             self.isLoading = false
@@ -62,31 +80,49 @@ class DiscoveryViewModel: ObservableObject {
     /// list, joins a download already in flight and keeps a refused key
     /// held back, so this never starts a second download or sends a key NS
     /// refused. Discover shows its loading state from the start.
-    func retry(from repository: StationsRepository) async {
+    func retry(from repository: StationsRepository, logbook: ModelContext) async {
         isLoading = true
         failure = nil
         await repository.forgetStations(keyChanged: false)
-        await loadStations(from: repository)
+        await loadStations(from: repository, logbook: logbook)
     }
     
-    func randomize(excludeHomeStation homeCode: String? = nil) {
+    /// Shows another station, from `logbook`'s visits.
+    func randomize(logbook: ModelContext) {
+        pick(logbook: logbook)
+    }
+    
+    func getStation(byCode code: String) -> Station? {
+        return allStations.first(where: { $0.identifiers.code == code })
+    }
+    
+    // MARK: - Private Methods
+    
+    /// Every pick: after loading, after Retry and Randomize. It reads the
+    /// home station and the visits itself, as they are now, so no caller
+    /// can leave them out (#23): a home station changed in Settings and a
+    /// visit marked in any window, saved or not, count at once. It picks a
+    /// collectable station with no visit (#29), skipping the last few
+    /// shown while others are left.
+    private func pick(logbook: ModelContext) {
         guard !allStations.isEmpty else { return }
         
-        // Filter out recently shown stations and home station for better variety
-        var availableStations = allStations.filter { station in
-            let isRecent = recentlyShown.contains(station.identifiers.code)
-            let isHome = station.identifiers.code == homeCode
-            return !isRecent && !isHome
-        }
+        let collection = StationCollection(homeStationCode: defaults.string(forKey: "homeStationCode") ?? "")
+        let pool = collection.unvisited(among: allStations, visitedCodes: visitedCodes(in: logbook))
+        
+        // Filter out recently shown stations for better variety
+        var availableStations = pool.filter { !recentlyShown.contains($0.identifiers.code) }
         
         // If we've filtered too much, reset recent history
         if availableStations.isEmpty {
             recentlyShown.removeAll()
-            availableStations = allStations.filter { $0.identifiers.code != homeCode }
+            availableStations = pool
         }
         
+        guard !availableStations.isEmpty else { return }
+        
         // Pick a random station
-        if let newStation = availableStations.randomElement() {
+        if let newStation = choose(availableStations) {
             station = newStation
             
             // Track this station
@@ -99,8 +135,15 @@ class DiscoveryViewModel: ObservableObject {
         }
     }
     
-    func getStation(byCode code: String) -> Station? {
-        return allStations.first(where: { $0.identifiers.code == code })
+    /// The codes of the stations in `logbook`, its changes not yet saved
+    /// included. When they can't be read, none, so Discover still picks.
+    private func visitedCodes(in logbook: ModelContext) -> Set<String> {
+        do {
+            return Set(try logbook.fetch(FetchDescriptor<VisitedStation>()).map(\.stationCode))
+        } catch {
+            logger.error("Couldn't read the visits: \(String(describing: error))")
+            return []
+        }
     }
 }
 

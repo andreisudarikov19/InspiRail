@@ -41,7 +41,7 @@ struct DiscoveryView: View {
                     endPoint: .bottomTrailing
                 )
                 .ignoresSafeArea()
-
+                
                 // MAIN LAYOUT
                 // We use spacing: 20 here to match the spacing inside stationDetailView
                 VStack(spacing: 20) {
@@ -68,13 +68,13 @@ struct DiscoveryView: View {
                         reportMissingStationStore(in: "Discover")
                         return
                     }
-                    await viewModel.loadStations(from: stationsRepository)
+                    await viewModel.loadStations(from: stationsRepository, logbook: modelContext)
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
         }
     }
-
+    
     // MARK: - STATION DETAIL
     private func stationDetailView(for station: Station) -> some View {
         // Internal Spacing: 20 (Matches Main Layout)
@@ -283,7 +283,7 @@ struct DiscoveryView: View {
             return "\(totalMinutes) min"
         }
     }
-
+    
     // MARK: - STANDARD COMPONENTS
     private var emptyStateView: some View {
         VStack(spacing: 16) {
@@ -304,8 +304,10 @@ struct DiscoveryView: View {
     }
     
     private var randomizeButton: some View {
-        Button(action: { 
-            viewModel.randomize(excludeHomeStation: homeStationCode) 
+        // The view model reads the home station and the visits itself
+        // (#23, #29)
+        Button(action: {
+            viewModel.randomize(logbook: modelContext)
         }) {
             HStack(spacing: 12) {
                 Image(systemName: "shuffle").font(.headline)
@@ -320,7 +322,7 @@ struct DiscoveryView: View {
         .disabled(!viewModel.isReady)
         .opacity(viewModel.isReady ? 1.0 : 0.6)
     }
-
+    
     private func toggleVisited(station: Station, alreadyVisited: Bool) {
         if alreadyVisited {
             if let existing = visitedStations.first(where: { $0.stationCode == station.identifiers.code }) { modelContext.delete(existing) }
@@ -354,7 +356,7 @@ struct DiscoveryView: View {
             reportMissingStationStore(in: "Discover")
             return
         }
-        Task { await viewModel.retry(from: stationsRepository) }
+        Task { await viewModel.retry(from: stationsRepository, logbook: modelContext) }
     }
 }
 
