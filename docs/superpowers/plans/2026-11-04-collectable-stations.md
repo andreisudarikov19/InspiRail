@@ -176,24 +176,39 @@ The old empty state ("Where to next?") stays as the last branch. No path reaches
 - Modify: `README.md:36` (the `Models/` line)
 - Modify: this plan (Measurements)
 
-- [ ] **Step 1: `CHANGELOG.md`.** 1.4.0's line becomes: "The home station's visit is left out of the visited count, as it already was from the timeline list (before, it counted toward the visited count). The total still counted every Dutch station, the home station included, so the percentage couldn't reach 100 %." Under `[Unreleased]`:
+- [x] **Step 1: `CHANGELOG.md`.** 1.4.0's line becomes: "The home station's visit is left out of the visited count, as it already was from the timeline list (before, it counted toward the visited count). The total still counted every Dutch station, the home station included, so the percentage couldn't reach 100 %." Under `[Unreleased]`:
   - `### Changed`: "Randomize never suggests a station that is already in the logbook. Once every station but the home station is visited, Discover says "You've visited all N stations." instead of suggesting one, with Randomize disabled, until a station is free again: after Reset Logbook, in any window, or a change of home station that frees one. A station marked visited stays on the card until the next Randomize."
   - `### Fixed`: "Discover never suggests the home station. Its first suggestion after loading could." / "The Logbook's percentage leaves the home station out: its total counts every Dutch station but the home station, so a logbook with every other station visited shows 100 %. The total follows a change of home station at once, also before the station list has loaded." / "Settings' Reset Logbook counts the visits the Logbook shows, so it leaves a visit to the home station out, and is disabled when the Logbook shows none. It still deletes every visit, the home station's included."
-- [ ] **Step 2: `README.md`.** The `Models/` line reads "SwiftData & Codable data models, logbook store, and the stations that count".
-- [ ] **Step 3: Builds and stub.**
+- [x] **Step 2: `README.md`.** The `Models/` line reads "SwiftData & Codable data models, logbook store, and the stations that count".
+- [x] **Step 3: Builds and stub.**
   - **Stub.** A scratch copy of the offline review stub (`.superpowers/scratch/review/runtime/stub/`) in the session's scratch directory, which answers only `gateway.apiportal.ns.nl` with `REVIEW_STUB_PAYLOAD` and never forwards a request. Its payload is a short list in NS's shape: six Dutch stations (Amsterdam Centraal ASD, Delft DT, Groningen GN, Leiden Centraal LEDN, Utrecht Centraal UT, Zwolle ZL) and one German one (Berlin Hbf BHF).
   - **Build.** A scratch worktree of this branch outside the repo, with a throwaway XCUITest driver in its `InspiRailUITests/` and that target added to the worktree's test plan, built with `build-for-testing` and its own `-derivedDataPath`. The driver launches the app with the stub and the dummy key `dummy-key` in `NS_API_KEY` (Debug), never a real key, reads the screen through the accessibility tree, prints `UIDRIVER` markers, and saves screenshots. The home station is chosen through onboarding (Start Exploring), not a launch argument, which would mask Settings' change.
   - **Runs.** `test-without-building -only-testing:… -parallel-testing-enabled NO` on `InspiRail-23`, erased first, the only simulator of ours booted, with `log stream` on the app's and the stub's subsystems; shut down after.
-- [ ] **Step 4: The cases.** Screenshots go to the session's scratch directory as `23-<case>-….png`.
+- [x] **Step 4: The cases.** Screenshots go to the session's scratch directory as `23-<case>-….png`.
   - (a) Home station: onboarding picks Utrecht Centraal; 20 loads (the first after Start Exploring, then 19 relaunches), each recording the card's station. None is Utrecht Centraal.
   - (b) Visited: Randomize and Mark as Visited three times, then 20 Randomizes: each shows one of the two stations left.
   - (c) All visited: mark the remaining stations; after the last, the card stays with "Visited"; Randomize shows "All Stations Visited" and "You've visited all 5 stations.", with Randomize disabled. Reset Logbook in Settings (Delete All); back on Discover, a pick, Randomize enabled.
   - (d) Logbook: with every station but Utrecht Centraal visited, "5 of 5" and 100 %. Settings' Home Station set to Amsterdam Centraal: "4 of 5", 80 %.
   - (e) Settings: Reset Logbook; mark one station visited and make it the home station: the Logbook shows "0 of 5", Settings' footer "This will remove all 0 stations from your history." and Reset Logbook disabled.
   - No log line holds the dummy key, and no fault or assertion is logged.
-- [ ] **Step 5: Clean up.** Delete the worktree, the derived data, the stub copy, any test clones (`xcrun simctl --set ~/Library/Developer/XCTestDevices list devices`), the simulator once the last run is done, and any crash reports the runs left in `~/Library/Logs/DiagnosticReports/`.
-- [ ] **Step 6: Commit** `docs: record the stations that count and Discover's "all visited" in the changelog, README and plan (#23, #29)`
+  (Changed during execution: the stub's copy needed no change, only the short payload, written by a script kept apart from it. The README's `Models/` line wraps onto a second line, as the layout's other long entries do. The simulator was erased once, before (a); the cases ran in order, each relaunching the app and carrying on from the state the previous one left, so (b) to (e) never set the home station by a launch argument. (d) also checked Discover after the home change, and (e)'s station happened to be Utrecht Centraal, which (d) had freed. Each case's numbers are under Measurements.)
+- [x] **Step 5: Clean up.** Delete the worktree, the derived data, the stub copy, any test clones (`xcrun simctl --set ~/Library/Developer/XCTestDevices list devices`), the simulator once the last run is done, and any crash reports the runs left in `~/Library/Logs/DiagnosticReports/`.
+- [x] **Step 6: Commit** `docs: record the stations that count and Discover's "all visited" in the changelog, README and plan (#23, #29)`
 
 ## Measurements
 
-To be filled in by Task 4.
+On the throwaway iPhone 15 simulator (iOS 26.3), `InspiRail-23`, erased once before (a), with a scratch copy of the offline stub serving the short list (six Dutch stations, one German), the dummy key `dummy-key` in `NS_API_KEY` and no real key, driven by a throwaway UI test outside the repo. The branch is c147141 (Task 3). Screenshots are in the session's scratch directory as `23-<case>-….png`. Every case passed.
+
+| Case | What was done | Seen |
+|---|---|---|
+| (a) Home station | Onboarding chose Utrecht Centraal and Start Exploring; then 19 relaunches: 20 loads | The 20 first picks: Amsterdam Centraal 4, Delft 5, Groningen 4, Leiden Centraal 4, Zwolle 3; Utrecht Centraal 0 times (`23-a-load-01.png`, `23-a-load-20.png`) |
+| (b) Visited | Three cards marked visited (Leiden Centraal, Amsterdam Centraal, Zwolle), each new; then 20 Randomizes | Every one of the 20 rolls was Delft or Groningen, the two stations left; 0 outside them (`23-b-roll-20.png`) |
+| (c) All visited | Groningen marked; Randomize showed Delft, the last, marked too; Randomize; then Settings, Reset Logbook, Delete All, and back to Discover | After the last mark the card stayed on Delft, reading "Visited" (`23-c-last-marked.png`). Randomize showed "All Stations Visited" and "You've visited all 5 stations.", no card, Randomize disabled and dimmed (`23-c-all-visited.png`). After Reset Logbook, Discover showed a pick, Zwolle, with Randomize enabled (`23-c-after-reset.png`) |
+| (d) Logbook | All five stations but Utrecht Centraal marked; then Settings' Home Station set to Amsterdam Centraal | The Logbook read "5 of 5", 100 % (VoiceOver: "5 of 5 stations visited, 100 percent", `23-d-logbook-100.png`). After the home change, "4 of 5", 80 % (`23-d-logbook-home-changed.png`): the total stays 5, one fewer than the six Dutch stations, since both home stations are in the list, and Amsterdam Centraal's visit no longer counts. Discover left "all visited" by itself and showed Utrecht Centraal, the station the change freed (`23-d-discover-freed.png`) |
+| (e) Settings | Reset Logbook; the card's station (Utrecht Centraal) marked visited and made the home station | The Logbook read "0 of 5", 0 % (`23-e-logbook.png`); Settings' footer read "This will remove all 0 stations from your history." and Reset Logbook was disabled (`23-e-settings.png`) |
+
+The 24 launches sent 24 requests, one each, all answered by the stub. No log line held the dummy key, and no fault or assertion was logged. On iPad, a Reset Logbook in another window reaches Discover through its `.onChange`; an iPhone has one window, so that path is covered by the view model's tests only.
+
+The default test plan passes 159 test functions, run as 224 cases, 0 skipped (139 and 204 on `main`). The typecheck prints 0 errors and 5 warnings, the same as on `main`.
+
+The first unit-test run of Task 1, which crashed in the test, left two InspiRail crash reports from its test clone, and the runs left three more from their clones (`UsageTrackingAgent`, `chronod`), each written within 4 s of one of those runs ending; all five were deleted. `gamed` reports from an Apple TV simulator this branch didn't create were left alone.
