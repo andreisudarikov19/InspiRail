@@ -240,4 +240,57 @@ extension StationStoreTests {
         #expect(viewModel.allVisitedCount == nil)
         #expect(viewModel.canRandomize)
     }
+
+    // MARK: - The card and the home station
+
+    @Test("A card whose station becomes the home station, as in Settings, is replaced by another pick")
+    func aCardThatBecomesTheHomeStationIsPickedAgain() async throws {
+        let (defaults, suite) = scratchDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let (viewModel, logbook, pools) = try discover(home: "UT", visits: [], in: defaults)
+        await viewModel.loadStations(from: repository(), logbook: logbook.mainContext)
+        #expect(viewModel.station?.identifiers.code == "HT")
+
+        defaults.set("HT", forKey: "homeStationCode")
+        viewModel.visitsOrHomeChanged(logbook: logbook.mainContext)
+
+        #expect(pools.values == [["HT", "ASD", "ZL"], ["ASD", "UT", "ZL"]])
+        #expect(viewModel.station?.identifiers.code == "ASD")
+        #expect(viewModel.allVisitedCount == nil)
+        #expect(viewModel.canRandomize)
+    }
+
+    @Test("A card whose station becomes the home station shows \"all visited\" when no other station is left")
+    func aCardThatBecomesTheHomeStationWithNoneLeftShowsAllVisited() async throws {
+        let (defaults, suite) = scratchDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let (viewModel, logbook, pools) = try discover(home: "UT", visits: ["ASD", "UT", "ZL"], in: defaults)
+        await viewModel.loadStations(from: repository(), logbook: logbook.mainContext)
+        #expect(viewModel.station?.identifiers.code == "HT")
+
+        defaults.set("HT", forKey: "homeStationCode")
+        viewModel.visitsOrHomeChanged(logbook: logbook.mainContext)
+
+        #expect(pools.values == [["HT"]])
+        #expect(viewModel.station == nil)
+        #expect(viewModel.allVisitedCount == 3)
+        #expect(!viewModel.canRandomize)
+    }
+
+    @Test("A home station changed to a station not on the card leaves the card")
+    func aHomeStationChangedToAnotherStationLeavesTheCard() async throws {
+        let (defaults, suite) = scratchDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let (viewModel, logbook, pools) = try discover(home: "UT", visits: [], in: defaults)
+        await viewModel.loadStations(from: repository(), logbook: logbook.mainContext)
+        #expect(viewModel.station?.identifiers.code == "HT")
+
+        defaults.set("ZL", forKey: "homeStationCode")
+        viewModel.visitsOrHomeChanged(logbook: logbook.mainContext)
+
+        #expect(pools.values == [["HT", "ASD", "ZL"]])
+        #expect(viewModel.station?.identifiers.code == "HT")
+        #expect(viewModel.allVisitedCount == nil)
+        #expect(viewModel.canRandomize)
+    }
 }

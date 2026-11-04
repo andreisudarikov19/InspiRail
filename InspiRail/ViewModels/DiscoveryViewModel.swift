@@ -106,10 +106,13 @@ class DiscoveryViewModel: ObservableObject {
     /// The visits or the home station changed, in any window. While every
     /// station is visited, picks again, so that "all visited" leaves by
     /// itself once a station is free: after Reset Logbook, or a home-station
-    /// change that frees one (#29). A station on the card stays, even once
-    /// it is marked visited, until the next Randomize.
+    /// change that frees one (#29). Picks again, too, when the station on
+    /// the card is now the home station, which Discover never suggests
+    /// (#23). Any other station on the card stays, even once it is marked
+    /// visited, until the next Randomize.
     func visitsOrHomeChanged(logbook: ModelContext) {
-        guard allVisitedCount != nil else { return }
+        let cardIsHome = station.map { !collection.counts($0.identifiers.code) } ?? false
+        guard allVisitedCount != nil || cardIsHome else { return }
         pick(logbook: logbook)
     }
     
@@ -118,6 +121,12 @@ class DiscoveryViewModel: ObservableObject {
     }
     
     // MARK: - Private Methods
+    
+    /// The stations that count, with the home station the defaults hold
+    /// now.
+    private var collection: StationCollection {
+        StationCollection(homeStationCode: defaults.string(forKey: "homeStationCode") ?? "")
+    }
     
     /// Every pick: after loading, after Retry and Randomize. It reads the
     /// home station and the visits itself, as they are now, so no caller
@@ -128,7 +137,7 @@ class DiscoveryViewModel: ObservableObject {
     private func pick(logbook: ModelContext) {
         guard !allStations.isEmpty else { return }
         
-        let collection = StationCollection(homeStationCode: defaults.string(forKey: "homeStationCode") ?? "")
+        let collection = self.collection
         let pool = collection.unvisited(among: allStations, visitedCodes: visitedCodes(in: logbook))
         
         // Every collectable station is visited: nothing to show (#29)
