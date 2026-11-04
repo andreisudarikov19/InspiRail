@@ -31,14 +31,14 @@
 
 ## Every Discover state
 
-Discover's body checks, in this order: loading, a pick, an error, all visited, then the old empty state. Randomize is enabled only by `DiscoveryViewModel.canRandomize`: once a load has succeeded and while not all visited; it is dimmed (opacity 0.6) when disabled, as now.
+Discover's body checks, in this order: loading, a pick, all visited, an error, then the old empty state. "All visited" comes before the error, as a pick does: it needs no network, and the store keeps its list for an hour while `.task` loads again each time the tab appears, so a reload that fails an hour later, offline or with no usable key, leaves the state showing instead of replacing it with "Connection Issue" (review fix 1). Randomize is enabled only by `DiscoveryViewModel.canRandomize`: once a load has succeeded and while not all visited; it is dimmed (opacity 0.6) when disabled, as now.
 
 | State | When | Shows | Title and text | Randomize |
 |---|---|---|---|---|
 | Loading | The first load, or a Retry, before any load has succeeded | Spinner | "Consulting the timetable..." | Disabled |
-| Error | A load failed and no station is shown | `ContentUnavailableView`, `wifi.slash` | "Connection Issue"; the failure's message, such as "Can't reach NS. Check your internet connection."; Retry or Open Settings (#21) | Disabled |
+| Error | A load failed, and neither a station nor "all visited" is shown | `ContentUnavailableView`, `wifi.slash` | "Connection Issue"; the failure's message, such as "Can't reach NS. Check your internet connection."; Retry or Open Settings (#21) | Disabled |
 | A pick | A collectable station that isn't visited was picked, or the picked one has been marked since | The station card | The station's name, type and first synonym; the map; Distance, Travel Time, Amenities, Assist; "Mark as Visited", or "Visited" once marked | Enabled |
-| All visited | No collectable station is left unvisited, at the first pick after loading or at a Randomize | `ContentUnavailableView`, `checkmark.seal` | "All Stations Visited"; "You've visited all 399 stations." (the collectable count) | Disabled |
+| All visited | No collectable station is left unvisited, at the first pick after loading or at a Randomize; a failed reload keeps it | `ContentUnavailableView`, `checkmark.seal` | "All Stations Visited"; "You've visited all 399 stations." (the collectable count) | Disabled |
 
 The old empty state ("Where to next?") stays as the last branch. No path reaches it: every pick sets a station or the "all visited" state, and the store never returns an empty list (#20). On `main` it showed only for a list holding nothing but the home station, which is now "all visited", with 0.
 
@@ -162,7 +162,7 @@ The old empty state ("Where to next?") stays as the last branch. No path reaches
   - `aHomeStationThatFreesAStationLeavesAllVisited`: home "UT", visits HT, ASD, ZL, all visited after the load; the suite's home set to "ZL", then `visitsOrHomeChanged`: the pool `["UT"]`, the station UT, `allVisitedCount == nil`.
 - [x] **Step 2: Run them to verify they fail.** Expected: a build failure, `value of type 'DiscoveryViewModel' has no member 'allVisitedCount'`.
 - [x] **Step 3: Implement** as in Interfaces.
-- [x] **Step 4: Discover.** After the error branch, `else if let count = viewModel.allVisitedCount { allVisitedView(count: count) }`: a `ContentUnavailableView` with `Label("All Stations Visited", systemImage: "checkmark.seal")` and `Text("You've visited all \(count) stations.")`, with no actions. Randomize is disabled and dimmed by `!viewModel.canRandomize`. On the `VStack` beside `.task`: `.onChange(of: visitedStations.map(\.stationCode))` and `.onChange(of: homeStationCode)`, each calling `viewModel.visitsOrHomeChanged(logbook: modelContext)`, with a comment naming Reset Logbook in any window and a freeing home change (#29).
+- [x] **Step 4: Discover.** After the error branch, `else if let count = viewModel.allVisitedCount { allVisitedView(count: count) }`: a `ContentUnavailableView` with `Label("All Stations Visited", systemImage: "checkmark.seal")` and `Text("You've visited all \(count) stations.")`, with no actions. Randomize is disabled and dimmed by `!viewModel.canRandomize`. On the `VStack` beside `.task`: `.onChange(of: visitedStations.map(\.stationCode))` and `.onChange(of: homeStationCode)`, each calling `viewModel.visitsOrHomeChanged(logbook: modelContext)`, with a comment naming Reset Logbook in any window and a freeing home change (#29). (Changed in review: the branch is now above the error branch; see Review fixes.)
 - [x] **Step 5: Run them to verify they pass.** Expected: the suite passes, with 4 new tests.
   (Changed during execution: `resetLogbookLeavesAllVisited` starts from a load with HT, ASD and ZL visited rather than from the previous test's state, and its pick is HT, the first of `["HT", "ASD", "ZL"]`. The store suite: 116 test functions, 181 cases, all passing.)
 - [x] **Step 6: Typecheck.** Expected: 0 errors, 5 warnings.

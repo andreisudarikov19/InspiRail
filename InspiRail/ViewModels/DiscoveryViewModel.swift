@@ -21,7 +21,8 @@ class DiscoveryViewModel: ObservableObject {
     @Published var failure: LoadFailure?
     /// How many stations there are to collect, once every one is visited
     /// (#29): Discover then shows "all visited" instead of a station, and
-    /// Randomize is disabled. Nil otherwise.
+    /// Randomize is disabled. Nil otherwise. A failed reload keeps it, and
+    /// Discover shows it above the error.
     @Published private(set) var allVisitedCount: Int?
     
     // MARK: - Private Properties

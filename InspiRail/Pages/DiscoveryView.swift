@@ -53,10 +53,12 @@ struct DiscoveryView: View {
                         // It will expand to fill available space because the Map inside is flexible
                         stationDetailView(for: station)
                             .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    } else if let count = viewModel.allVisitedCount {
+                        // Above the error, as a station is: it needs no
+                        // network, so a failed reload doesn't hide it (#29)
+                        allVisitedView(count: count)
                     } else if let failure = viewModel.failure {
                         errorView(for: failure)
-                    } else if let count = viewModel.allVisitedCount {
-                        allVisitedView(count: count)
                     } else {
                         emptyStateView
                     }

@@ -153,6 +153,30 @@ extension StationStoreTests {
         #expect(pools.values.isEmpty)
     }
 
+    @Test("A reload that fails once the stored list has expired keeps \"all visited\", which Discover shows above the error")
+    func aFailedReloadKeepsAllVisited() async throws {
+        StubURLProtocol.reset(replies: [.stations, .failure(.notConnectedToInternet)])
+        let (defaults, suite) = scratchDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let (viewModel, logbook, pools) = try discover(home: "UT", visits: ["HT", "ASD", "ZL"], in: defaults)
+        let clock = TestClock()
+        let repository = StationsRepository(backend: api(), now: { clock.now })
+        await viewModel.loadStations(from: repository, logbook: logbook.mainContext)
+        #expect(viewModel.allVisitedCount == 3)
+
+        // An hour later Discover appears again, offline
+        clock.advance(by: AppConfiguration.API.cacheLifetime)
+        await viewModel.loadStations(from: repository, logbook: logbook.mainContext)
+
+        #expect(StubURLProtocol.requests.count == 2)
+        #expect(viewModel.failure == LoadFailure(message: "Can't reach NS. Check your internet connection.", action: .retry))
+        #expect(viewModel.allVisitedCount == 3)
+        #expect(viewModel.station == nil)
+        #expect(viewModel.isReady)
+        #expect(!viewModel.canRandomize)
+        #expect(pools.values.isEmpty)
+    }
+
     @Test("Marking the last station keeps its card until the next Randomize, which shows \"all visited\"")
     func markingTheLastStationKeepsTheCardUntilTheNextRandomize() async throws {
         let (defaults, suite) = scratchDefaults()
