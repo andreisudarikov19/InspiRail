@@ -19,6 +19,10 @@ class DiscoveryViewModel: ObservableObject {
     /// Why the stations couldn't be loaded, and what Discover offers for
     /// it: Retry or Open Settings (#21).
     @Published var failure: LoadFailure?
+    /// How many stations there are to collect, once every one is visited
+    /// (#29): Discover then shows "all visited" instead of a station, and
+    /// Randomize is disabled. Nil otherwise.
+    @Published private(set) var allVisitedCount: Int?
     
     // MARK: - Private Properties
     private var allStations: [Station] = []
@@ -42,6 +46,12 @@ class DiscoveryViewModel: ObservableObject {
     init(defaults: UserDefaults = .standard, choose: @escaping ([Station]) -> Station? = { $0.randomElement() }) {
         self.defaults = defaults
         self.choose = choose
+    }
+    
+    /// Whether Randomize is enabled: once the stations have loaded, and
+    /// while a station is left to visit.
+    var canRandomize: Bool {
+        isReady && allVisitedCount == nil
     }
     
     // MARK: - Public Methods
@@ -92,6 +102,16 @@ class DiscoveryViewModel: ObservableObject {
         pick(logbook: logbook)
     }
     
+    /// The visits or the home station changed, in any window. While every
+    /// station is visited, picks again, so that "all visited" leaves by
+    /// itself once a station is free: after Reset Logbook, or a home-station
+    /// change that frees one (#29). A station on the card stays, even once
+    /// it is marked visited, until the next Randomize.
+    func visitsOrHomeChanged(logbook: ModelContext) {
+        guard allVisitedCount != nil else { return }
+        pick(logbook: logbook)
+    }
+    
     func getStation(byCode code: String) -> Station? {
         return allStations.first(where: { $0.identifiers.code == code })
     }
@@ -103,12 +123,21 @@ class DiscoveryViewModel: ObservableObject {
     /// can leave them out (#23): a home station changed in Settings and a
     /// visit marked in any window, saved or not, count at once. It picks a
     /// collectable station with no visit (#29), skipping the last few
-    /// shown while others are left.
+    /// shown while others are left. With none left, it shows "all visited".
     private func pick(logbook: ModelContext) {
         guard !allStations.isEmpty else { return }
         
         let collection = StationCollection(homeStationCode: defaults.string(forKey: "homeStationCode") ?? "")
         let pool = collection.unvisited(among: allStations, visitedCodes: visitedCodes(in: logbook))
+        
+        // Every collectable station is visited: nothing to show (#29)
+        guard !pool.isEmpty else {
+            station = nil
+            allVisitedCount = collection.stations(among: allStations).count
+            logger.debug("Every collectable station is visited")
+            return
+        }
+        allVisitedCount = nil
         
         // Filter out recently shown stations for better variety
         var availableStations = pool.filter { !recentlyShown.contains($0.identifiers.code) }
@@ -118,8 +147,6 @@ class DiscoveryViewModel: ObservableObject {
             recentlyShown.removeAll()
             availableStations = pool
         }
-        
-        guard !availableStations.isEmpty else { return }
         
         // Pick a random station
         if let newStation = choose(availableStations) {

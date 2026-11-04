@@ -55,6 +55,8 @@ struct DiscoveryView: View {
                             .transition(.opacity.combined(with: .move(edge: .bottom)))
                     } else if let failure = viewModel.failure {
                         errorView(for: failure)
+                    } else if let count = viewModel.allVisitedCount {
+                        allVisitedView(count: count)
                     } else {
                         emptyStateView
                     }
@@ -69,6 +71,14 @@ struct DiscoveryView: View {
                         return
                     }
                     await viewModel.loadStations(from: stationsRepository, logbook: modelContext)
+                }
+                // Reset Logbook in any window, or a home-station change that
+                // frees a station, ends "all visited" (#29)
+                .onChange(of: visitedStations.map(\.stationCode)) {
+                    viewModel.visitsOrHomeChanged(logbook: modelContext)
+                }
+                .onChange(of: homeStationCode) {
+                    viewModel.visitsOrHomeChanged(logbook: modelContext)
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
@@ -319,8 +329,8 @@ struct DiscoveryView: View {
             .shadow(color: .blue.opacity(0.3), radius: 10, x: 0, y: 5)
         }
         .buttonStyle(.plain)
-        .disabled(!viewModel.isReady)
-        .opacity(viewModel.isReady ? 1.0 : 0.6)
+        .disabled(!viewModel.canRandomize)
+        .opacity(viewModel.canRandomize ? 1.0 : 0.6)
     }
     
     private func toggleVisited(station: Station, alreadyVisited: Bool) {
@@ -346,6 +356,17 @@ struct DiscoveryView: View {
             Text(failure.message)
         } actions: {
             RecoveryButton(action: failure.action, retry: retry, enterKey: openSettings)
+        }
+    }
+    
+    /// Every station but the home one is visited (#29): no station to
+    /// show, and Randomize is disabled. It leaves by itself once a station
+    /// is free again.
+    private func allVisitedView(count: Int) -> some View {
+        ContentUnavailableView {
+            Label("All Stations Visited", systemImage: "checkmark.seal")
+        } description: {
+            Text("You've visited all \(count) stations.")
         }
     }
     

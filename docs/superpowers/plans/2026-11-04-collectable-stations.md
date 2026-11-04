@@ -155,18 +155,19 @@ The old empty state ("Where to next?") stays as the last branch. No path reaches
 - Consumes: Task 2's `pick(logbook:)` and Task 1's `StationCollection.stations(among:)`.
 - Produces, on `DiscoveryViewModel` (Decisions 5, 6): `@Published private(set) var allVisitedCount: Int?`; `var canRandomize: Bool`; `func visitsOrHomeChanged(logbook: ModelContext)`. A pick with an empty pool sets `station` to nil and `allVisitedCount` to the collectable count, without calling `choose`; any other pick clears it.
 
-- [ ] **Step 1: Write the failing tests** in `DiscoverPickTests.swift`:
+- [x] **Step 1: Write the failing tests** in `DiscoverPickTests.swift`:
   - `withEveryStationVisitedLoadingShowsAllVisited`: home "UT", visits HT, ASD, UT, ZL. After the load: `station == nil`, `allVisitedCount == 3`, `!canRandomize`, `isReady`, `!isLoading`, `failure == nil`, no pool.
   - `markingTheLastStationKeepsTheCardUntilTheNextRandomize`: home "UT", visits ASD, ZL; the load shows HT and `canRandomize`. A visit to HT inserted, then `visitsOrHomeChanged`: still HT, `allVisitedCount == nil`, `canRandomize`. `randomize`: `station == nil`, `allVisitedCount == 3`, `!canRandomize`.
   - `resetLogbookLeavesAllVisited`: from the state above, every visit deleted and saved, then `visitsOrHomeChanged`: a station from `["HT", "ASD", "ZL"]`, `allVisitedCount == nil`, `canRandomize`.
   - `aHomeStationThatFreesAStationLeavesAllVisited`: home "UT", visits HT, ASD, ZL, all visited after the load; the suite's home set to "ZL", then `visitsOrHomeChanged`: the pool `["UT"]`, the station UT, `allVisitedCount == nil`.
-- [ ] **Step 2: Run them to verify they fail.** Expected: a build failure, `value of type 'DiscoveryViewModel' has no member 'allVisitedCount'`.
-- [ ] **Step 3: Implement** as in Interfaces.
-- [ ] **Step 4: Discover.** After the error branch, `else if let count = viewModel.allVisitedCount { allVisitedView(count: count) }`: a `ContentUnavailableView` with `Label("All Stations Visited", systemImage: "checkmark.seal")` and `Text("You've visited all \(count) stations.")`, with no actions. Randomize is disabled and dimmed by `!viewModel.canRandomize`. On the `VStack` beside `.task`: `.onChange(of: visitedStations.map(\.stationCode))` and `.onChange(of: homeStationCode)`, each calling `viewModel.visitsOrHomeChanged(logbook: modelContext)`, with a comment naming Reset Logbook in any window and a freeing home change (#29).
-- [ ] **Step 5: Run them to verify they pass.** Expected: the suite passes, with 4 new tests.
-- [ ] **Step 6: Typecheck.** Expected: 0 errors, 5 warnings.
-- [ ] **Step 7: Run the default test plan.** Expected: `** TEST SUCCEEDED **`, 159 test functions (139, and 10 + 6 + 4 new), run as 224 cases, 0 skipped.
-- [ ] **Step 8: Commit** `feat: show "all visited" on Discover once every station but the home one is in the logbook (#29)`
+- [x] **Step 2: Run them to verify they fail.** Expected: a build failure, `value of type 'DiscoveryViewModel' has no member 'allVisitedCount'`.
+- [x] **Step 3: Implement** as in Interfaces.
+- [x] **Step 4: Discover.** After the error branch, `else if let count = viewModel.allVisitedCount { allVisitedView(count: count) }`: a `ContentUnavailableView` with `Label("All Stations Visited", systemImage: "checkmark.seal")` and `Text("You've visited all \(count) stations.")`, with no actions. Randomize is disabled and dimmed by `!viewModel.canRandomize`. On the `VStack` beside `.task`: `.onChange(of: visitedStations.map(\.stationCode))` and `.onChange(of: homeStationCode)`, each calling `viewModel.visitsOrHomeChanged(logbook: modelContext)`, with a comment naming Reset Logbook in any window and a freeing home change (#29).
+- [x] **Step 5: Run them to verify they pass.** Expected: the suite passes, with 4 new tests.
+  (Changed during execution: `resetLogbookLeavesAllVisited` starts from a load with HT, ASD and ZL visited rather than from the previous test's state, and its pick is HT, the first of `["HT", "ASD", "ZL"]`. The store suite: 116 test functions, 181 cases, all passing.)
+- [x] **Step 6: Typecheck.** Expected: 0 errors, 5 warnings.
+- [x] **Step 7: Run the default test plan.** Expected: `** TEST SUCCEEDED **`, 159 test functions (139, and 10 + 6 + 4 new), run as 224 cases, 0 skipped.
+- [x] **Step 8: Commit** `feat: show "all visited" on Discover once every station but the home one is in the logbook (#29)`
 
 ### Task 4: Record the fix, and check each state on a simulator
 

@@ -133,4 +133,87 @@ extension StationStoreTests {
         #expect(pools.values == [["HT", "ZL"], ["ZL"], ["HT", "ZL"]])
         #expect(shown == ["HT", "ZL", "HT"])
     }
+
+    // MARK: - All visited
+
+    @Test("With every collectable station visited, loading shows \"all visited\" with the count, no station, and Randomize disabled")
+    func withEveryStationVisitedLoadingShowsAllVisited() async throws {
+        let (defaults, suite) = scratchDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let (viewModel, logbook, pools) = try discover(home: "UT", visits: ["HT", "ASD", "UT", "ZL"], in: defaults)
+
+        await viewModel.loadStations(from: repository(), logbook: logbook.mainContext)
+
+        #expect(viewModel.station == nil)
+        #expect(viewModel.allVisitedCount == 3)
+        #expect(!viewModel.canRandomize)
+        #expect(viewModel.isReady)
+        #expect(!viewModel.isLoading)
+        #expect(viewModel.failure == nil)
+        #expect(pools.values.isEmpty)
+    }
+
+    @Test("Marking the last station keeps its card until the next Randomize, which shows \"all visited\"")
+    func markingTheLastStationKeepsTheCardUntilTheNextRandomize() async throws {
+        let (defaults, suite) = scratchDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let (viewModel, logbook, pools) = try discover(home: "UT", visits: ["ASD", "ZL"], in: defaults)
+        let context = logbook.mainContext
+        await viewModel.loadStations(from: repository(), logbook: context)
+        #expect(viewModel.station?.identifiers.code == "HT")
+        #expect(viewModel.canRandomize)
+
+        // The card's toggle, then what Discover does when the visits change
+        context.insert(VisitedStation(stationCode: "HT", stationName: "'s-Hertogenbosch"))
+        viewModel.visitsOrHomeChanged(logbook: context)
+
+        #expect(viewModel.station?.identifiers.code == "HT")
+        #expect(viewModel.allVisitedCount == nil)
+        #expect(viewModel.canRandomize)
+
+        viewModel.randomize(logbook: context)
+
+        #expect(viewModel.station == nil)
+        #expect(viewModel.allVisitedCount == 3)
+        #expect(!viewModel.canRandomize)
+        #expect(pools.values == [["HT"]])
+    }
+
+    @Test("Reset Logbook leaves \"all visited\" with a pick")
+    func resetLogbookLeavesAllVisited() async throws {
+        let (defaults, suite) = scratchDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let (viewModel, logbook, pools) = try discover(home: "UT", visits: ["HT", "ASD", "ZL"], in: defaults)
+        let context = logbook.mainContext
+        await viewModel.loadStations(from: repository(), logbook: context)
+        #expect(viewModel.allVisitedCount == 3)
+
+        for visit in try context.fetch(FetchDescriptor<VisitedStation>()) {
+            context.delete(visit)
+        }
+        try context.save()
+        viewModel.visitsOrHomeChanged(logbook: context)
+
+        #expect(pools.values == [["HT", "ASD", "ZL"]])
+        #expect(viewModel.station?.identifiers.code == "HT")
+        #expect(viewModel.allVisitedCount == nil)
+        #expect(viewModel.canRandomize)
+    }
+
+    @Test("A home-station change that frees a station leaves \"all visited\" with that station")
+    func aHomeStationThatFreesAStationLeavesAllVisited() async throws {
+        let (defaults, suite) = scratchDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let (viewModel, logbook, pools) = try discover(home: "UT", visits: ["HT", "ASD", "ZL"], in: defaults)
+        await viewModel.loadStations(from: repository(), logbook: logbook.mainContext)
+        #expect(viewModel.allVisitedCount == 3)
+
+        defaults.set("ZL", forKey: "homeStationCode")
+        viewModel.visitsOrHomeChanged(logbook: logbook.mainContext)
+
+        #expect(pools.values == [["UT"]])
+        #expect(viewModel.station?.identifiers.code == "UT")
+        #expect(viewModel.allVisitedCount == nil)
+        #expect(viewModel.canRandomize)
+    }
 }
