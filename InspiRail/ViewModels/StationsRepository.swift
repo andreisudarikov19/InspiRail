@@ -61,11 +61,6 @@ actor StationsRepository {
         return try await task.value
     }
     
-    /// How many Dutch stations there are.
-    func dutchStationCount() async throws -> Int {
-        try await dutchStations().count
-    }
-    
     /// Drops the stored list, so the next call downloads the stations again.
     ///
     /// - Parameter keyChanged: Whether the API key was saved or removed

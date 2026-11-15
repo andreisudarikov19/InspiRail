@@ -21,6 +21,7 @@ Both live in `InspiRail.xcodeproj/project.pbxproj` on the app target and flow th
 - The NS API key moves to a renamed Keychain service the first time the app needs it. A key saved by an earlier version is kept, and a key removed in Settings stays removed.
 - The user agent sent to the NS API reads `InspiRail/<version>`.
 - In Debug builds, an `NS_API_KEY` environment variable now takes precedence over a key stored in the Keychain. It is saved to the Keychain only when no key is stored yet, so it never replaces a key saved in Settings.
+- Randomize never suggests a station that is already in the logbook. Once every station but the home station is visited, Discover says "You've visited all N stations." instead of suggesting one, with Randomize disabled, until a station is free again: after Reset Logbook, in any window, or a change of home station that frees one. A station marked visited stays on the card until the next Randomize.
 
 ### Removed
 - The Info.plist key lookup and the Debug launch diagnostics (`APIKeySetupHelper`, `APIKeyDiagnostics`), which advised putting the key into Info.plist.
@@ -60,6 +61,9 @@ Both live in `InspiRail.xcodeproj/project.pbxproj` on the app target and flow th
 - When no API key is stored, or the stored one can't be used (it can't be read, or NS rejected or refused it), onboarding opens on a key step: it says InspiRail needs a free NS API key, links to apiportal.ns.nl, and takes the key there, instead of a station search over an error panel. After Save Key it loads the stations with the new key at once, with one request: the list, or why NS didn't accept the key, or Retry when NS couldn't be reached. The Settings sheet onboarding opened for the key is gone. On iPad, a key saved in one window's onboarding moves the other windows on too: to the station list when it works, to NS's answer when NS rejects or refuses it, or to Retry when NS couldn't be reached. No window shows an answer about a key another window has since replaced.
 - Onboarding's search field appears once the stations have loaded.
 - Tapping a station in onboarding selects it, with a checkmark, instead of ending onboarding; tapping another moves the selection. Start Exploring stores the home station and opens the tabs. Existing users, who already have a home station, go straight to the tabs as before.
+- Discover never suggests the home station. Its first suggestion after loading could.
+- The Logbook's percentage leaves the home station out: its total counts every Dutch station but the home station, so a logbook with every other station visited shows 100 %. The total follows a change of home station at once, also before the station list has loaded.
+- Settings' Reset Logbook counts the visits the Logbook shows, so it leaves a visit to the home station out, and is disabled when the Logbook shows none. It still deletes every visit, the home station's included.
 
 ---
 
@@ -81,7 +85,7 @@ Both live in `InspiRail.xcodeproj/project.pbxproj` on the app target and flow th
 - Empty state for the visited timeline: when no stations have been logged yet, the timeline section shows a friendly "No visits yet" prompt directing the user to the Discover tab.
 
 ### Fixed
-- The home station is now consistently excluded from both the timeline list and the progress percentage (previously it counted toward `%` but was filtered from the list).
+- The home station's visit is left out of the visited count, as it already was from the timeline list (before, it counted toward the visited count). The total still counted every Dutch station, the home station included, so the percentage couldn't reach 100 %.
 
 ---
 

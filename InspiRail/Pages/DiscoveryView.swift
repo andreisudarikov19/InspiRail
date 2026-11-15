@@ -41,7 +41,7 @@ struct DiscoveryView: View {
                     endPoint: .bottomTrailing
                 )
                 .ignoresSafeArea()
-
+                
                 // MAIN LAYOUT
                 // We use spacing: 20 here to match the spacing inside stationDetailView
                 VStack(spacing: 20) {
@@ -53,6 +53,10 @@ struct DiscoveryView: View {
                         // It will expand to fill available space because the Map inside is flexible
                         stationDetailView(for: station)
                             .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    } else if let count = viewModel.allVisitedCount {
+                        // Above the error, as a station is: it needs no
+                        // network, so a failed reload doesn't hide it (#29)
+                        allVisitedView(count: count)
                     } else if let failure = viewModel.failure {
                         errorView(for: failure)
                     } else {
@@ -68,13 +72,21 @@ struct DiscoveryView: View {
                         reportMissingStationStore(in: "Discover")
                         return
                     }
-                    await viewModel.loadStations(from: stationsRepository)
+                    await viewModel.loadStations(from: stationsRepository, logbook: modelContext)
+                }
+                // Reset Logbook in any window, or a home-station change that
+                // frees a station, ends "all visited" (#29)
+                .onChange(of: visitedStations.map(\.stationCode)) {
+                    viewModel.visitsOrHomeChanged(logbook: modelContext)
+                }
+                .onChange(of: homeStationCode) {
+                    viewModel.visitsOrHomeChanged(logbook: modelContext)
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
         }
     }
-
+    
     // MARK: - STATION DETAIL
     private func stationDetailView(for station: Station) -> some View {
         // Internal Spacing: 20 (Matches Main Layout)
@@ -283,7 +295,7 @@ struct DiscoveryView: View {
             return "\(totalMinutes) min"
         }
     }
-
+    
     // MARK: - STANDARD COMPONENTS
     private var emptyStateView: some View {
         VStack(spacing: 16) {
@@ -304,8 +316,10 @@ struct DiscoveryView: View {
     }
     
     private var randomizeButton: some View {
-        Button(action: { 
-            viewModel.randomize(excludeHomeStation: homeStationCode) 
+        // The view model reads the home station and the visits itself
+        // (#23, #29)
+        Button(action: {
+            viewModel.randomize(logbook: modelContext)
         }) {
             HStack(spacing: 12) {
                 Image(systemName: "shuffle").font(.headline)
@@ -317,10 +331,10 @@ struct DiscoveryView: View {
             .shadow(color: .blue.opacity(0.3), radius: 10, x: 0, y: 5)
         }
         .buttonStyle(.plain)
-        .disabled(!viewModel.isReady)
-        .opacity(viewModel.isReady ? 1.0 : 0.6)
+        .disabled(!viewModel.canRandomize)
+        .opacity(viewModel.canRandomize ? 1.0 : 0.6)
     }
-
+    
     private func toggleVisited(station: Station, alreadyVisited: Bool) {
         if alreadyVisited {
             if let existing = visitedStations.first(where: { $0.stationCode == station.identifiers.code }) { modelContext.delete(existing) }
@@ -347,6 +361,17 @@ struct DiscoveryView: View {
         }
     }
     
+    /// Every station but the home one is visited (#29): no station to
+    /// show, and Randomize is disabled. It leaves by itself once a station
+    /// is free again.
+    private func allVisitedView(count: Int) -> some View {
+        ContentUnavailableView {
+            Label("All Stations Visited", systemImage: "checkmark.seal")
+        } description: {
+            Text("You've visited all \(count) stations.")
+        }
+    }
+    
     /// Loads the stations again, in a task of its own, so that leaving
     /// Discover doesn't cut it short (#21).
     private func retry() {
@@ -354,7 +379,7 @@ struct DiscoveryView: View {
             reportMissingStationStore(in: "Discover")
             return
         }
-        Task { await viewModel.retry(from: stationsRepository) }
+        Task { await viewModel.retry(from: stationsRepository, logbook: modelContext) }
     }
 }
 
